@@ -1,0 +1,19 @@
+# binaries
+/bin/
+*.exe
+
+# Go build artifacts
+*.test
+*.out
+
+# Go workspace files
+go.work
+go.work.sum
+
+# Editor junk
+.vscode/
+.idea/
+.DS_Store
+
+# Logs
+*.log
