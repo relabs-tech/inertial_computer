@@ -3,9 +3,9 @@ package orientation
 // Pose is the canonical representation of orientation for your app.
 // Later this will be filled from the real IMU.
 type Pose struct {
-	Roll  float64
-	Pitch float64
-	Yaw   float64
+	Roll  float64 `json:"roll"`
+	Pitch float64 `json:"pitch"`
+	Yaw   float64 `json:"yaw"`
 }
 
 // Source is anything that can provide poses over time.
