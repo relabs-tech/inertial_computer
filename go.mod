@@ -2,10 +2,15 @@ module github.com/relabs-tech/inertial_computer
 
 go 1.25.5
 
-require github.com/eclipse/paho.mqtt.golang v1.5.1
+require (
+	github.com/adrianmo/go-nmea v1.10.0
+	github.com/eclipse/paho.mqtt.golang v1.5.1
+	github.com/jacobsa/go-serial v0.0.0-20180131005756-15cf729a72d4
+)
 
 require (
 	github.com/gorilla/websocket v1.5.3 // indirect
 	golang.org/x/net v0.44.0 // indirect
 	golang.org/x/sync v0.17.0 // indirect
+	golang.org/x/sys v0.36.0 // indirect
 )
