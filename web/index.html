@@ -1,313 +1,245 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Inertial Computer - MQTT Mock Data</title>
+  <meta charset="UTF-8" />
+  <title>Inertial Computer</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
+    :root {
+      --bg: #05060a;
+      --card-bg: #15171c;
+      --text: #e5e5e5;
+      --muted: #999;
+      --accent: #4fc3f7;
+      --label: #c586c0;
+      --shadow: 0 18px 40px rgba(0, 0, 0, 0.7);
+      --radius: 16px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
     body {
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
-      background: #111;
-      color: #eee;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      height: 100vh;
       margin: 0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+      background: radial-gradient(circle at top, #10131a 0, #05060a 45%, #000 100%);
+      color: var(--text);
     }
-    .layout {
+
+    .page {
+      min-height: 100vh;
       display: flex;
-      gap: 2rem;
-      flex-wrap: wrap;
       justify-content: center;
+      padding: 2rem 1.5rem 3rem;
     }
-    .card {
-      background: #1d1f21;
-      padding: 1.5rem 2rem;
-      border-radius: 12px;
-      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-      min-width: 280px;
-    }
-    h1, h2 {
-      margin-top: 0;
-      color: #9cdcfe;
-    }
-    h1 {
-      font-size: 1.4rem;
-      margin-bottom: 1rem;
-      text-align: center;
+
+    .app {
       width: 100%;
+      max-width: 1200px;
     }
+
+    h1 {
+      margin: 0 0 1.5rem;
+      font-size: 1.6rem;
+      font-weight: 600;
+      text-align: center;
+      color: var(--accent);
+    }
+
+    .subtitle {
+      text-align: center;
+      margin-bottom: 2rem;
+      font-size: 0.9rem;
+      color: var(--muted);
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 1.5rem;
+      align-items: stretch;
+    }
+
+    .card {
+      background: var(--card-bg);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.4rem;
+      box-shadow: var(--shadow);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      min-height: 180px;
+    }
+
     h2 {
-      font-size: 1.1rem;
-      margin-bottom: 1rem;
+      margin: 0 0 0.8rem;
+      font-size: 1.05rem;
+      color: var(--accent);
     }
+
     .value-row {
       display: flex;
       justify-content: space-between;
-      margin: 0.3rem 0;
-      font-size: 1rem;
+      font-size: 0.95rem;
+      margin: 0.15rem 0;
     }
+
     .label {
-      color: #c586c0;
+      color: var(--label);
     }
+
     .value {
       font-variant-numeric: tabular-nums;
       font-weight: 600;
     }
+
     .unit {
-      color: #888;
-      margin-left: 0.25rem;
+      margin-left: 0.2rem;
+      color: var(--muted);
+      font-weight: 400;
     }
+
     .status {
-      margin-top: 1rem;
-      font-size: 0.85rem;
-      color: #888;
+      margin-top: 0.75rem;
+      font-size: 0.8rem;
+      color: var(--muted);
     }
   </style>
 </head>
 <body>
-  <div class="layout">
-    <h1>Inertial Computer (MQTT Mock Data)</h1>
+  <div class="page">
+    <div class="app">
+      <h1>Inertial Computer (MQTT Data)</h1>
+      <div class="subtitle">Live data from IMUs, BMPs, GPS and fused orientation</div>
 
-    <!-- Orientation card -->
-    <div class="card">
-      <h2>Orientation</h2>
+      <div class="grid">
+        <!-- Orientation (raw) -->
+        <div class="card">
+          <h2>Orientation</h2>
+          <div class="value-row">
+            <div class="label">Roll</div>
+            <div class="value"><span id="roll">0.00</span><span class="unit">deg</span></div>
+          </div>
+          <div class="value-row">
+            <div class="label">Pitch</div>
+            <div class="value"><span id="pitch">0.00</span><span class="unit">deg</span></div>
+          </div>
+          <div class="value-row">
+            <div class="label">Yaw</div>
+            <div class="value"><span id="yaw">0.00</span><span class="unit">deg</span></div>
+          </div>
+          <div class="status" id="oriStatus">Orientation: connecting…</div>
+        </div>
 
-      <div class="value-row">
-        <div class="label">Roll</div>
-        <div class="value">
-          <span id="roll">0.00</span><span class="unit">deg</span>
+        <!-- Fused Orientation -->
+        <div class="card">
+          <h2>Fused Orientation</h2>
+          <div class="value-row">
+            <div class="label">Roll</div>
+            <div class="value"><span id="fuse-roll">0.00</span><span class="unit">deg</span></div>
+          </div>
+          <div class="value-row">
+            <div class="label">Pitch</div>
+            <div class="value"><span id="fuse-pitch">0.00</span><span class="unit">deg</span></div>
+          </div>
+          <div class="value-row">
+            <div class="label">Yaw</div>
+            <div class="value"><span id="fuse-yaw">0.00</span><span class="unit">deg</span></div>
+          </div>
+          <div class="status" id="fuseStatus">Fused: connecting…</div>
+        </div>
+
+        <!-- GPS -->
+        <div class="card">
+          <h2>GPS</h2>
+          <div class="value-row"><div class="label">Lat</div><div class="value"><span id="gps-lat">--</span></div></div>
+          <div class="value-row"><div class="label">Lon</div><div class="value"><span id="gps-lon">--</span></div></div>
+          <div class="value-row"><div class="label">Speed</div><div class="value"><span id="gps-speed">0.0</span><span class="unit">kn</span></div></div>
+          <div class="value-row"><div class="label">Course</div><div class="value"><span id="gps-course">0.0</span><span class="unit">deg</span></div></div>
+          <div class="value-row"><div class="label">Time</div><div class="value" id="gps-time">--</div></div>
+          <div class="value-row"><div class="label">Date</div><div class="value" id="gps-date">--</div></div>
+          <div class="value-row"><div class="label">Validity</div><div class="value" id="gps-validity">--</div></div>
+          <div class="status" id="gpsStatus">GPS: connecting…</div>
+        </div>
+
+        <!-- Left IMU -->
+        <div class="card">
+          <h2>Left IMU (raw)</h2>
+          <div class="value-row"><div class="label">Ax</div><div class="value"><span id="imu-left-ax">0</span></div></div>
+          <div class="value-row"><div class="label">Ay</div><div class="value"><span id="imu-left-ay">0</span></div></div>
+          <div class="value-row"><div class="label">Az</div><div class="value"><span id="imu-left-az">0</span></div></div>
+          <div class="value-row"><div class="label">Gx</div><div class="value"><span id="imu-left-gx">0</span></div></div>
+          <div class="value-row"><div class="label">Gy</div><div class="value"><span id="imu-left-gy">0</span></div></div>
+          <div class="value-row"><div class="label">Gz</div><div class="value"><span id="imu-left-gz">0</span></div></div>
+          <div class="value-row"><div class="label">Mx</div><div class="value"><span id="imu-left-mx">0</span></div></div>
+          <div class="value-row"><div class="label">My</div><div class="value"><span id="imu-left-my">0</span></div></div>
+          <div class="value-row"><div class="label">Mz</div><div class="value"><span id="imu-left-mz">0</span></div></div>
+          <div class="status" id="imuLeftStatus">Left IMU: connecting…</div>
+        </div>
+
+        <!-- Right IMU -->
+        <div class="card">
+          <h2>Right IMU (raw)</h2>
+          <div class="value-row"><div class="label">Ax</div><div class="value"><span id="imu-right-ax">0</span></div></div>
+          <div class="value-row"><div class="label">Ay</div><div class="value"><span id="imu-right-ay">0</span></div></div>
+          <div class="value-row"><div class="label">Az</div><div class="value"><span id="imu-right-az">0</span></div></div>
+          <div class="value-row"><div class="label">Gx</div><div class="value"><span id="imu-right-gx">0</span></div></div>
+          <div class="value-row"><div class="label">Gy</div><div class="value"><span id="imu-right-gy">0</span></div></div>
+          <div class="value-row"><div class="label">Gz</div><div class="value"><span id="imu-right-gz">0</span></div></div>
+          <div class="value-row"><div class="label">Mx</div><div class="value"><span id="imu-right-mx">0</span></div></div>
+          <div class="value-row"><div class="label">My</div><div class="value"><span id="imu-right-my">0</span></div></div>
+          <div class="value-row"><div class="label">Mz</div><div class="value"><span id="imu-right-mz">0</span></div></div>
+          <div class="status" id="imuRightStatus">Right IMU: connecting…</div>
+        </div>
+
+        <!-- Left Env -->
+        <div class="card">
+          <h2>Left Env (BMP)</h2>
+          <div class="value-row">
+            <div class="label">Temp</div>
+            <div class="value"><span id="env-left-temp">0.0</span><span class="unit">°C</span></div>
+          </div>
+          <div class="value-row">
+            <div class="label">Pressure</div>
+            <div class="value"><span id="env-left-press">0</span><span class="unit">Pa</span></div>
+          </div>
+          <div class="status" id="envLeftStatus">Left BMP: connecting…</div>
+        </div>
+
+        <!-- Right Env -->
+        <div class="card">
+          <h2>Right Env (BMP)</h2>
+          <div class="value-row">
+            <div class="label">Temp</div>
+            <div class="value"><span id="env-right-temp">0.0</span><span class="unit">°C</span></div>
+          </div>
+          <div class="value-row">
+            <div class="label">Pressure</div>
+            <div class="value"><span id="env-right-press">0</span><span class="unit">Pa</span></div>
+          </div>
+          <div class="status" id="envRightStatus">Right BMP: connecting…</div>
         </div>
       </div>
-
-      <div class="value-row">
-        <div class="label">Pitch</div>
-        <div class="value">
-          <span id="pitch">0.00</span><span class="unit">deg</span>
-        </div>
-      </div>
-
-      <div class="value-row">
-        <div class="label">Yaw</div>
-        <div class="value">
-          <span id="yaw">0.00</span><span class="unit">deg</span>
-        </div>
-      </div>
-
-      <div class="status" id="oriStatus">Orientation: connecting…</div>
-    </div>
-
-    <!-- GPS card -->
-    <div class="card">
-      <h2>GPS</h2>
-
-      <div class="value-row">
-        <div class="label">Lat</div>
-        <div class="value">
-          <span id="gps-lat">--</span>
-        </div>
-      </div>
-
-      <div class="value-row">
-        <div class="label">Lon</div>
-        <div class="value">
-          <span id="gps-lon">--</span>
-        </div>
-      </div>
-
-      <div class="value-row">
-        <div class="label">Speed</div>
-        <div class="value">
-          <span id="gps-speed">0.0</span><span class="unit">kn</span>
-        </div>
-      </div>
-
-      <div class="value-row">
-        <div class="label">Course</div>
-        <div class="value">
-          <span id="gps-course">0.0</span><span class="unit">deg</span>
-        </div>
-      </div>
-
-      <div class="value-row">
-        <div class="label">Time</div>
-        <div class="value" id="gps-time">--</div>
-      </div>
-
-      <div class="value-row">
-        <div class="label">Date</div>
-        <div class="value" id="gps-date">--</div>
-      </div>
-
-      <div class="value-row">
-        <div class="label">Validity</div>
-        <div class="value" id="gps-validity">--</div>
-      </div>
-
-      <div class="status" id="gpsStatus">GPS: connecting…</div>
     </div>
   </div>
-<!-- Fuseed Orientation card -->
-<div class="card">
-  <h2>Fused Orientation</h2>
-
-  <div class="value-row">
-    <div class="label">Roll</div>
-    <div class="value">
-      <span id="fuse-roll">0.00</span><span class="unit">deg</span>
-    </div>
-  </div>
-
-  <div class="value-row">
-    <div class="label">Pitch</div>
-    <div class="value">
-      <span id="fuse-pitch">0.00</span><span class="unit">deg</span>
-    </div>
-  </div>
-
-  <div class="value-row">
-    <div class="label">Yaw</div>
-    <div class="value">
-      <span id="fuse-yaw">0.00</span><span class="unit">deg</span>
-    </div>
-  </div>
-
-  <div class="status" id="fuseStatus">Fused: connecting…</div>
-</div>
-
-
-<!-- Left IMU -->
-<div class="card">
-  <h2>Left IMU (raw)</h2>
-
-  <div class="value-row"><div class="label">Ax</div><div class="value"><span id="imu-left-ax">0</span></div></div>
-  <div class="value-row"><div class="label">Ay</div><div class="value"><span id="imu-left-ay">0</span></div></div>
-  <div class="value-row"><div class="label">Az</div><div class="value"><span id="imu-left-az">0</span></div></div>
-
-  <div class="value-row"><div class="label">Gx</div><div class="value"><span id="imu-left-gx">0</span></div></div>
-  <div class="value-row"><div class="label">Gy</div><div class="value"><span id="imu-left-gy">0</span></div></div>
-  <div class="value-row"><div class="label">Gz</div><div class="value"><span id="imu-left-gz">0</span></div></div>
-
-  <div class="value-row"><div class="label">Mx</div><div class="value"><span id="imu-left-mx">0</span></div></div>
-  <div class="value-row"><div class="label">My</div><div class="value"><span id="imu-left-my">0</span></div></div>
-  <div class="value-row"><div class="label">Mz</div><div class="value"><span id="imu-left-mz">0</span></div></div>
-
-  <div class="status" id="imuLeftStatus">Left IMU: connecting…</div>
-</div>
-
-<!-- Right IMU -->
-<div class="card">
-  <h2>Right IMU (raw)</h2>
-
-  <div class="value-row"><div class="label">Ax</div><div class="value"><span id="imu-right-ax">0</span></div></div>
-  <div class="value-row"><div class="label">Ay</div><div class="value"><span id="imu-right-ay">0</span></div></div>
-  <div class="value-row"><div class="label">Az</div><div class="value"><span id="imu-right-az">0</span></div></div>
-
-  <div class="value-row"><div class="label">Gx</div><div class="value"><span id="imu-right-gx">0</span></div></div>
-  <div class="value-row"><div class="label">Gy</div><div class="value"><span id="imu-right-gy">0</span></div></div>
-  <div class="value-row"><div class="label">Gz</div><div class="value"><span id="imu-right-gz">0</span></div></div>
-
-  <div class="value-row"><div class="label">Mx</div><div class="value"><span id="imu-right-mx">0</span></div></div>
-  <div class="value-row"><div class="label">My</div><div class="value"><span id="imu-right-my">0</span></div></div>
-  <div class="value-row"><div class="label">Mz</div><div class="value"><span id="imu-right-mz">0</span></div></div>
-
-  <div class="status" id="imuRightStatus">Right IMU: connecting…</div>
-</div>
-
-<!-- Left Env (BMP) -->
-<div class="card">
-  <h2>Left Env (BMP)</h2>
-
-  <div class="value-row">
-    <div class="label">Temp</div>
-    <div class="value">
-      <span id="env-left-temp">0.0</span><span class="unit">°C</span>
-    </div>
-  </div>
-
-  <div class="value-row">
-    <div class="label">Pressure</div>
-    <div class="value">
-      <span id="env-left-press">0</span><span class="unit">Pa</span>
-    </div>
-  </div>
-
-  <div class="status" id="envLeftStatus">Left BMP: connecting…</div>
-</div>
-
-<!-- Right Env (BMP) -->
-<div class="card">
-  <h2>Right Env (BMP)</h2>
-
-  <div class="value-row">
-    <div class="label">Temp</div>
-    <div class="value">
-      <span id="env-right-temp">0.0</span><span class="unit">°C</span>
-    </div>
-  </div>
-
-  <div class="value-row">
-    <div class="label">Pressure</div>
-    <div class="value">
-      <span id="env-right-press">0</span><span class="unit">Pa</span>
-    </div>
-  </div>
-
-  <div class="status" id="envRightStatus">Right BMP: connecting…</div>
-</div>
-
-
 
   <script>
-    // Orientation elements
+    // === existing JS, just re-attached to new DOM ===
+
+    // Orientation
     const rollEl = document.getElementById('roll');
     const pitchEl = document.getElementById('pitch');
     const yawEl = document.getElementById('yaw');
     const oriStatusEl = document.getElementById('oriStatus');
 
-    // Fused Orientation elements
+    // Fused
     const fuseRollEl = document.getElementById('fuse-roll');
     const fusePitchEl = document.getElementById('fuse-pitch');
     const fuseYawEl = document.getElementById('fuse-yaw');
     const fuseStatusEl = document.getElementById('fuseStatus');
 
-    // IMU LEFT elements
-const imuLeftAx = document.getElementById('imu-left-ax');
-const imuLeftAy = document.getElementById('imu-left-ay');
-const imuLeftAz = document.getElementById('imu-left-az');
-const imuLeftGx = document.getElementById('imu-left-gx');
-const imuLeftGy = document.getElementById('imu-left-gy');
-const imuLeftGz = document.getElementById('imu-left-gz');
-const imuLeftMx = document.getElementById('imu-left-mx');
-const imuLeftMy = document.getElementById('imu-left-my');
-const imuLeftMz = document.getElementById('imu-left-mz');
-const imuLeftStatus = document.getElementById('imuLeftStatus');
-
-// IMU RIGHT elements
-const imuRightAx = document.getElementById('imu-right-ax');
-const imuRightAy = document.getElementById('imu-right-ay');
-const imuRightAz = document.getElementById('imu-right-az');
-const imuRightGx = document.getElementById('imu-right-gx');
-const imuRightGy = document.getElementById('imu-right-gy');
-const imuRightGz = document.getElementById('imu-right-gz');
-const imuRightMx = document.getElementById('imu-right-mx');
-const imuRightMy = document.getElementById('imu-right-my');
-const imuRightMz = document.getElementById('imu-right-mz');
-const imuRightStatus = document.getElementById('imuRightStatus');
-
-// ENV LEFT elements
-const envLeftTemp = document.getElementById('env-left-temp');
-const envLeftPress = document.getElementById('env-left-press');
-const envLeftStatus = document.getElementById('envLeftStatus');
-
-// ENV RIGHT elements
-const envRightTemp = document.getElementById('env-right-temp');
-const envRightPress = document.getElementById('env-right-press');
-const envRightStatus = document.getElementById('envRightStatus');
-
-
-
-    // GPS elements
+    // GPS
     const gpsLatEl = document.getElementById('gps-lat');
     const gpsLonEl = document.getElementById('gps-lon');
     const gpsSpeedEl = document.getElementById('gps-speed');
@@ -317,19 +249,49 @@ const envRightStatus = document.getElementById('envRightStatus');
     const gpsValidityEl = document.getElementById('gps-validity');
     const gpsStatusEl = document.getElementById('gpsStatus');
 
+    // IMU left
+    const imuLeftAx = document.getElementById('imu-left-ax');
+    const imuLeftAy = document.getElementById('imu-left-ay');
+    const imuLeftAz = document.getElementById('imu-left-az');
+    const imuLeftGx = document.getElementById('imu-left-gx');
+    const imuLeftGy = document.getElementById('imu-left-gy');
+    const imuLeftGz = document.getElementById('imu-left-gz');
+    const imuLeftMx = document.getElementById('imu-left-mx');
+    const imuLeftMy = document.getElementById('imu-left-my');
+    const imuLeftMz = document.getElementById('imu-left-mz');
+    const imuLeftStatus = document.getElementById('imuLeftStatus');
+
+    // IMU right
+    const imuRightAx = document.getElementById('imu-right-ax');
+    const imuRightAy = document.getElementById('imu-right-ay');
+    const imuRightAz = document.getElementById('imu-right-az');
+    const imuRightGx = document.getElementById('imu-right-gx');
+    const imuRightGy = document.getElementById('imu-right-gy');
+    const imuRightGz = document.getElementById('imu-right-gz');
+    const imuRightMx = document.getElementById('imu-right-mx');
+    const imuRightMy = document.getElementById('imu-right-my');
+    const imuRightMz = document.getElementById('imu-right-mz');
+    const imuRightStatus = document.getElementById('imuRightStatus');
+
+    // Env left/right
+    const envLeftTemp = document.getElementById('env-left-temp');
+    const envLeftPress = document.getElementById('env-left-press');
+    const envLeftStatus = document.getElementById('envLeftStatus');
+    const envRightTemp = document.getElementById('env-right-temp');
+    const envRightPress = document.getElementById('env-right-press');
+    const envRightStatus = document.getElementById('envRightStatus');
+
     async function fetchOrientation() {
       try {
         const res = await fetch('/api/orientation', { cache: 'no-store' });
         if (!res.ok) throw new Error('HTTP ' + res.status);
         const data = await res.json();
-
         rollEl.textContent = (data.roll ?? 0).toFixed(2);
         pitchEl.textContent = (data.pitch ?? 0).toFixed(2);
         yawEl.textContent = (data.yaw ?? 0).toFixed(2);
         oriStatusEl.textContent = 'Orientation: live from MQTT';
       } catch (err) {
         oriStatusEl.textContent = 'Orientation error: ' + err.message;
-        console.error('orientation fetch error:', err);
       }
     }
 
@@ -338,102 +300,20 @@ const envRightStatus = document.getElementById('envRightStatus');
         const res = await fetch('/api/orientation/fused', { cache: 'no-store' });
         if (!res.ok) throw new Error('HTTP ' + res.status);
         const data = await res.json();
-
         fuseRollEl.textContent = (data.roll ?? 0).toFixed(2);
         fusePitchEl.textContent = (data.pitch ?? 0).toFixed(2);
         fuseYawEl.textContent = (data.yaw ?? 0).toFixed(2);
         fuseStatusEl.textContent = 'Fused: live from MQTT';
       } catch (err) {
         fuseStatusEl.textContent = 'Fused error: ' + err.message;
-        console.error('fused orientation fetch error:', err);
       }
-    } 
-
-async function fetchIMULeft() {
-  try {
-    const res = await fetch('/api/imu/left', { cache: 'no-store' });
-    if (!res.ok) throw new Error('HTTP ' + res.status);
-    const d = await res.json();
-
-    imuLeftAx.textContent = d.ax ?? 0;
-    imuLeftAy.textContent = d.ay ?? 0;
-    imuLeftAz.textContent = d.az ?? 0;
-    imuLeftGx.textContent = d.gx ?? 0;
-    imuLeftGy.textContent = d.gy ?? 0;
-    imuLeftGz.textContent = d.gz ?? 0;
-    imuLeftMx.textContent = d.mx ?? 0;
-    imuLeftMy.textContent = d.my ?? 0;
-    imuLeftMz.textContent = d.mz ?? 0;
-
-    imuLeftStatus.textContent = 'Left IMU: live from MQTT';
-  } catch (err) {
-    imuLeftStatus.textContent = 'Left IMU error: ' + err.message;
-    console.error('IMU left fetch error:', err);
-  }
-}
-
-async function fetchIMURight() {
-  try {
-    const res = await fetch('/api/imu/right', { cache: 'no-store' });
-    if (!res.ok) throw new Error('HTTP ' + res.status);
-    const d = await res.json();
-
-    imuRightAx.textContent = d.ax ?? 0;
-    imuRightAy.textContent = d.ay ?? 0;
-    imuRightAz.textContent = d.az ?? 0;
-    imuRightGx.textContent = d.gx ?? 0;
-    imuRightGy.textContent = d.gy ?? 0;
-    imuRightGz.textContent = d.gz ?? 0;
-    imuRightMx.textContent = d.mx ?? 0;
-    imuRightMy.textContent = d.my ?? 0;
-    imuRightMz.textContent = d.mz ?? 0;
-
-    imuRightStatus.textContent = 'Right IMU: live from MQTT';
-  } catch (err) {
-    imuRightStatus.textContent = 'Right IMU error: ' + err.message;
-    console.error('IMU right fetch error:', err);
-  }
-}
-
-async function fetchEnvLeft() {
-  try {
-    const res = await fetch('/api/env/left', { cache: 'no-store' });
-    if (!res.ok) throw new Error('HTTP ' + res.status);
-    const d = await res.json();
-
-    envLeftTemp.textContent = (d.temp_c ?? 0).toFixed(1);
-    envLeftPress.textContent = Math.round(d.pressure_pa ?? 0);
-
-    envLeftStatus.textContent = 'Left BMP: live from MQTT';
-  } catch (err) {
-    envLeftStatus.textContent = 'Left BMP error: ' + err.message;
-    console.error('Env left fetch error:', err);
-  }
-}
-
-async function fetchEnvRight() {
-  try {
-    const res = await fetch('/api/env/right', { cache: 'no-store' });
-    if (!res.ok) throw new Error('HTTP ' + res.status);
-    const d = await res.json();
-
-    envRightTemp.textContent = (d.temp_c ?? 0).toFixed(1);
-    envRightPress.textContent = Math.round(d.pressure_pa ?? 0);
-
-    envRightStatus.textContent = 'Right BMP: live from MQTT';
-  } catch (err) {
-    envRightStatus.textContent = 'Right BMP error: ' + err.message;
-    console.error('Env right fetch error:', err);
-  }
-}
-
+    }
 
     async function fetchGPS() {
       try {
         const res = await fetch('/api/gps', { cache: 'no-store' });
         if (!res.ok) throw new Error('HTTP ' + res.status);
         const data = await res.json();
-
         gpsLatEl.textContent = (data.lat ?? 0).toFixed(6);
         gpsLonEl.textContent = (data.lon ?? 0).toFixed(6);
         gpsSpeedEl.textContent = (data.speed_knots ?? 0).toFixed(1);
@@ -444,30 +324,87 @@ async function fetchEnvRight() {
         gpsStatusEl.textContent = 'GPS: live from MQTT';
       } catch (err) {
         gpsStatusEl.textContent = 'GPS error: ' + err.message;
-        console.error('gps fetch error:', err);
       }
     }
 
-    // Poll regularly
-  setInterval(() => {
-  fetchOrientation();
-  fetchFusedOrientation();
-  fetchGPS();
-  fetchIMULeft();
-  fetchIMURight();
-  fetchEnvLeft();
-  fetchEnvRight();
-}, 500);
+    async function fetchIMULeft() {
+      try {
+        const res = await fetch('/api/imu/left', { cache: 'no-store' });
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const d = await res.json();
+        imuLeftAx.textContent = d.ax ?? 0;
+        imuLeftAy.textContent = d.ay ?? 0;
+        imuLeftAz.textContent = d.az ?? 0;
+        imuLeftGx.textContent = d.gx ?? 0;
+        imuLeftGy.textContent = d.gy ?? 0;
+        imuLeftGz.textContent = d.gz ?? 0;
+        imuLeftMx.textContent = d.mx ?? 0;
+        imuLeftMy.textContent = d.my ?? 0;
+        imuLeftMz.textContent = d.mz ?? 0;
+        imuLeftStatus.textContent = 'Left IMU: live from MQTT';
+      } catch (err) {
+        imuLeftStatus.textContent = 'Left IMU error: ' + err.message;
+      }
+    }
 
-// initial kick
-fetchOrientation();
-fetchFusedOrientation();
-fetchGPS();
-fetchIMULeft();
-fetchIMURight();
-fetchEnvLeft();
-fetchEnvRight();
+    async function fetchIMURight() {
+      try {
+        const res = await fetch('/api/imu/right', { cache: 'no-store' });
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const d = await res.json();
+        imuRightAx.textContent = d.ax ?? 0;
+        imuRightAy.textContent = d.ay ?? 0;
+        imuRightAz.textContent = d.az ?? 0;
+        imuRightGx.textContent = d.gx ?? 0;
+        imuRightGy.textContent = d.gy ?? 0;
+        imuRightGz.textContent = d.gz ?? 0;
+        imuRightMx.textContent = d.mx ?? 0;
+        imuRightMy.textContent = d.my ?? 0;
+        imuRightMz.textContent = d.mz ?? 0;
+        imuRightStatus.textContent = 'Right IMU: live from MQTT';
+      } catch (err) {
+        imuRightStatus.textContent = 'Right IMU error: ' + err.message;
+      }
+    }
 
+    async function fetchEnvLeft() {
+      try {
+        const res = await fetch('/api/env/left', { cache: 'no-store' });
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const d = await res.json();
+        envLeftTemp.textContent = (d.temp_c ?? 0).toFixed(1);
+        envLeftPress.textContent = Math.round(d.pressure_pa ?? 0);
+        envLeftStatus.textContent = 'Left BMP: live from MQTT';
+      } catch (err) {
+        envLeftStatus.textContent = 'Left BMP error: ' + err.message;
+      }
+    }
+
+    async function fetchEnvRight() {
+      try {
+        const res = await fetch('/api/env/right', { cache: 'no-store' });
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const d = await res.json();
+        envRightTemp.textContent = (d.temp_c ?? 0).toFixed(1);
+        envRightPress.textContent = Math.round(d.pressure_pa ?? 0);
+        envRightStatus.textContent = 'Right BMP: live from MQTT';
+      } catch (err) {
+        envRightStatus.textContent = 'Right BMP error: ' + err.message;
+      }
+    }
+
+    function tick() {
+      fetchOrientation();
+      fetchFusedOrientation();
+      fetchGPS();
+      fetchIMULeft();
+      fetchIMURight();
+      fetchEnvLeft();
+      fetchEnvRight();
+    }
+
+    setInterval(tick, 500);
+    tick();
   </script>
 </body>
 </html>
