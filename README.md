@@ -1,100 +1,26 @@
-# Inertial Computer Project
+# Inertial Computer
 
-## Overview
+Developer-oriented inertial sensing platform built in Go, designed around a message-bus (MQTT) architecture. The system reads multiple hardware sensors (IMUs, magnetometers, environmental sensors, GPS), publishes all data streams via MQTT, and exposes multiple consumers such as a console viewer and a web-based UI.
 
-The **Inertial Computer** project runs on a Raspberry Pi and integrates:
-
-- inertial orientation data (IMU)
-- GPS data (NMEA)
-
-Data is published via **MQTT** and consumed by multiple independent sinks, including:
-
-- a terminal-based console subscriber
-- a web-based UI served directly from the Pi
-
-The architecture is designed to be:
-
-- modular and extensible
-- hardware-agnostic at the application layer
-- easy to debug and evolve over time
+The core goals are:
+- clean separation between hardware access, data transport, and presentation
+- ability to add sensors or consumers without restructuring the system
+- support for raw data inspection and higher-level fused outputs
 
 ---
 
-## What This Repository Contains
+## What the system does
 
-This repository contains several Go executables (in `cmd/`) and shared internal packages (in `internal/`). Each executable has a single responsibility, and components communicate via MQTT.
+### Sensors / data sources
+- Left IMU (accelerometer + gyroscope + magnetometer)
+- Right IMU (accelerometer + gyroscope + magnetometer)
+- Left environmental sensor (BMP: temperature + pressure)
+- Right environmental sensor (BMP: temperature + pressure)
+- GPS (NMEA-based)
+- Fused orientation (roll / pitch / yaw)
 
-For a **detailed technical breakdown of the architecture**, data flow, and design decisions, see:
-
-➡ **ARCHITECTURE.md**
-
----
-
-## Main Components
-
-### Producers
-
-- **Orientation Producer** (`cmd/producer`)
-  - Reads orientation from a mock source (or real IMU later)
-  - Publishes `Pose` messages to MQTT topic `inertial/pose`
-
-- **GPS Producer** (`cmd/gps_producer`)
-  - Reads NMEA sentences from a serial GPS
-  - Publishes `Fix` messages to MQTT topic `inertial/gps`
-
-### Consumers
-
-- **Web Server** (`cmd/web`)
-  - Subscribes to both `inertial/pose` and `inertial/gps`
-  - Exposes `/api/orientation` and `/api/gps`
-  - Serves a web UI showing orientation and GPS panels
-
-- **Console Subscriber** (`cmd/console_mqtt`)
-  - Subscribes to both MQTT topics
-  - Prints orientation and GPS data to the terminal
+### Data consumers
+- Console MQTT subscriber
+- Web server + browser UI
 
 ---
-
-## MQTT Topics
-
-| Topic          | Payload | Description        |
-|---------------|---------|--------------------|
-| inertial/pose | Pose    | Orientation data   |
-| inertial/gps  | Fix     | GPS fix data       |
-
----
-
-## Running the System (Typical)
-
-On the Raspberry Pi, in separate terminals:
-
-```bash
-# Orientation producer (mock or real IMU)
-go run ./cmd/producer
-
-# GPS producer (NMEA → MQTT)
-go run ./cmd/gps_producer
-
-# Web server (MQTT → HTTP UI)
-go run ./cmd/web
-
-# Console subscriber (MQTT → terminal)
-go run ./cmd/console_mqtt
-```
-
-Then open a browser on your Mac:
-
-```text
-http://<pi-hostname-or-ip>:8080/
-```
-
----
-
-## Project Status
-
-- ✅ Mock orientation pipeline working
-- ✅ GPS data published via MQTT
-- ✅ Web UI shows orientation + GPS
-- ✅ Console subscriber prints orientation + GPS
-
-Next steps include swapping in real hardware sources and adding richer visualisation.

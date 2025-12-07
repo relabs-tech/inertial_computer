@@ -147,6 +147,116 @@
       <div class="status" id="gpsStatus">GPS: connecting…</div>
     </div>
   </div>
+<!-- Fuseed Orientation card -->
+<div class="card">
+  <h2>Fused Orientation</h2>
+
+  <div class="value-row">
+    <div class="label">Roll</div>
+    <div class="value">
+      <span id="fuse-roll">0.00</span><span class="unit">deg</span>
+    </div>
+  </div>
+
+  <div class="value-row">
+    <div class="label">Pitch</div>
+    <div class="value">
+      <span id="fuse-pitch">0.00</span><span class="unit">deg</span>
+    </div>
+  </div>
+
+  <div class="value-row">
+    <div class="label">Yaw</div>
+    <div class="value">
+      <span id="fuse-yaw">0.00</span><span class="unit">deg</span>
+    </div>
+  </div>
+
+  <div class="status" id="fuseStatus">Fused: connecting…</div>
+</div>
+
+
+<!-- Left IMU -->
+<div class="card">
+  <h2>Left IMU (raw)</h2>
+
+  <div class="value-row"><div class="label">Ax</div><div class="value"><span id="imu-left-ax">0</span></div></div>
+  <div class="value-row"><div class="label">Ay</div><div class="value"><span id="imu-left-ay">0</span></div></div>
+  <div class="value-row"><div class="label">Az</div><div class="value"><span id="imu-left-az">0</span></div></div>
+
+  <div class="value-row"><div class="label">Gx</div><div class="value"><span id="imu-left-gx">0</span></div></div>
+  <div class="value-row"><div class="label">Gy</div><div class="value"><span id="imu-left-gy">0</span></div></div>
+  <div class="value-row"><div class="label">Gz</div><div class="value"><span id="imu-left-gz">0</span></div></div>
+
+  <div class="value-row"><div class="label">Mx</div><div class="value"><span id="imu-left-mx">0</span></div></div>
+  <div class="value-row"><div class="label">My</div><div class="value"><span id="imu-left-my">0</span></div></div>
+  <div class="value-row"><div class="label">Mz</div><div class="value"><span id="imu-left-mz">0</span></div></div>
+
+  <div class="status" id="imuLeftStatus">Left IMU: connecting…</div>
+</div>
+
+<!-- Right IMU -->
+<div class="card">
+  <h2>Right IMU (raw)</h2>
+
+  <div class="value-row"><div class="label">Ax</div><div class="value"><span id="imu-right-ax">0</span></div></div>
+  <div class="value-row"><div class="label">Ay</div><div class="value"><span id="imu-right-ay">0</span></div></div>
+  <div class="value-row"><div class="label">Az</div><div class="value"><span id="imu-right-az">0</span></div></div>
+
+  <div class="value-row"><div class="label">Gx</div><div class="value"><span id="imu-right-gx">0</span></div></div>
+  <div class="value-row"><div class="label">Gy</div><div class="value"><span id="imu-right-gy">0</span></div></div>
+  <div class="value-row"><div class="label">Gz</div><div class="value"><span id="imu-right-gz">0</span></div></div>
+
+  <div class="value-row"><div class="label">Mx</div><div class="value"><span id="imu-right-mx">0</span></div></div>
+  <div class="value-row"><div class="label">My</div><div class="value"><span id="imu-right-my">0</span></div></div>
+  <div class="value-row"><div class="label">Mz</div><div class="value"><span id="imu-right-mz">0</span></div></div>
+
+  <div class="status" id="imuRightStatus">Right IMU: connecting…</div>
+</div>
+
+<!-- Left Env (BMP) -->
+<div class="card">
+  <h2>Left Env (BMP)</h2>
+
+  <div class="value-row">
+    <div class="label">Temp</div>
+    <div class="value">
+      <span id="env-left-temp">0.0</span><span class="unit">°C</span>
+    </div>
+  </div>
+
+  <div class="value-row">
+    <div class="label">Pressure</div>
+    <div class="value">
+      <span id="env-left-press">0</span><span class="unit">Pa</span>
+    </div>
+  </div>
+
+  <div class="status" id="envLeftStatus">Left BMP: connecting…</div>
+</div>
+
+<!-- Right Env (BMP) -->
+<div class="card">
+  <h2>Right Env (BMP)</h2>
+
+  <div class="value-row">
+    <div class="label">Temp</div>
+    <div class="value">
+      <span id="env-right-temp">0.0</span><span class="unit">°C</span>
+    </div>
+  </div>
+
+  <div class="value-row">
+    <div class="label">Pressure</div>
+    <div class="value">
+      <span id="env-right-press">0</span><span class="unit">Pa</span>
+    </div>
+  </div>
+
+  <div class="status" id="envRightStatus">Right BMP: connecting…</div>
+</div>
+
+
 
   <script>
     // Orientation elements
@@ -154,6 +264,48 @@
     const pitchEl = document.getElementById('pitch');
     const yawEl = document.getElementById('yaw');
     const oriStatusEl = document.getElementById('oriStatus');
+
+    // Fused Orientation elements
+    const fuseRollEl = document.getElementById('fuse-roll');
+    const fusePitchEl = document.getElementById('fuse-pitch');
+    const fuseYawEl = document.getElementById('fuse-yaw');
+    const fuseStatusEl = document.getElementById('fuseStatus');
+
+    // IMU LEFT elements
+const imuLeftAx = document.getElementById('imu-left-ax');
+const imuLeftAy = document.getElementById('imu-left-ay');
+const imuLeftAz = document.getElementById('imu-left-az');
+const imuLeftGx = document.getElementById('imu-left-gx');
+const imuLeftGy = document.getElementById('imu-left-gy');
+const imuLeftGz = document.getElementById('imu-left-gz');
+const imuLeftMx = document.getElementById('imu-left-mx');
+const imuLeftMy = document.getElementById('imu-left-my');
+const imuLeftMz = document.getElementById('imu-left-mz');
+const imuLeftStatus = document.getElementById('imuLeftStatus');
+
+// IMU RIGHT elements
+const imuRightAx = document.getElementById('imu-right-ax');
+const imuRightAy = document.getElementById('imu-right-ay');
+const imuRightAz = document.getElementById('imu-right-az');
+const imuRightGx = document.getElementById('imu-right-gx');
+const imuRightGy = document.getElementById('imu-right-gy');
+const imuRightGz = document.getElementById('imu-right-gz');
+const imuRightMx = document.getElementById('imu-right-mx');
+const imuRightMy = document.getElementById('imu-right-my');
+const imuRightMz = document.getElementById('imu-right-mz');
+const imuRightStatus = document.getElementById('imuRightStatus');
+
+// ENV LEFT elements
+const envLeftTemp = document.getElementById('env-left-temp');
+const envLeftPress = document.getElementById('env-left-press');
+const envLeftStatus = document.getElementById('envLeftStatus');
+
+// ENV RIGHT elements
+const envRightTemp = document.getElementById('env-right-temp');
+const envRightPress = document.getElementById('env-right-press');
+const envRightStatus = document.getElementById('envRightStatus');
+
+
 
     // GPS elements
     const gpsLatEl = document.getElementById('gps-lat');
@@ -181,6 +333,101 @@
       }
     }
 
+    async function fetchFusedOrientation() {
+      try {
+        const res = await fetch('/api/orientation/fused', { cache: 'no-store' });
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const data = await res.json();
+
+        fuseRollEl.textContent = (data.roll ?? 0).toFixed(2);
+        fusePitchEl.textContent = (data.pitch ?? 0).toFixed(2);
+        fuseYawEl.textContent = (data.yaw ?? 0).toFixed(2);
+        fuseStatusEl.textContent = 'Fused: live from MQTT';
+      } catch (err) {
+        fuseStatusEl.textContent = 'Fused error: ' + err.message;
+        console.error('fused orientation fetch error:', err);
+      }
+    } 
+
+async function fetchIMULeft() {
+  try {
+    const res = await fetch('/api/imu/left', { cache: 'no-store' });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const d = await res.json();
+
+    imuLeftAx.textContent = d.ax ?? 0;
+    imuLeftAy.textContent = d.ay ?? 0;
+    imuLeftAz.textContent = d.az ?? 0;
+    imuLeftGx.textContent = d.gx ?? 0;
+    imuLeftGy.textContent = d.gy ?? 0;
+    imuLeftGz.textContent = d.gz ?? 0;
+    imuLeftMx.textContent = d.mx ?? 0;
+    imuLeftMy.textContent = d.my ?? 0;
+    imuLeftMz.textContent = d.mz ?? 0;
+
+    imuLeftStatus.textContent = 'Left IMU: live from MQTT';
+  } catch (err) {
+    imuLeftStatus.textContent = 'Left IMU error: ' + err.message;
+    console.error('IMU left fetch error:', err);
+  }
+}
+
+async function fetchIMURight() {
+  try {
+    const res = await fetch('/api/imu/right', { cache: 'no-store' });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const d = await res.json();
+
+    imuRightAx.textContent = d.ax ?? 0;
+    imuRightAy.textContent = d.ay ?? 0;
+    imuRightAz.textContent = d.az ?? 0;
+    imuRightGx.textContent = d.gx ?? 0;
+    imuRightGy.textContent = d.gy ?? 0;
+    imuRightGz.textContent = d.gz ?? 0;
+    imuRightMx.textContent = d.mx ?? 0;
+    imuRightMy.textContent = d.my ?? 0;
+    imuRightMz.textContent = d.mz ?? 0;
+
+    imuRightStatus.textContent = 'Right IMU: live from MQTT';
+  } catch (err) {
+    imuRightStatus.textContent = 'Right IMU error: ' + err.message;
+    console.error('IMU right fetch error:', err);
+  }
+}
+
+async function fetchEnvLeft() {
+  try {
+    const res = await fetch('/api/env/left', { cache: 'no-store' });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const d = await res.json();
+
+    envLeftTemp.textContent = (d.temp_c ?? 0).toFixed(1);
+    envLeftPress.textContent = Math.round(d.pressure_pa ?? 0);
+
+    envLeftStatus.textContent = 'Left BMP: live from MQTT';
+  } catch (err) {
+    envLeftStatus.textContent = 'Left BMP error: ' + err.message;
+    console.error('Env left fetch error:', err);
+  }
+}
+
+async function fetchEnvRight() {
+  try {
+    const res = await fetch('/api/env/right', { cache: 'no-store' });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const d = await res.json();
+
+    envRightTemp.textContent = (d.temp_c ?? 0).toFixed(1);
+    envRightPress.textContent = Math.round(d.pressure_pa ?? 0);
+
+    envRightStatus.textContent = 'Right BMP: live from MQTT';
+  } catch (err) {
+    envRightStatus.textContent = 'Right BMP error: ' + err.message;
+    console.error('Env right fetch error:', err);
+  }
+}
+
+
     async function fetchGPS() {
       try {
         const res = await fetch('/api/gps', { cache: 'no-store' });
@@ -202,13 +449,25 @@
     }
 
     // Poll regularly
-    setInterval(() => {
-      fetchOrientation();
-      fetchGPS();
-    }, 500);
+  setInterval(() => {
+  fetchOrientation();
+  fetchFusedOrientation();
+  fetchGPS();
+  fetchIMULeft();
+  fetchIMURight();
+  fetchEnvLeft();
+  fetchEnvRight();
+}, 500);
 
-    fetchOrientation();
-    fetchGPS();
+// initial kick
+fetchOrientation();
+fetchFusedOrientation();
+fetchGPS();
+fetchIMULeft();
+fetchIMURight();
+fetchEnvLeft();
+fetchEnvRight();
+
   </script>
 </body>
 </html>

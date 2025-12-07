@@ -1,77 +1,51 @@
-# Inertial Computer – Architecture and Design
+# Architecture – Inertial Computer
 
-This document describes the internal architecture of the **Inertial Computer** project: data flow, package structure, core data models, and design principles.
-
----
-
-## 1. Architectural Overview
-
-The system is structured around **MQTT as a central event bus**.
-
-```
-┌────────────┐
-│ IMU / GPS  │   (real HW later, mock today)
-└─────┬──────┘
-      │
-      ▼
-┌────────────┐
-│ Producers  │  cmd/producer, cmd/gps_producer
-│ (Go apps)  │
-└─────┬──────┘
-      │  MQTT (JSON)
-      ▼
-┌────────────┐
-│ Mosquitto  │  tcp://localhost:1883
-│  Broker    │
-└─────┬──────┘
-      │
-      ├──────────────┐
-      ▼              ▼
-┌────────────┐  ┌────────────┐
-│ Console    │  │ Web Server │
-│ Subscriber │  │ + Browser  │
-└────────────┘  └────────────┘
-```
-
-Key properties:
-
-- producers do not know consumers
-- consumers do not know producers
-- components can restart independently
+This document describes the internal architecture, data flow, and design rationale of the *Inertial Computer* project. It is intended for developers working on sensor integration, fusion algorithms, or system extensions.
 
 ---
 
-## 2. Repository Structure
+## 1. Architectural overview
 
-```
-inertial_computer/
-├── cmd/
-│   ├── producer/        # Orientation producer (IMU or mock)
-│   ├── gps_producer/    # GPS (NMEA) producer
-│   ├── console/         # direct console (legacy / testing)
-│   ├── console_mqtt/    # MQTT console subscriber
-│   └── web/             # Web server (MQTT subscriber + UI)
-│
-├── internal/
-│   ├── app/             # application orchestration logic
-│   ├── orientation/     # orientation domain (Pose, Source)
-│   └── gps/             # GPS domain (Fix)
-│
-├── web/                 # static web UI
-├── go.mod
-├── go.sum
+The system is built around **MQTT as a message bus**.
+
+```text
+┌──────────────┐
+│ Sensors      │
+│ IMU / BMP / │
+│ GPS          │
+└──────┬───────┘
+       │
+       ▼
+┌────────────────┐
+│ Producers      │
+│ (cmd/*)        │
+└──────┬─────────┘
+       │ MQTT (JSON)
+       ▼
+┌────────────────┐
+│ Mosquitto      │
+│ Broker         │
+└──────┬─────────┘
+       │
+       ├───────────────────┐
+       ▼                   ▼
+┌──────────────┐   ┌────────────────┐
+│ Console      │   │ Web Server +    │
+│ Subscriber   │   │ Web UI          │
+└──────────────┘   └────────────────┘
 ```
 
-Rules applied:
-- one executable per folder under `cmd/`
-- `internal/` packages cannot be imported externally
-- domain packages contain no transport or UI code
+Characteristics:
+
+- producers and consumers are fully decoupled
+- any component can be restarted independently
+- multiple sinks can consume the same data
 
 ---
 
-## 3. Core Domain Models
+## 2. Domain model
 
-### 3.1 Orientation
+### 2.1 Orientation
 
 ```go
 type Pose struct {
@@ -81,15 +55,63 @@ type Pose struct {
 }
 ```
 
-Published on MQTT topic:
+Used for:
 
-```
-inertial/pose
-```
+- raw orientation estimates
+- fused orientation output
+
+Published on:
+
+- `inertial/pose`
+- `inertial/pose/fused`
 
 ---
 
-### 3.2 GPS
+### 2.2 Raw IMU data
+
+```go
+type IMURaw struct {
+    Source string `json:"source"` // "left" | "right"
+
+    Ax int16 `json:"ax"`
+    Ay int16 `json:"ay"`
+    Az int16 `json:"az"`
+
+    Gx int16 `json:"gx"`
+    Gy int16 `json:"gy"`
+    Gz int16 `json:"gz"`
+
+    Mx int16 `json:"mx"`
+    My int16 `json:"my"`
+    Mz int16 `json:"mz"`
+}
+```
+
+Published on:
+
+- `inertial/imu/left`
+- `inertial/imu/right`
+
+---
+
+### 2.3 Environmental data (BMP)
+
+```go
+type Sample struct {
+    Source string  `json:"source"` // "left" | "right"
+    Temperature float64 `json:"temp_c"`
+    Pressure    float64 `json:"pressure_pa"`
+}
+```
+
+Published on:
+
+- `inertial/bmp/left`
+- `inertial/bmp/right`
+
+---
+
+### 2.4 GPS
 
 ```go
 type Fix struct {
@@ -103,124 +125,136 @@ type Fix struct {
 }
 ```
 
-Published on MQTT topic:
+Published on:
 
-```
-inertial/gps
-```
+- `inertial/gps`
 
 ---
 
-## 4. Orientation Source Abstraction
+## 3. Hardware abstraction
 
-Orientation data is produced through an interface:
+All direct sensor access is isolated in:
 
-```go
-type Source interface {
-    Next() (Pose, error)
-}
+```
+internal/sensors/
 ```
 
-Implementations:
+This layer is responsible for:
 
-- `mockSource` – deterministic mock for testing
-- `imuSource` – future implementation backed by periph.io
+- talking to periph.io drivers
+- handling I2C/SPI details
+- converting driver output into domain structs
 
-This allows hardware and application logic to evolve independently.
-
----
-
-## 5. Producers
-
-### Orientation Producer
-
-- owns timing
-- accesses IMU or mock source
-- publishes Pose JSON to MQTT
-
-### GPS Producer
-
-- reads NMEA from serial port
-- parses sentences
-- constructs Fix values
-- publishes Fix JSON to MQTT
-
-Neither producer has any knowledge of consumers.
+The rest of the system **never** imports periph or hardware-specific code.
 
 ---
 
-## 6. Consumers
+## 4. Producers
 
-### Web Server
+### 4.1 Main sensor producer (`cmd/producer`)
 
 Responsibilities:
 
-- subscribe to `inertial/pose` and `inertial/gps`
-- store latest Pose and Fix
-- expose REST endpoints:
+- read left/right IMU data (accel + gyro + mag)
+- read left/right BMP data
+- compute orientation estimates
+- publish raw + fused data to MQTT
 
-```
+The current fused pose may be derived from a single IMU; future work will introduce true multi-sensor fusion.
+
+---
+
+### 4.2 GPS producer (`cmd/gps_producer`)
+
+Responsibilities:
+
+- read NMEA sentences from serial port
+- parse RMC (and later GGA) messages
+- publish GPS fixes to MQTT
+
+---
+
+## 5. Consumers
+
+### 5.1 Console subscriber (`cmd/console_mqtt`)
+
+- subscribes to all MQTT topics
+- decodes JSON payloads
+- prints structured human-readable output
+
+Used primarily for:
+
+- debugging
+- validation during sensor integration
+- headless operation
+
+---
+
+### 5.2 Web server (`cmd/web`)
+
+Responsibilities:
+
+- subscribe to MQTT topics
+- store latest values per stream
+- expose REST-style APIs:
+
+```text
 /api/orientation
+/api/orientation/fused
+/api/imu/left
+/api/imu/right
+/api/env/left
+/api/env/right
 /api/gps
 ```
 
-- serve static web UI
+- serve a static HTML/JS dashboard
 
-### Console Subscriber
-
-Responsibilities:
-
-- subscribe to both MQTT topics
-- decode JSON payloads
-- print human-readable output
+The UI polls these APIs periodically. WebSockets are a possible future enhancement.
 
 ---
 
-## 7. Web UI
+## 6. Fusion strategy (current and future)
 
-The UI is a static HTML application served by the Go web server.
+Current state:
 
-Features:
+- fused pose == left IMU-derived pose
+- magnetometer data is published but not yet used for yaw stabilization
 
-- orientation panel (roll / pitch / yaw)
-- GPS panel (lat / lon / speed / course / time / date)
-- regular polling of REST endpoints
+Planned evolution:
 
-Future upgrades:
+- gyro integration + accelerometer correction
+- magnetometer-based yaw alignment
+- left/right IMU cross-checking
+- optional extended Kalman filter (EKF)
 
-- WebSocket push model
-- 3D orientation rendering
-
----
-
-## 8. Design Principles
-
-- separation of concerns
-- explicit data ownership
-- interface-driven design
-- immutable domain values
-- MQTT as a message bus
-- multiple independent sinks
+Fusion will remain internal to the producer and will not affect consumers.
 
 ---
 
-## 9. Evolution Path
+## 7. Key architectural decisions
 
-Natural next steps:
-
-- replace mock orientation with real IMU source
-- fuse multiple GPS sentence types (RMC + GGA)
-- add persistent logging / recording
-- introduce playback / simulation mode
-- switch web polling to WebSockets
-- add 3D visualisation
+- MQTT chosen over direct RPC to simplify fan-out
+- JSON used for debuggability and inspection
+- strict separation between domain, transport, and hardware
+- `internal/` used to prevent external coupling
 
 ---
 
-## 10. Key Takeaway
+## 8. Extension ideas
 
-> Hardware is isolated.
-> Data flows through MQTT.
-> Consumers are independent.
-> The system scales without architectural rewrites.
+- data logging + replay mode
+- offline analysis tooling
+- WebSocket streaming
+- 3D visualization (three.js)
+- additional sensors (e.g. airspeed, wheel encoders)
+
+---
+
+## 9. Guiding principle
+
+> Add sensors freely.
+> Fuse intelligently.
+> Consume everywhere.
+> Never couple producers to consumers.
 
