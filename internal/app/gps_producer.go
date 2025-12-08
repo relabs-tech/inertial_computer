@@ -23,6 +23,7 @@ func RunGPSProducer() error {
 
 	client := mqtt.NewClient(opts)
 	if token := client.Connect(); token.Wait() && token.Error() != nil {
+		log.Fatalf("MQTT connect error: %v", token.Error())
 		return token.Error()
 	}
 	log.Println("GPS producer connected to MQTT broker at tcp://localhost:1883")
