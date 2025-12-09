@@ -10,6 +10,7 @@ import (
 
 	"github.com/relabs-tech/inertial_computer/internal/env"
 	"github.com/relabs-tech/inertial_computer/internal/gps"
+	imu_raw "github.com/relabs-tech/inertial_computer/internal/imu"
 	"github.com/relabs-tech/inertial_computer/internal/orientation"
 )
 
@@ -25,9 +26,9 @@ func RunWeb() error {
 		lastFix gps.Fix
 		haveFix bool
 
-		lastIMULeft  orientation.IMURaw
+		lastIMULeft  imu_raw.IMURaw
 		haveIMULeft  bool
-		lastIMURight orientation.IMURaw
+		lastIMURight imu_raw.IMURaw
 		haveIMURight bool
 
 		lastEnvLeft  env.Sample
@@ -103,7 +104,7 @@ func RunWeb() error {
 
 	// 4b) inertial/imu/left
 	imuLeftToken := client.Subscribe("inertial/imu/left", 0, func(_ mqtt.Client, msg mqtt.Message) {
-		var s orientation.IMURaw
+		var s imu_raw.IMURaw
 		if err := json.Unmarshal(msg.Payload(), &s); err != nil {
 			log.Printf("web: imu left unmarshal error: %v", err)
 			return
@@ -121,7 +122,7 @@ func RunWeb() error {
 
 	// 4c)inertial/imu/right
 	imuRightToken := client.Subscribe("inertial/imu/right", 0, func(_ mqtt.Client, msg mqtt.Message) {
-		var s orientation.IMURaw
+		var s imu_raw.IMURaw
 		if err := json.Unmarshal(msg.Payload(), &s); err != nil {
 			log.Printf("web: imu right unmarshal error: %v", err)
 			return

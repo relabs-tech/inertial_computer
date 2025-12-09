@@ -11,6 +11,7 @@ import (
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 
 	"github.com/relabs-tech/inertial_computer/internal/gps"
+	imu_raw "github.com/relabs-tech/inertial_computer/internal/imu"
 	"github.com/relabs-tech/inertial_computer/internal/orientation"
 )
 
@@ -65,7 +66,7 @@ func RunConsoleMQTT() error {
 
 	// Subscribe to IMU left
 	imuLeftToken := client.Subscribe("inertial/imu/left", 0, func(_ mqtt.Client, msg mqtt.Message) {
-		var s orientation.IMURaw
+		var s imu_raw.IMURaw
 		if err := json.Unmarshal(msg.Payload(), &s); err != nil {
 			log.Printf("console: imu left unmarshal error: %v", err)
 			return
@@ -83,7 +84,7 @@ func RunConsoleMQTT() error {
 
 	// Subscribe to IMU right
 	imuRightToken := client.Subscribe("inertial/imu/right", 0, func(_ mqtt.Client, msg mqtt.Message) {
-		var s orientation.IMURaw
+		var s imu_raw.IMURaw
 		if err := json.Unmarshal(msg.Payload(), &s); err != nil {
 			log.Printf("console: imu right unmarshal error: %v", err)
 			return

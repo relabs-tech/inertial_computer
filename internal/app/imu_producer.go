@@ -26,7 +26,7 @@ func RunInertialProducer() error {
 		src = orientation.NewMockSource()
 	} else {
 		log.Println("using LEFT IMU orientation source")
-		src, err = orientation.NewIMUSourceLeft()
+		src, err = sensors.NewIMUSourceLeft()
 		if err != nil {
 			log.Fatalf("failed to initialize IMU source: %v", err)
 			return err

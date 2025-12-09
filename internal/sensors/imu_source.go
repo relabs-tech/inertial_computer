@@ -1,9 +1,10 @@
-package orientation
+package sensors
 
 import (
 	"fmt"
 	"math"
 
+	"github.com/relabs-tech/inertial_computer/internal/orientation"
 	"periph.io/x/conn/v3/gpio/gpioreg"
 	"periph.io/x/devices/v3/mpu9250"
 	"periph.io/x/host/v3"
@@ -21,7 +22,7 @@ type imuSource struct {
 // NewIMUSourceLeft initializes the left MPU9250 over SPI and returns
 // an orientation.Source that reads roll/pitch from the accelerometer.
 // Yaw is currently set to 0 until we fuse the magnetometer.
-func NewIMUSourceLeft() (Source, error) {
+func NewIMUSourceLeft() (orientation.Source, error) {
 	// Initialize periph host once.
 	if _, err := host.Init(); err != nil {
 		return nil, fmt.Errorf("periph host init: %w", err)
@@ -64,18 +65,18 @@ func NewIMUSourceLeft() (Source, error) {
 // Next reads accelerometer data from the IMU and computes roll/pitch
 // using a simple accelerometer-only tilt estimate. Yaw is left at 0
 // until proper fusion with gyro + magnetometer is implemented.
-func (s *imuSource) Next() (Pose, error) {
+func (s *imuSource) Next() (orientation.Pose, error) {
 	ax, err := s.imu.GetAccelerationX()
 	if err != nil {
-		return Pose{}, fmt.Errorf("left IMU acc X: %w", err)
+		return orientation.Pose{}, fmt.Errorf("left IMU acc X: %w", err)
 	}
 	ay, err := s.imu.GetAccelerationY()
 	if err != nil {
-		return Pose{}, fmt.Errorf("left IMU acc Y: %w", err)
+		return orientation.Pose{}, fmt.Errorf("left IMU acc Y: %w", err)
 	}
 	az, err := s.imu.GetAccelerationZ()
 	if err != nil {
-		return Pose{}, fmt.Errorf("left IMU acc Z: %w", err)
+		return orientation.Pose{}, fmt.Errorf("left IMU acc Z: %w", err)
 	}
 
 	// Convert to float64 for math. We don't need physical units to
@@ -93,7 +94,7 @@ func (s *imuSource) Next() (Pose, error) {
 	rollDeg := rollRad * 180.0 / math.Pi
 	pitchDeg := pitchRad * 180.0 / math.Pi
 
-	return Pose{
+	return orientation.Pose{
 		Roll:  rollDeg,
 		Pitch: pitchDeg,
 		Yaw:   0, // placeholder; to be replaced with fused yaw later

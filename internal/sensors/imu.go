@@ -1,12 +1,12 @@
 package sensors
 
 import (
-	"github.com/relabs-tech/inertial_computer/internal/orientation"
+	imu_raw "github.com/relabs-tech/inertial_computer/internal/imu"
 )
 
 // TODO: replace with real left IMU + mag read
-func ReadLeftIMURaw() (orientation.IMURaw, error) {
-	return orientation.IMURaw{
+func ReadLeftIMURaw() (imu_raw.IMURaw, error) {
+	return imu_raw.IMURaw{
 		Source: "left",
 		Ax:     0,
 		Ay:     0,
@@ -21,8 +21,8 @@ func ReadLeftIMURaw() (orientation.IMURaw, error) {
 }
 
 // TODO: replace with real right IMU + mag read
-func ReadRightIMURaw() (orientation.IMURaw, error) {
-	return orientation.IMURaw{
+func ReadRightIMURaw() (imu_raw.IMURaw, error) {
+	return imu_raw.IMURaw{
 		Source: "right",
 		Ax:     0,
 		Ay:     0,
