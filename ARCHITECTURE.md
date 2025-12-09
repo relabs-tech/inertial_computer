@@ -73,17 +73,17 @@ Published on:
 type IMURaw struct {
     Source string `json:"source"` // "left" | "right"
 
-    Ax int16 `json:"ax"`
-    Ay int16 `json:"ay"`
-    Az int16 `json:"az"`
+    Ax int16 `json:"ax"` // accelerometer X
+    Ay int16 `json:"ay"` // accelerometer Y
+    Az int16 `json:"az"` // accelerometer Z
 
-    Gx int16 `json:"gx"`
-    Gy int16 `json:"gy"`
-    Gz int16 `json:"gz"`
+    Gx int16 `json:"gx"` // gyroscope X
+    Gy int16 `json:"gy"` // gyroscope Y
+    Gz int16 `json:"gz"` // gyroscope Z
 
-    Mx int16 `json:"mx"`
-    My int16 `json:"my"`
-    Mz int16 `json:"mz"`
+    Mx int16 `json:"mx"` // magnetometer X
+    My int16 `json:"my"` // magnetometer Y
+    Mz int16 `json:"mz"` // magnetometer Z
 }
 ```
 
@@ -98,9 +98,9 @@ Published on:
 
 ```go
 type Sample struct {
-    Source string  `json:"source"` // "left" | "right"
-    Temperature float64 `json:"temp_c"`
-    Pressure    float64 `json:"pressure_pa"`
+    Source      string  `json:"source"`       // "left" | "right"
+    Temperature float64 `json:"temp_c"`       // temperature in °C
+    Pressure    float64 `json:"pressure_pa"`  // atmospheric pressure in Pa
 }
 ```
 
@@ -141,120 +141,293 @@ internal/sensors/
 
 This layer is responsible for:
 
-- talking to periph.io drivers
-- handling I2C/SPI details
-- converting driver output into domain structs
+- interfacing with periph.io drivers for IMU (MPU9250) via SPI
+- handling I2C/SPI communication details
+- reading accelerometer, gyroscope, and magnetometer data
+- converting raw driver output into domain structs (IMURaw)
 
-The rest of the system **never** imports periph or hardware-specific code.
+Key functions:
+
+- `ReadLeftIMURaw()` - reads left IMU (currently returns zeros)
+- `ReadRightIMURaw()` - reads right IMU (currently returns zeros)
+- `ReadLeftEnv()` - reads left environmental sensor (currently returns zeros)
+- `ReadRightEnv()` - reads right environmental sensor (currently returns zeros)
+- `NewIMUSourceLeft()` - creates an orientation.Source from left IMU using accelerometer-only tilt estimation
+
+Orientation source implementation:
+
+- `imuSource` wraps an MPU9250 device
+- `Next()` computes roll/pitch from accelerometer axes using simple tilt formulas
+- yaw is currently hardcoded to 0 (future: will use magnetometer fusion)
+
+The rest of the system **never** imports periph.io or hardware-specific code directly.
 
 ---
 
 ## 4. Producers
 
-### 4.1 Main sensor producer (`cmd/producer`)
+### 4.1 Inertial producer (`cmd/producer`)
+
+Entry point: `internal/app/RunInertialProducer()`
 
 Responsibilities:
 
-- read left/right IMU data (accel + gyro + mag)
-- read left/right BMP data
-- compute orientation estimates
-- publish raw + fused data to MQTT
+- choose an orientation source (mock or real IMU)
+- connect to MQTT broker
+- loop every 100ms:
+  - read pose from orientation source
+  - publish to `inertial/pose` and `inertial/pose/fused`
+  - read left/right IMU raw data
+  - publish to `inertial/imu/left` and `inertial/imu/right`
+  - read left/right environmental data
+  - publish to `inertial/bmp/left` and `inertial/bmp/right`
 
-The current fused pose may be derived from a single IMU; future work will introduce true multi-sensor fusion.
+Current state:
+
+- useMock flag controls whether to use mock orientation or real IMU
+- real IMU path uses `sensors.NewIMUSourceLeft()` which reads MPU9250 via SPI
+- mock path generates synthetic oscillating pose data
+
+Future enhancements:
+
+- gyro integration + accelerometer corrections
+- magnetometer-based yaw stabilization
+- dual-IMU cross-validation
+- optional sensor fusion (complementary filter, EKF)
 
 ---
 
 ### 4.2 GPS producer (`cmd/gps_producer`)
 
+Entry point: `internal/app/RunGPSProducer()`
+
 Responsibilities:
 
-- read NMEA sentences from serial port
-- parse RMC (and later GGA) messages
-- publish GPS fixes to MQTT
+- open GPS serial port (defaults to `/dev/serial0` at 9600 baud)
+- read and parse NMEA sentences from GPS module
+- extract RMC (Recommended Minimum Sentence) messages
+- populate GPS Fix struct with:
+  - time, date, latitude, longitude
+  - speed over ground (knots)
+  - course over ground (degrees)
+  - validity indicator
+- publish complete fix as JSON to `inertial/gps`
+
+Current implementation:
+
+- uses `github.com/adrianmo/go-nmea` for parsing
+- uses `github.com/jacobsa/go-serial` for serial I/O
+- reads sentences in a loop and publishes each RMC as a separate fix
+- skips unparseable sentences silently
+
+Future enhancements:
+
+- support additional NMEA sentences (GGA for altitude, GSA for fix quality)
+- implement time synchronization
+- add data validation and outlier detection
 
 ---
 
 ## 5. Consumers
 
-### 5.1 Console subscriber (`cmd/console_mqtt`)
+## 5. Consumers
 
-- subscribes to all MQTT topics
-- decodes JSON payloads
-- prints structured human-readable output
+### 5.1 Console MQTT subscriber (`cmd/console_mqtt`)
+
+Entry point: `internal/app/RunConsoleMQTT()`
+
+Responsibilities:
+
+- connect to MQTT broker
+- subscribe to all data streams
+- decode JSON payloads into domain structs
+- print formatted human-readable output to stdout
+
+Output format:
+
+```
+[POSE]  ROLL=  20.45  PITCH=  -5.12  YAW= 123.67
+[FUSE] ROLL=  20.45  PITCH=  -5.12  YAW= 123.67
+[IMU-L] ax=    145 ay=   -230 az=  9850  gx=    10 gy=   -15 gz=    -5  mx=   -180 my=   210 mz=   -50
+[IMU-R] ax=    150 ay=   -225 az=  9855  gx=    12 gy=   -18 gz=    -3  mx=   -175 my=   215 mz=   -48
+[GPS ]  time=12:34:56 date=2025-12-09 lat=40.712776 lon=-74.005974 speed=5.2kn course=45.3° validity=A
+```
 
 Used primarily for:
 
-- debugging
+- real-time monitoring and debugging
 - validation during sensor integration
-- headless operation
+- headless operation without web UI
 
 ---
 
 ### 5.2 Web server (`cmd/web`)
 
+Entry point: `internal/app/RunWeb()`
+
 Responsibilities:
 
-- subscribe to MQTT topics
-- store latest values per stream
-- expose REST-style APIs:
+- connect to MQTT broker
+- subscribe to all data streams
+- maintain in-memory cache of latest values per stream (protected by RWMutex)
+- expose REST-style JSON APIs:
 
-```text
-/api/orientation
-/api/orientation/fused
-/api/imu/left
-/api/imu/right
-/api/env/left
-/api/env/right
-/api/gps
+```
+GET /api/orientation          → last Pose
+GET /api/orientation/fused    → last fused Pose
+GET /api/imu/left             → last left IMURaw
+GET /api/imu/right            → last right IMURaw
+GET /api/env/left             → last left Sample (temp + pressure)
+GET /api/env/right            → last right Sample (temp + pressure)
+GET /api/gps                  → last GPS Fix
 ```
 
-- serve a static HTML/JS dashboard
+- serve static HTML/JS dashboard from `web/` directory on port 8080
 
-The UI polls these APIs periodically. WebSockets are a possible future enhancement.
+Frontend behavior:
+
+- polls all APIs every 500ms
+- updates live dashboard with latest values
+- displays connection status for each stream
+- renders 8 cards in a responsive grid layout
+- uses dark theme with accent lighting
+
+Future enhancements:
+
+- WebSocket support for lower-latency updates
+- 3D visualization (three.js) for orientation
+- time-series graphs and data logging
+- stream health indicators
 
 ---
 
 ## 6. Fusion strategy (current and future)
 
-Current state:
+### Current state
 
-- fused pose == left IMU-derived pose
-- magnetometer data is published but not yet used for yaw stabilization
+- **raw pose** (`inertial/pose`): derived from left IMU accelerometer only
+  - roll and pitch computed via simple tilt formulas: `atan2(ay, az)` and `atan2(-ax, sqrt(ay² + az²))`
+  - yaw hardcoded to 0 (placeholder)
+  
+- **fused pose** (`inertial/pose/fused`): currently identical to raw pose
+  - will become true sensor fusion output once algorithms are implemented
 
-Planned evolution:
+- **raw IMU data** published but magnetometer values not yet used for yaw stabilization
 
-- gyro integration + accelerometer correction
-- magnetometer-based yaw alignment
-- left/right IMU cross-checking
-- optional extended Kalman filter (EKF)
+### Planned evolution
 
-Fusion will remain internal to the producer and will not affect consumers.
+1. **Phase 1: Basic gyro integration**
+   - integrate gyroscope angular velocity over time
+   - use accelerometer for drift correction
+   - establish baseline yaw from magnetometer when device is stationary
+
+2. **Phase 2: Magnetometer yaw alignment**
+   - read magnetometer from EXT_SENS_DATA registers
+   - compute heading via atan2(My, Mx) after soft-iron calibration
+   - blend gyro-integrated yaw with magnetometer heading
+
+3. **Phase 3: Dual-IMU fusion**
+   - cross-validate left and right IMU readings
+   - detect sensor drift or faults
+   - combine readings for improved accuracy
+
+4. **Phase 4: Advanced fusion (optional)**
+   - implement complementary filter or extended Kalman filter (EKF)
+   - incorporate GPS course for outdoor navigation
+   - add wheel odometry or other sensors if available
+
+### Design constraint
+
+Fusion algorithms remain **internal to the producer**. Consumers always receive finished pose data and do not need to understand fusion details.
 
 ---
 
-## 7. Key architectural decisions
+## 7. Deployment topology
 
-- MQTT chosen over direct RPC to simplify fan-out
-- JSON used for debuggability and inspection
-- strict separation between domain, transport, and hardware
-- `internal/` used to prevent external coupling
+### Single-machine setup (development/testing)
+
+```
+┌─────────────────────────────────┐
+│ Raspberry Pi                    │
+├─────────────────────────────────┤
+│ [producer]  [gps_producer]      │ ← cmd/* entry points
+│      │             │            │
+│      └─────────┬───┘            │
+│              MQTT               │
+│      ┌────────┴────────┐        │
+│      ▼                 ▼        │
+│  [mosquitto]    [web] [console]│
+│  (broker)       (REST)  (MQTT) │
+│                  │             │
+│              port 8080         │
+└──────────────────┬─────────────┘
+                   │
+         ┌─────────┴─────────┐
+         ▼                   ▼
+    [browser]          [headless monitor]
+    (web UI)           (console output)
+```
+
+### Key assumptions
+
+- All producers and consumers run on the same Pi
+- Mosquitto broker runs locally on port 1883
+- Web UI accessible via browser on same network
+- Serial GPS on `/dev/serial0` (or configurable)
+
+### Hardware connections
+
+- **Left IMU (MPU9250)**: SPI2 (`/dev/spidev6.0`), CS on GPIO 18
+- **Right IMU (MPU9250)**: TBD (not yet implemented)
+- **Environmental sensors (BMP)**: I2C (address TBD)
+- **GPS module**: Serial port, 9600 baud
 
 ---
 
-## 8. Extension ideas
+## 8. Key architectural decisions
 
-- data logging + replay mode
-- offline analysis tooling
-- WebSocket streaming
-- 3D visualization (three.js)
-- additional sensors (e.g. airspeed, wheel encoders)
+- **MQTT** chosen over direct RPC to simplify fan-out and allow independent restart of components
+- **JSON** used for transport to maximize debuggability and enable inspection/logging
+- **Strict layering** enforces separation between domain models, transport, and hardware:
+  - Domain structs (`internal/{orientation,imu,env,gps}`) have no dependencies
+  - Sensor layer (`internal/sensors`) isolated from app logic
+  - Producers/consumers (`internal/app`) never directly access hardware
+- **`internal/` package** used to prevent external consumers from coupling to implementation details
+- **Pull-based REST API** for web UI instead of WebSockets (simpler, works behind proxies)
 
 ---
 
-## 9. Guiding principle
+## 9. Extension ideas
+
+- **Data logging + replay mode** for offline analysis and algorithm testing
+- **WebSocket streaming** for real-time low-latency updates
+- **3D visualization** (three.js) for intuitive orientation display
+- **Time-series graphs** for IMU/BMP trends
+- **Stream health monitoring** (staleness detection, error counters)
+- **Additional sensors**: airspeed, wheel encoders, barometer, magnetometer standalone
+- **Multi-producer coordination**: synchronized reads from multiple IMUs
+- **Calibration tools**: magnetometer soft-iron/hard-iron compensation, IMU factory calibration
+- **Cloud export**: optional MQTT bridge to cloud services for long-term analysis
+
+---
+
+## 10. Guiding principles
 
 > Add sensors freely.
 > Fuse intelligently.
 > Consume everywhere.
 > Never couple producers to consumers.
+
+---
+
+## 11. Known limitations & TODOs
+
+- **IMU**: Left IMU reads accel/gyro from real MPU9250, but returns zeros for most reads (driver integration WIP)
+- **Magnetometer**: Published but not fused; yaw is hardcoded to 0
+- **Right IMU**: Not yet implemented; stub returns zeros
+- **Environmental sensors**: Both left and right BMP stubs return zeros (driver integration needed)
+- **Calibration**: No automatic or interactive calibration routines yet
+- **Documentation**: Missing HARDWARE.md (pin assignments) and CALIBRATION.md (procedure)
+
+See TODO.md for detailed prioritized task list.
 
