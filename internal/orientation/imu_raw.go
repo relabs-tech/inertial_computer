@@ -16,3 +16,7 @@ type IMURaw struct {
 	My int16 `json:"my"`
 	Mz int16 `json:"mz"`
 }
+
+type IMURawSource interface {
+	NextRaw() (IMURaw, error)
+}
