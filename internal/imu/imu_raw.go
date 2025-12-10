@@ -1,4 +1,4 @@
-package orientation
+package imu
 
 // IMURaw represents a single raw IMU+mag sample.
 type IMURaw struct {
