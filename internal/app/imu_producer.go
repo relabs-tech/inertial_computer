@@ -17,16 +17,17 @@ func RunInertialProducer() error {
 	useMock := false
 
 	var (
-		src orientation.Source
-		err error
+		imuReader sensors.IMURawReader
+		mockSrc   orientation.Source
+		err       error
 	)
 
 	if useMock {
 		log.Println("using mock orientation source")
-		src = orientation.NewMockSource()
+		mockSrc = orientation.NewMockSource()
 	} else {
-		log.Println("using LEFT IMU orientation source")
-		src, err = sensors.NewIMUSourceLeft()
+		log.Println("using LEFT IMU raw reader")
+		imuReader, err = sensors.NewIMUSourceLeft()
 		if err != nil {
 			log.Fatalf("failed to initialize IMU source: %v", err)
 			return err
@@ -52,26 +53,43 @@ func RunInertialProducer() error {
 	defer ticker.Stop()
 
 	for t := range ticker.C {
-		// 1) Orientation (fused placeholder)
-		pose, err := src.Next()
-		if err != nil {
-			log.Printf("error from orientation source: %v", err)
-			continue
-		} else {
-			payload, err := json.Marshal(pose)
+		// 1) Orientation (raw and fused)
+		var pose orientation.Pose
+		if useMock {
+			var err error
+			pose, err = mockSrc.Next()
 			if err != nil {
-				log.Printf("json marshal error (pose): %v", err)
-			} else {
-				// legacy/raw pose
-				if token := client.Publish("inertial/pose", 0, true, payload); token.Wait() && token.Error() != nil {
-					log.Printf("MQTT publish error (pose): %v", token.Error())
-					continue
-				}
-				// fused pose (same for now)
-				if token := client.Publish("inertial/pose/fused", 0, true, payload); token.Wait() && token.Error() != nil {
-					log.Printf("MQTT publish error (pose/fused): %v", token.Error())
-					continue
-				}
+				log.Printf("error from mock orientation source: %v", err)
+				continue
+			}
+		} else {
+			// Read raw IMU data and compute pose from accelerometer
+			rawIMU, err := imuReader.ReadRaw()
+			if err != nil {
+				log.Printf("error reading raw IMU: %v", err)
+				continue
+			}
+			// Convert int16 to float64 for pose computation
+			pose = orientation.AccelToPose(
+				float64(rawIMU.Ax),
+				float64(rawIMU.Ay),
+				float64(rawIMU.Az),
+			)
+		}
+
+		// Publish raw pose
+		payload, err := json.Marshal(pose)
+		if err != nil {
+			log.Printf("json marshal error (pose): %v", err)
+		} else {
+			if token := client.Publish("inertial/pose", 0, true, payload); token.Wait() && token.Error() != nil {
+				log.Printf("MQTT publish error (pose): %v", token.Error())
+				continue
+			}
+			// fused pose (same for now)
+			if token := client.Publish("inertial/pose/fused", 0, true, payload); token.Wait() && token.Error() != nil {
+				log.Printf("MQTT publish error (pose/fused): %v", token.Error())
+				continue
 			}
 		}
 
@@ -129,7 +147,7 @@ func RunInertialProducer() error {
 			}
 		}
 
-		log.Printf("%s tick: published fused pose + IMU/BMP samples", t.Format(time.RFC3339))
+		log.Printf("%s tick: published pose + IMU/BMP samples", t.Format(time.RFC3339))
 	}
 	return nil
 }
