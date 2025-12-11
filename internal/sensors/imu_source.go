@@ -13,6 +13,9 @@ import (
 // as in the legacy project.
 const spiLeftIMU = "/dev/spidev6.0"
 const csLeftIMUPin = "18"
+// Right IMU defaults
+const spiRightIMU = "/dev/spidev0.0"
+const csRightIMUPin = "8"
 
 type imuSource struct {
 	imu *mpu9250.MPU9250
@@ -59,6 +62,44 @@ func NewIMUSourceLeft() (IMURawReader, error) {
 
 	return &imuSource{imu: imu}, nil
 }
+
+	// NewIMUSourceRight initializes the right MPU9250 over SPI and returns
+	// an IMURawReader for the right device.
+	func NewIMUSourceRight() (IMURawReader, error) {
+		// Initialize periph host once.
+		if _, err := host.Init(); err != nil {
+			return nil, fmt.Errorf("periph host init: %w", err)
+		}
+
+		cs := gpioreg.ByName(csRightIMUPin)
+		if cs == nil {
+			return nil, fmt.Errorf("right IMU CS pin %q not found", csRightIMUPin)
+		}
+
+		tr, err := mpu9250.NewSpiTransport(spiRightIMU, cs)
+		if err != nil {
+			return nil, fmt.Errorf("right IMU SPI transport: %w", err)
+		}
+
+		imu, err := mpu9250.New(*tr)
+		if err != nil {
+			return nil, fmt.Errorf("right IMU new device: %w", err)
+		}
+
+		if err := imu.Init(); err != nil {
+			return nil, fmt.Errorf("right IMU init: %w", err)
+		}
+
+		// Optional self-test & calibrate
+		if _, err := imu.SelfTest(); err != nil {
+			return nil, fmt.Errorf("right IMU self-test: %w", err)
+		}
+		if err := imu.Calibrate(); err != nil {
+			return nil, fmt.Errorf("right IMU calibrate: %w", err)
+		}
+
+		return &imuSource{imu: imu}, nil
+	}
 
 // IMURawReader is an interface for reading raw IMU data (accel, gyro, mag).
 // Pose computation is decoupled and handled by pure functions like orientation.AccelToPose.
