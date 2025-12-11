@@ -47,12 +47,6 @@ The Pi never talks directly to the magnetometer.
 ### Left IMU
 - ✅ Access MPU9250 via SPI (working)
 - ✅ Read accel via `imuSource.ReadRaw()` (working)
-- ⚠️ Implement gyro reads (TODO: GetGyro* methods)
-- ⚠️ Configure internal I2C master for AK8963 magnetometer
-- ⚠️ Read magnetometer from EXT_SENS_DATA registers
-### Left IMU
-- ✅ Access MPU9250 via SPI (working)
-- ✅ Read accel via `imuSource.ReadRaw()` (working)
 - ✅ Read gyroscope (rotation) values via `GetRotationX/Y/Z` (implemented)
 - ⚠️ Configure internal I2C master for AK8963 magnetometer
 - ⚠️ Read magnetometer from EXT_SENS_DATA registers
@@ -83,7 +77,6 @@ The Pi never talks directly to the magnetometer.
 - Phase 3: Implement complementary filter (accel + gyro + mag)
 - Phase 4: Dual-IMU cross-validation and fusion
 - Phase 5: Optional EKF for advanced scenarios
-
 ---
 
 ## 5. Producers
@@ -91,16 +84,11 @@ The Pi never talks directly to the magnetometer.
 ### Inertial Producer (`cmd/producer`)
 - ✅ Refactored to call `ReadRaw()` and `AccelToPose()` separately
 - ✅ Mock mode still works (can switch via `useMock` flag)
-- ⚠️ Currently publishes zeros for gyro/mag (driver TODO)
+- ✅ Left IMU gyro values are now read and published
+- ✅ Producer logs pose and left IMU accel/gyro each 100ms tick
 - ⚠️ Currently publishes zeros for BMP (driver TODO)
-- Ready for: gyro/mag fusion, multi-sensor fusion
-### Inertial Producer (`cmd/producer`)
-- ✅ Refactored to call `ReadRaw()` and `AccelToPose()` separately
-- ✅ Mock mode still works (can switch via `useMock` flag)
-- ✅ Left IMU gyro values are now read and published; producer also logs pose and left IMU accel/gyro each 100ms tick
 - ⚠️ Magnetometer values still TODO (driver)
-- ⚠️ BMP readings return zeros (driver TODO)
-- Ready for: gyro/mag fusion, multi-sensor fusion
+- Ready for: right IMU integration, gyro/mag fusion, multi-sensor fusion
 
 ### GPS Producer
 - ✅ Functional (reads NMEA, publishes GPS fixes)
