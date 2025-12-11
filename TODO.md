@@ -142,3 +142,17 @@ The Pi never talks directly to the magnetometer.
 10. **Optional: Kalman filter** — advanced fusion for production use
 
 ---
+
+## Additional high-priority tasks (requested)
+
+1. **Fuse Left and Right IMUs for Pose** — implement fusion algorithm to combine left and right IMU readings into a single, robust `Pose` output. Start with simple averaging or weighted fusion, then move to complementary filter or EKF as needed.
+
+2. **Wire up BMPxx80 sensors** — add drivers for BMP280/BMP388, initialize on I2C, and implement `ReadLeftEnv()` / `ReadRightEnv()` to publish temperature and pressure.
+
+3. **Calibrate accelerometers and gyros** — add calibration routines (bias estimation, scale factors) and tooling/documentation to persist calibration parameters.
+
+4. **Add the magnetometers (AK8963)** — enable MPU9250 internal I2C master, read AK8963 via EXT_SENS_DATA, add soft-iron / hard-iron calibration, and expose magnetometer data for yaw fusion.
+
+5. **Incorporate two SSD1306 displays** — wire and initialize two SSD1306 I2C/OLED displays, add lightweight UI showing key telemetry (pose, imu values, connection status) and expose a simple API to update display content.
+
+---
