@@ -2,9 +2,8 @@ package sensors
 
 import (
 	"fmt"
-	"math"
 
-	"github.com/relabs-tech/inertial_computer/internal/orientation"
+	imu_raw "github.com/relabs-tech/inertial_computer/internal/imu"
 	"periph.io/x/conn/v3/gpio/gpioreg"
 	"periph.io/x/devices/v3/mpu9250"
 	"periph.io/x/host/v3"
@@ -20,9 +19,8 @@ type imuSource struct {
 }
 
 // NewIMUSourceLeft initializes the left MPU9250 over SPI and returns
-// an orientation.Source that reads roll/pitch from the accelerometer.
-// Yaw is currently set to 0 until we fuse the magnetometer.
-func NewIMUSourceLeft() (orientation.Source, error) {
+// an IMURawReader that can read raw accelerometer, gyroscope, and magnetometer data.
+func NewIMUSourceLeft() (IMURawReader, error) {
 	// Initialize periph host once.
 	if _, err := host.Init(); err != nil {
 		return nil, fmt.Errorf("periph host init: %w", err)
@@ -62,41 +60,57 @@ func NewIMUSourceLeft() (orientation.Source, error) {
 	return &imuSource{imu: imu}, nil
 }
 
-// Next reads accelerometer data from the IMU and computes roll/pitch
-// using a simple accelerometer-only tilt estimate. Yaw is left at 0
-// until proper fusion with gyro + magnetometer is implemented.
-func (s *imuSource) Next() (orientation.Pose, error) {
+// IMURawReader is an interface for reading raw IMU data (accel, gyro, mag).
+// Pose computation is decoupled and handled by pure functions like orientation.AccelToPose.
+type IMURawReader interface {
+	ReadRaw() (imu_raw.IMURaw, error)
+}
+
+// ReadRaw reads accelerometer, gyroscope, and magnetometer data from the left IMU
+// and returns raw values. This is a pure data read with no pose computation.
+func (s *imuSource) ReadRaw() (imu_raw.IMURaw, error) {
 	ax, err := s.imu.GetAccelerationX()
 	if err != nil {
-		return orientation.Pose{}, fmt.Errorf("left IMU acc X: %w", err)
+		return imu_raw.IMURaw{}, fmt.Errorf("left IMU acc X: %w", err)
 	}
 	ay, err := s.imu.GetAccelerationY()
 	if err != nil {
-		return orientation.Pose{}, fmt.Errorf("left IMU acc Y: %w", err)
+		return imu_raw.IMURaw{}, fmt.Errorf("left IMU acc Y: %w", err)
 	}
 	az, err := s.imu.GetAccelerationZ()
 	if err != nil {
-		return orientation.Pose{}, fmt.Errorf("left IMU acc Z: %w", err)
+		return imu_raw.IMURaw{}, fmt.Errorf("left IMU acc Z: %w", err)
 	}
 
-	// Convert to float64 for math. We don't need physical units to
-	// get roll/pitch, only relative ratios.
-	fx := float64(ax)
-	fy := float64(ay)
-	fz := float64(az)
+	// Read gyroscope (rotation) values from the MPU9250
+	gx, err := s.imu.GetRotationX()
+	if err != nil {
+		return imu_raw.IMURaw{}, fmt.Errorf("left IMU gyro X: %w", err)
+	}
+	gy, err := s.imu.GetRotationY()
+	if err != nil {
+		return imu_raw.IMURaw{}, fmt.Errorf("left IMU gyro Y: %w", err)
+	}
+	gz, err := s.imu.GetRotationZ()
+	if err != nil {
+		return imu_raw.IMURaw{}, fmt.Errorf("left IMU gyro Z: %w", err)
+	}
 
-	// Basic tilt estimation from accelerometer:
-	// roll  = atan2(ay, az)
-	// pitch = atan2(-ax, sqrt(ay^2 + az^2))
-	rollRad := math.Atan2(fy, fz)
-	pitchRad := math.Atan2(-fx, math.Sqrt(fy*fy+fz*fz))
+	// TODO: read actual mag values from EXT_SENS_DATA registers
+	mx := int16(0)
+	my := int16(0)
+	mz := int16(0)
 
-	rollDeg := rollRad * 180.0 / math.Pi
-	pitchDeg := pitchRad * 180.0 / math.Pi
-
-	return orientation.Pose{
-		Roll:  rollDeg,
-		Pitch: pitchDeg,
-		Yaw:   0, // placeholder; to be replaced with fused yaw later
+	return imu_raw.IMURaw{
+		Source: "left",
+		Ax:     ax,
+		Ay:     ay,
+		Az:     az,
+		Gx:     gx,
+		Gy:     gy,
+		Gz:     gz,
+		Mx:     mx,
+		My:     my,
+		Mz:     mz,
 	}, nil
 }

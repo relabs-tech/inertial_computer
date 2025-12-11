@@ -131,34 +131,46 @@ Published on:
 
 ---
 
-## 3. Hardware abstraction
+## 3. Hardware abstraction & sensor reading
 
-All direct sensor access is isolated in:
+All direct sensor access is isolated in `internal/sensors/` with a clean interface for pose computation:
 
 ```
 internal/sensors/
+  └─ imuSource
+     └─ ReadRaw() → IMURaw {Ax, Ay, Az, Gx, Gy, Gz, Mx, My, Mz}
 ```
 
-This layer is responsible for:
+### Key interfaces and functions
 
-- interfacing with periph.io drivers for IMU (MPU9250) via SPI
-- handling I2C/SPI communication details
-- reading accelerometer, gyroscope, and magnetometer data
-- converting raw driver output into domain structs (IMURaw)
+**`IMURawReader` interface** (sensors package)
+```go
+type IMURawReader interface {
+    ReadRaw() (imu_raw.IMURaw, error)
+}
+```
 
-Key functions:
+Implemented by `imuSource` which wraps an MPU9250 device. Returns raw accelerometer, gyroscope, and magnetometer data with no pose computation.
 
-- `ReadLeftIMURaw()` - reads left IMU (currently returns zeros)
-- `ReadRightIMURaw()` - reads right IMU (currently returns zeros)
-- `ReadLeftEnv()` - reads left environmental sensor (currently returns zeros)
-- `ReadRightEnv()` - reads right environmental sensor (currently returns zeros)
-- `NewIMUSourceLeft()` - creates an orientation.Source from left IMU using accelerometer-only tilt estimation
+**Pose computation functions** (orientation package)
+- `AccelToPose(ax, ay, az float64) Pose` — pure function
+- `ComputePoseFromAccel(ax, ay, az float64) Pose` — same as above
+- Both use simple tilt formulas; yaw hardcoded to 0
 
-Orientation source implementation:
+### Architecture benefits
 
-- `imuSource` wraps an MPU9250 device
-- `Next()` computes roll/pitch from accelerometer axes using simple tilt formulas
-- yaw is currently hardcoded to 0 (future: will use magnetometer fusion)
+- **Separation of concerns**: hardware reads separate from pose math
+- **Testability**: pose functions are pure, no dependencies
+- **Flexibility**: can compute poses from different sensors or sensor combinations
+- **Extensibility**: ready for gyro integration, magnetometer fusion, multi-IMU blending
+
+### Current status
+
+- ✅ Left IMU reads accel via SPI (MPU9250)
+- ✅ Left IMU gyroscope (rotation) reads implemented via `GetRotationX/Y/Z`
+- ⚠️ Magnetometer (AK8963) reads from EXT_SENS_DATA still TODO
+- ❌ Right IMU: not yet wired or implemented
+- ❌ BMP sensors: stubs return zero values
 
 The rest of the system **never** imports periph.io or hardware-specific code directly.
 
@@ -170,30 +182,39 @@ The rest of the system **never** imports periph.io or hardware-specific code dir
 
 Entry point: `internal/app/RunInertialProducer()`
 
+**Refactored architecture** (branch: `refactor/separate-raw-reads-from-pose`):
+
 Responsibilities:
 
-- choose an orientation source (mock or real IMU)
+- choose data source (mock or real IMU)
 - connect to MQTT broker
 - loop every 100ms:
-  - read pose from orientation source
-  - publish to `inertial/pose` and `inertial/pose/fused`
-  - read left/right IMU raw data
-  - publish to `inertial/imu/left` and `inertial/imu/right`
-  - read left/right environmental data
-  - publish to `inertial/bmp/left` and `inertial/bmp/right`
+  - **mock path**: call `mockSrc.Next()` → get pose directly
+  - **real IMU path**: 
+    1. call `imuReader.ReadRaw()` → get raw IMU data (int16 values)
+    2. convert to float64 and call `orientation.AccelToPose()` → get pose
+  - publish pose to `inertial/pose` and `inertial/pose/fused`
+  - read/publish left/right raw IMU via `sensors.ReadLeftIMURaw()`, `sensors.ReadRightIMURaw()`
+  - read/publish left/right BMP via `sensors.ReadLeftEnv()`, `sensors.ReadRightEnv()`
 
-Current state:
+Current implementation:
 
-- useMock flag controls whether to use mock orientation or real IMU
-- real IMU path uses `sensors.NewIMUSourceLeft()` which reads MPU9250 via SPI
-- mock path generates synthetic oscillating pose data
+- ✅ Uses `IMURawReader` interface for hardware decoupling
+- ✅ Pure pose computation via `orientation.AccelToPose()`
+- ✅ Mock mode still works (toggle via `useMock` flag)
+- ✅ Left IMU accel and gyro reads implemented; magnetometer values still TODO
+- ⚠️ BMP readings return zeros (driver TODO)
+
+Additional runtime behavior:
+
+- The inertial producer now logs actionable runtime output each tick: timestamped pose (roll/pitch/yaw) and the left IMU's raw accelerometer and gyroscope values are printed to stdout for ease of debugging and integration testing.
 
 Future enhancements:
 
-- gyro integration + accelerometer corrections
-- magnetometer-based yaw stabilization
-- dual-IMU cross-validation
-- optional sensor fusion (complementary filter, EKF)
+- Implement gyro driver calls → integrate angular velocity for yaw
+- Add magnetometer driver calls → correct yaw with heading
+- Implement complementary filter or EKF for robust fusion
+- Add dual-IMU cross-validation
 
 ---
 
