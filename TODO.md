@@ -50,6 +50,12 @@ The Pi never talks directly to the magnetometer.
 - ⚠️ Implement gyro reads (TODO: GetGyro* methods)
 - ⚠️ Configure internal I2C master for AK8963 magnetometer
 - ⚠️ Read magnetometer from EXT_SENS_DATA registers
+### Left IMU
+- ✅ Access MPU9250 via SPI (working)
+- ✅ Read accel via `imuSource.ReadRaw()` (working)
+- ✅ Read gyroscope (rotation) values via `GetRotationX/Y/Z` (implemented)
+- ⚠️ Configure internal I2C master for AK8963 magnetometer
+- ⚠️ Read magnetometer from EXT_SENS_DATA registers
 
 ### Right IMU
 - ❌ SPI wiring not yet done
@@ -88,6 +94,13 @@ The Pi never talks directly to the magnetometer.
 - ⚠️ Currently publishes zeros for gyro/mag (driver TODO)
 - ⚠️ Currently publishes zeros for BMP (driver TODO)
 - Ready for: gyro/mag fusion, multi-sensor fusion
+### Inertial Producer (`cmd/producer`)
+- ✅ Refactored to call `ReadRaw()` and `AccelToPose()` separately
+- ✅ Mock mode still works (can switch via `useMock` flag)
+- ✅ Left IMU gyro values are now read and published; producer also logs pose and left IMU accel/gyro each 100ms tick
+- ⚠️ Magnetometer values still TODO (driver)
+- ⚠️ BMP readings return zeros (driver TODO)
+- Ready for: gyro/mag fusion, multi-sensor fusion
 
 ### GPS Producer
 - ✅ Functional (reads NMEA, publishes GPS fixes)
@@ -118,7 +131,7 @@ The Pi never talks directly to the magnetometer.
 ## 8. Next steps (priority order)
 
 1. **Merge refactor branch** — raw reads separated from pose computation
-2. **Gyro driver integration** — read actual gyroscope values in `ReadRaw()`
+2. **Gyro driver integration** — read actual gyroscope values in `ReadRaw()` ✅ done
 3. **Gyro integration function** — integrate angular velocity to get yaw estimate
 4. **Magnetometer driver integration** — read from EXT_SENS_DATA (internal I2C slave)
 5. **Magnetometer correction function** — compute yaw from mag + soft-iron calibration

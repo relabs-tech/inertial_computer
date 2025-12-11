@@ -6,6 +6,7 @@ import (
 	"time"
 
 	mqtt "github.com/eclipse/paho.mqtt.golang"
+	imu_raw "github.com/relabs-tech/inertial_computer/internal/imu"
 	"github.com/relabs-tech/inertial_computer/internal/orientation"
 	"github.com/relabs-tech/inertial_computer/internal/sensors"
 )
@@ -55,6 +56,7 @@ func RunInertialProducer() error {
 	for t := range ticker.C {
 		// 1) Orientation (raw and fused)
 		var pose orientation.Pose
+		var rawIMU imu_raw.IMURaw
 		if useMock {
 			var err error
 			pose, err = mockSrc.Next()
@@ -64,7 +66,8 @@ func RunInertialProducer() error {
 			}
 		} else {
 			// Read raw IMU data and compute pose from accelerometer
-			rawIMU, err := imuReader.ReadRaw()
+			var err error
+			rawIMU, err = imuReader.ReadRaw()
 			if err != nil {
 				log.Printf("error reading raw IMU: %v", err)
 				continue
@@ -94,10 +97,20 @@ func RunInertialProducer() error {
 		}
 
 		// 2) Left/right IMU raw
-		if imuL, err := sensors.ReadLeftIMURaw(); err != nil {
-			log.Printf("left IMU read error: %v", err)
-			continue
-		} else if payload, err := json.Marshal(imuL); err != nil {
+		var imuL imu_raw.IMURaw
+		if useMock {
+			var err error
+			imuL, err = sensors.ReadLeftIMURaw()
+			if err != nil {
+				log.Printf("left IMU read error: %v", err)
+				continue
+			}
+		} else {
+			// we already read rawIMU above from the real IMU
+			imuL = rawIMU
+		}
+
+		if payload, err := json.Marshal(imuL); err != nil {
 			log.Printf("left IMU marshal error: %v", err)
 			continue
 		} else {
@@ -147,7 +160,7 @@ func RunInertialProducer() error {
 			}
 		}
 
-		log.Printf("%s tick: published pose + IMU/BMP samples", t.Format(time.RFC3339))
+		log.Printf("%s tick: pose R=%.2f P=%.2f Y=%.2f | left accel ax=%d ay=%d az=%d | left gyro gx=%d gy=%d gz=%d", t.Format(time.RFC3339), pose.Roll, pose.Pitch, pose.Yaw, imuL.Ax, imuL.Ay, imuL.Az, imuL.Gx, imuL.Gy, imuL.Gz)
 	}
 	return nil
 }

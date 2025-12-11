@@ -82,10 +82,19 @@ func (s *imuSource) ReadRaw() (imu_raw.IMURaw, error) {
 		return imu_raw.IMURaw{}, fmt.Errorf("left IMU acc Z: %w", err)
 	}
 
-	// TODO: read actual gyro values once driver supports them
-	gx := int16(0)
-	gy := int16(0)
-	gz := int16(0)
+	// Read gyroscope (rotation) values from the MPU9250
+	gx, err := s.imu.GetRotationX()
+	if err != nil {
+		return imu_raw.IMURaw{}, fmt.Errorf("left IMU gyro X: %w", err)
+	}
+	gy, err := s.imu.GetRotationY()
+	if err != nil {
+		return imu_raw.IMURaw{}, fmt.Errorf("left IMU gyro Y: %w", err)
+	}
+	gz, err := s.imu.GetRotationZ()
+	if err != nil {
+		return imu_raw.IMURaw{}, fmt.Errorf("left IMU gyro Z: %w", err)
+	}
 
 	// TODO: read actual mag values from EXT_SENS_DATA registers
 	mx := int16(0)

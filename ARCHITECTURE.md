@@ -167,7 +167,8 @@ Implemented by `imuSource` which wraps an MPU9250 device. Returns raw accelerome
 ### Current status
 
 - ✅ Left IMU reads accel via SPI (MPU9250)
-- ⚠️ Gyro/mag reads TODO (driver methods not yet called)
+- ✅ Left IMU gyroscope (rotation) reads implemented via `GetRotationX/Y/Z`
+- ⚠️ Magnetometer (AK8963) reads from EXT_SENS_DATA still TODO
 - ❌ Right IMU: not yet wired or implemented
 - ❌ BMP sensors: stubs return zero values
 
@@ -201,8 +202,12 @@ Current implementation:
 - ✅ Uses `IMURawReader` interface for hardware decoupling
 - ✅ Pure pose computation via `orientation.AccelToPose()`
 - ✅ Mock mode still works (toggle via `useMock` flag)
-- ⚠️ Accel readings work; gyro/mag return zeros (driver TODO)
+- ✅ Left IMU accel and gyro reads implemented; magnetometer values still TODO
 - ⚠️ BMP readings return zeros (driver TODO)
+
+Additional runtime behavior:
+
+- The inertial producer now logs actionable runtime output each tick: timestamped pose (roll/pitch/yaw) and the left IMU's raw accelerometer and gyroscope values are printed to stdout for ease of debugging and integration testing.
 
 Future enhancements:
 
