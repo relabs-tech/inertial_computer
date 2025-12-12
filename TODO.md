@@ -52,9 +52,10 @@ The Pi never talks directly to the magnetometer.
 - ⚠️ Read magnetometer from EXT_SENS_DATA registers
 
 ### Right IMU
-- ❌ SPI wiring not yet done
-- ❌ Implement right IMU driver (same as left, different SPI/CS)
-- ❌ Implement ReadRightIMURaw stub
+- ✅ Code implemented: `NewIMUSourceRight()` and `ReadRightIMURaw()` working
+- ⚠️ SPI pins defined: SPI0 (`/dev/spidev0.0`), CS on GPIO 8
+- ❌ Physical wiring not yet done
+- ❌ Hardware testing not yet done
 
 ### Environmental sensors (BMP)
 - ❌ Initialize BMP sensors on I2C

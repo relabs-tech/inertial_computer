@@ -169,7 +169,8 @@ Implemented by `imuSource` which wraps an MPU9250 device. Returns raw accelerome
 - ✅ Left IMU reads accel via SPI (MPU9250)
 - ✅ Left IMU gyro reads implemented via `GetRotationX/Y/Z()`
 - ⚠️ Left IMU magnetometer reads TODO (EXT_SENS_DATA registers not yet configured)
-- ❌ Right IMU: not yet wired or implemented
+- ✅ Right IMU: implemented via `NewIMUSourceRight()` and `ReadRightIMURaw()`
+- ⚠️ Right IMU wiring: SPI pins defined but not yet physically connected
 - ❌ BMP sensors: stubs return zero values
 
 The rest of the system **never** imports periph.io or hardware-specific code directly.
@@ -393,7 +394,7 @@ Fusion algorithms remain **internal to the producer**. Consumers always receive 
 ### Hardware connections
 
 - **Left IMU (MPU9250)**: SPI2 (`/dev/spidev6.0`), CS on GPIO 18
-- **Right IMU (MPU9250)**: TBD (not yet implemented)
+- **Right IMU (MPU9250)**: SPI0 (`/dev/spidev0.0`), CS on GPIO 8
 - **Environmental sensors (BMP)**: I2C (address TBD)
 - **GPS module**: Serial port, 9600 baud
 
@@ -437,9 +438,8 @@ Fusion algorithms remain **internal to the producer**. Consumers always receive 
 
 ## 11. Known limitations & TODOs
 
-- **IMU**: Left IMU reads accel/gyro from real MPU9250, but returns zeros for most reads (driver integration WIP)
+- **IMU**: Left IMU reads accel/gyro from real MPU9250; right IMU code implemented but not physically wired
 - **Magnetometer**: Published but not fused; yaw is hardcoded to 0
-- **Right IMU**: Not yet implemented; stub returns zeros
 - **Environmental sensors**: Both left and right BMP stubs return zeros (driver integration needed)
 - **Calibration**: No automatic or interactive calibration routines yet
 - **Documentation**: Missing HARDWARE.md (pin assignments) and CALIBRATION.md (procedure)
