@@ -49,11 +49,24 @@ func RunInertialProducer() error {
 
 	log.Println("connected to MQTT, starting publish loop")
 
+	// Track previous pose and time for gyro integration
+	var prevPose orientation.Pose
+	var lastTickTime time.Time
+
 	// main tick
 	ticker := time.NewTicker(100 * time.Millisecond)
 	defer ticker.Stop()
 
 	for t := range ticker.C {
+		// Calculate delta time for gyro integration
+		var deltaTime float64
+		if lastTickTime.IsZero() {
+			deltaTime = 0.1 // First iteration, assume 100ms
+		} else {
+			deltaTime = t.Sub(lastTickTime).Seconds()
+		}
+		lastTickTime = t
+
 		// 1) Orientation (raw and fused)
 		var pose orientation.Pose
 		var rawIMU imu_raw.IMURaw
@@ -65,7 +78,7 @@ func RunInertialProducer() error {
 				continue
 			}
 		} else {
-			// Read raw IMU data and compute pose from accelerometer
+			// Read raw IMU data and compute pose with gyro integration
 			var err error
 			rawIMU, err = imuReader.ReadRaw()
 			if err != nil {
@@ -73,12 +86,21 @@ func RunInertialProducer() error {
 				continue
 			}
 			// Convert int16 to float64 for pose computation
-			pose = orientation.AccelToPose(
+			// Use gyro integration to get yaw from angular velocity
+			pose = orientation.ComputePoseFromIMURaw(
 				float64(rawIMU.Ax),
 				float64(rawIMU.Ay),
 				float64(rawIMU.Az),
+				float64(rawIMU.Gx),
+				float64(rawIMU.Gy),
+				float64(rawIMU.Gz),
+				prevPose,
+				deltaTime,
 			)
 		}
+
+		// Update previous pose for next iteration
+		prevPose = pose
 
 		// Publish raw pose
 		payload, err := json.Marshal(pose)

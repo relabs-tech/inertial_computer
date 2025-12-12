@@ -52,10 +52,11 @@ The Pi never talks directly to the magnetometer.
 - ⚠️ Read magnetometer from EXT_SENS_DATA registers
 
 ### Right IMU
-- ✅ Code implemented: `NewIMUSourceRight()` and `ReadRightIMURaw()` working
-- ⚠️ SPI pins defined: SPI0 (`/dev/spidev0.0`), CS on GPIO 8
-- ❌ Physical wiring not yet done
-- ❌ Hardware testing not yet done
+- ✅ Access MPU9250 via SPI (working, wired and tested)
+- ✅ Read accel via `ReadRightIMURaw()` (working)
+- ✅ Read gyroscope (rotation) values via `GetRotationX/Y/Z()` (implemented)
+- ⚠️ Configure internal I2C master for AK8963 magnetometer
+- ⚠️ Read magnetometer from EXT_SENS_DATA registers
 
 ### Environmental sensors (BMP)
 - ❌ Initialize BMP sensors on I2C
@@ -138,10 +139,22 @@ The Pi never talks directly to the magnetometer.
 
 2. **Wire up BMPxx80 sensors** — add drivers for BMP280/BMP388, initialize on I2C, and implement `ReadLeftEnv()` / `ReadRightEnv()` to publish temperature and pressure.
 
-3. **Calibrate accelerometers and gyros** — add calibration routines (bias estimation, scale factors) and tooling/documentation to persist calibration parameters.
+3. **Calibration Application (Web UI)** — separate standalone calibration tool with its own code and drivers
+   - Web UI for interactive calibration procedures
+   - Dedicated command (`cmd/calibration` or similar)
+   - Own driver instances for left/right IMUs and BMPs (independent from main producer)
+   - Calibration functions:
+     - **Accelerometer calibration**: capture bias, scale factors for left/right
+     - **Gyroscope calibration**: capture drift/bias for left/right
+     - **Magnetometer calibration**: hard-iron and soft-iron correction for left/right
+     - **BMP calibration**: temperature coefficient adjustment if needed
+   - Store calibration parameters persistently (config file or database)
+   - Apply calibration coefficients when main producer reads sensors
 
-4. **Add the magnetometers (AK8963)** — enable MPU9250 internal I2C master, read AK8963 via EXT_SENS_DATA, add soft-iron / hard-iron calibration, and expose magnetometer data for yaw fusion.
+4. **Calibrate accelerometers and gyros** — add calibration routines (bias estimation, scale factors) and tooling/documentation to persist calibration parameters.
 
-5. **Incorporate two SSD1306 displays** — wire and initialize two SSD1306 I2C/OLED displays, add lightweight UI showing key telemetry (pose, imu values, connection status) and expose a simple API to update display content.
+5. **Add the magnetometers (AK8963)** — enable MPU9250 internal I2C master, read AK8963 via EXT_SENS_DATA, add soft-iron / hard-iron calibration, and expose magnetometer data for yaw fusion.
+
+6. **Incorporate two SSD1306 displays** — wire and initialize two SSD1306 I2C/OLED displays, add lightweight UI showing key telemetry (pose, imu values, connection status) and expose a simple API to update display content.
 
 ---

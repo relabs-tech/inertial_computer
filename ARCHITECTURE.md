@@ -169,8 +169,9 @@ Implemented by `imuSource` which wraps an MPU9250 device. Returns raw accelerome
 - ✅ Left IMU reads accel via SPI (MPU9250)
 - ✅ Left IMU gyro reads implemented via `GetRotationX/Y/Z()`
 - ⚠️ Left IMU magnetometer reads TODO (EXT_SENS_DATA registers not yet configured)
-- ✅ Right IMU: implemented via `NewIMUSourceRight()` and `ReadRightIMURaw()`
-- ⚠️ Right IMU wiring: SPI pins defined but not yet physically connected
+- ✅ Right IMU reads accel via SPI (MPU9250, wired and tested)
+- ✅ Right IMU gyro reads implemented via `GetRotationX/Y/Z()`
+- ⚠️ Right IMU magnetometer reads TODO (EXT_SENS_DATA registers not yet configured)
 - ❌ BMP sensors: stubs return zero values
 
 The rest of the system **never** imports periph.io or hardware-specific code directly.
@@ -438,7 +439,8 @@ Fusion algorithms remain **internal to the producer**. Consumers always receive 
 
 ## 11. Known limitations & TODOs
 
-- **IMU**: Left IMU reads accel/gyro from real MPU9250; right IMU code implemented but not physically wired
+- **Left IMU**: Reads accel/gyro from real MPU9250; magnetometer not yet fused
+- **Right IMU**: Reads accel/gyro from real MPU9250; magnetometer not yet fused
 - **Magnetometer**: Published but not fused; yaw is hardcoded to 0
 - **Environmental sensors**: Both left and right BMP stubs return zeros (driver integration needed)
 - **Calibration**: No automatic or interactive calibration routines yet
