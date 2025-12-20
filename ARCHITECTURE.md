@@ -81,16 +81,37 @@ type IMURaw struct {
     Gy int16 `json:"gy"` // gyroscope Y
     Gz int16 `json:"gz"` // gyroscope Z
 
-    Mx int16 `json:"mx"` // magnetometer X
-    My int16 `json:"my"` // magnetometer Y
-    Mz int16 `json:"mz"` // magnetometer Z
+    Mx int16 `json:"mx"` // magnetometer X (µT × 10)
+    My int16 `json:"my"` // magnetometer Y (µT × 10)
+    Mz int16 `json:"mz"` // magnetometer Z (µT × 10)
 }
 ```
+
+**Notes**:
+- Magnetometer values are scaled as int16 (µT × 10) for consistency with other sensor readings
+- All values are raw, uncalibrated sensor outputs
+- Magnetometer reads may be zero if initialization failed (non-fatal)
 
 Published on:
 
 - `inertial/imu/left`
 - `inertial/imu/right`
+
+**Test/debug topic** (temporary):
+- `inertial/mag/left` — magnetometer-only data with computed field magnitude
+
+Format:
+```json
+{
+  "mx": -180,
+  "my": 210,
+  "mz": -50,
+  "norm": 285.3,
+  "time": "2025-12-20T12:34:56Z"
+}
+```
+
+This topic will be removed once magnetometer fusion is stable.
 
 ---
 
@@ -168,10 +189,12 @@ Implemented by `imuSource` which wraps an MPU9250 device. Returns raw accelerome
 
 - ✅ Left IMU reads accel via SPI (MPU9250)
 - ✅ Left IMU gyro reads implemented via `GetRotationX/Y/Z()`
-- ⚠️ Left IMU magnetometer reads TODO (EXT_SENS_DATA registers not yet configured)
+- ✅ Left IMU magnetometer (AK8963) initialized and reading via internal I2C
 - ✅ Right IMU reads accel via SPI (MPU9250, wired and tested)
 - ✅ Right IMU gyro reads implemented via `GetRotationX/Y/Z()`
-- ⚠️ Right IMU magnetometer reads TODO (EXT_SENS_DATA registers not yet configured)
+- ✅ Right IMU magnetometer (AK8963) initialized and reading via internal I2C
+- ⚠️ Magnetometer calibration not yet implemented (hard-iron/soft-iron correction TODO)
+- ⚠️ Magnetometer data not yet used in yaw calculation (fusion TODO)
 - ❌ BMP sensors: stubs return zero values
 
 The rest of the system **never** imports periph.io or hardware-specific code directly.
@@ -204,17 +227,21 @@ Current implementation:
 - ✅ Uses `IMURawReader` interface for hardware decoupling
 - ✅ Pure pose computation via `orientation.AccelToPose()`
 - ✅ Mock mode still works (toggle via `useMock` flag)
-- ✅ Left IMU accel and gyro readings published each tick
-- ✅ Producer logs pose and left IMU accel/gyro each 100ms tick
-- ⚠️ Left IMU magnetometer reads TODO (EXT_SENS_DATA registers)
+- ✅ Left and right IMU accel, gyro, and mag readings published each tick
+- ✅ Producer logs pose, accel, gyro, and mag (with magnitude) each 100ms tick
+- ✅ Test/debug MQTT topic `inertial/mag/left` publishes magnetometer data with field magnitude
+- ✅ Magnetometer reads scaled as int16 (µT * 10) for consistency
+- ⚠️ Magnetometer calibration not applied (hard-iron/soft-iron correction TODO)
+- ⚠️ Magnetometer data not yet integrated into yaw calculation
 - ⚠️ BMP readings return zeros (driver TODO)
 
 Future enhancements:
 
-- Implement gyro driver calls → integrate angular velocity for yaw
-- Add magnetometer driver calls → correct yaw with heading
-- Implement complementary filter or EKF for robust fusion
-- Add dual-IMU cross-validation
+- Implement magnetometer calibration (hard-iron and soft-iron correction)
+- Integrate gyro angular velocity for dynamic yaw estimation
+- Add magnetometer fusion to correct yaw drift with heading
+- Implement complementary filter or EKF for robust sensor fusion
+- Add dual-IMU cross-validation and fusion
 
 ---
 
@@ -439,10 +466,46 @@ Fusion algorithms remain **internal to the producer**. Consumers always receive 
 
 ## 11. Known limitations & TODOs
 
-- **Left IMU**: Reads accel/gyro from real MPU9250; magnetometer not yet fused
-- **Right IMU**: Reads accel/gyro from real MPU9250; magnetometer not yet fused
-- **Magnetometer**: Published but not fused; yaw is hardcoded to 0
+- **Left IMU**: Reads accel/gyro/mag from real MPU9250 via SPI; magnetometer reads working but not yet calibrated or fused into yaw
+- **Right IMU**: Reads accel/gyro/mag from real MPU9250 via SPI; magnetometer reads working but not yet calibrated or fused into yaw
+- **Magnetometer calibration**: Hard-iron and soft-iron correction not yet implemented
+- **Yaw calculation**: Currently hardcoded to 0; needs gyro integration and magnetometer fusion
 - **Environmental sensors**: Both left and right BMP stubs return zeros (driver integration needed)
+
+---
+
+## 12. Recent changes (Mag_Add branch)
+
+### Magnetometer integration (commits: 139a91d, f5f3cb3)
+
+**Driver changes** (`internal/sensors/imu_source.go`):
+- Added `InitMag()` call during IMU initialization for both left and right sensors
+- Magnetometer initialization is non-fatal; system continues if mag unavailable
+- Added `magCal` field to store magnetometer calibration parameters
+- Added `magReady` flag to track whether magnetometer is operational
+- `ReadRaw()` now calls `imu.ReadMag(magCal)` to retrieve magnetometer data
+- Raw magnetometer values scaled as int16 (µT × 10) for consistency with accel/gyro
+- Overflow detection implemented; overflows are silently skipped
+
+**Producer test/debug code** (`internal/app/imu_producer.go`):
+- Added `magNorm()` helper function to compute magnetic field magnitude
+- New MQTT topic `inertial/mag/left` publishes magnetometer-only data with:
+  - Raw mx, my, mz values
+  - Computed field magnitude (|B|)
+  - RFC3339 timestamp
+- Updated logging to include magnetometer readings: `mx=X my=Y mz=Z |B|=N`
+- Test code allows validation of magnetometer behavior before fusion integration
+
+**Dependencies** (`go.mod`):
+- Added local replace directive: `periph.io/x/devices/v3` → local fork with magnetometer support
+- This temporary change supports testing of magnetometer driver enhancements
+
+**Next steps**:
+1. Implement hard-iron and soft-iron calibration routines
+2. Apply calibration to raw magnetometer readings
+3. Integrate calibrated magnetometer data into yaw calculation
+4. Remove test/debug MQTT topic once fusion is stable
+5. Update `go.mod` to use upstream periph.io once magnetometer support is merged
 - **Calibration**: No automatic or interactive calibration routines yet
 - **Documentation**: Missing HARDWARE.md (pin assignments) and CALIBRATION.md (procedure)
 

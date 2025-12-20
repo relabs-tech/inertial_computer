@@ -17,10 +17,23 @@ current state, known-good references, and all remaining work.
 - GPS ingestion and publication working
 - Core domain models defined
 - README.md and ARCHITECTURE.md written
-- **[NEW]** Separated raw sensor reads from pose computation (branch: `refactor/separate-raw-reads-from-pose`)
+- **[DONE]** Separated raw sensor reads from pose computation (branch: `refactor/separate-raw-reads-from-pose`)
   - `IMURawReader` interface for hardware reads
   - Pure functions `AccelToPose()`, `ComputePoseFromAccel()` in orientation package
   - Producer refactored to call `ReadRaw()` then compute pose
+- **[DONE]** Right IMU integration (branch: `feature/imu-right`)
+  - Right IMU accessible via SPI0, CS on GPIO 8
+  - Accel, gyro reads working
+- **[DONE]** Gyroscope integration (commit: 34a11cf)
+  - Left and right IMU gyro values read via `GetRotationX/Y/Z()`
+  - Published in IMURaw structs
+- **[NEW]** Magnetometer driver integration (branch: `Mag_Add`, commits: 139a91d, f5f3cb3)
+  - Left and right IMU magnetometer (AK8963) initialized via internal I2C
+  - `InitMag()` and `ReadMag()` implemented in driver
+  - Magnetometer reads working; values published in IMURaw structs
+  - Test/debug MQTT topic `inertial/mag/left` publishing mag data with field magnitude
+  - Producer logs include magnetometer readings and |B| magnitude
+  - Local fork of `periph.io/x/devices` integrated via replace directive
 
 ### Not completed
 - Real IMU (MPU9250) wiring (accel reads work, gyro/mag TODOs remain)
@@ -48,15 +61,19 @@ The Pi never talks directly to the magnetometer.
 - ✅ Access MPU9250 via SPI (working)
 - ✅ Read accel via `imuSource.ReadRaw()` (working)
 - ✅ Read gyroscope (rotation) values via `GetRotationX/Y/Z` (implemented)
-- ⚠️ Configure internal I2C master for AK8963 magnetometer
-- ⚠️ Read magnetometer from EXT_SENS_DATA registers
+- ✅ Configure internal I2C master for AK8963 magnetometer (complete)
+- ✅ Read magnetometer from EXT_SENS_DATA registers (working with test code)
+- ⚠️ Magnetometer calibration (hard-iron and soft-iron correction TODO)
+- ⚠️ Integration of magnetometer into yaw calculation (fusion TODO)
 
 ### Right IMU
 - ✅ Access MPU9250 via SPI (working, wired and tested)
 - ✅ Read accel via `ReadRightIMURaw()` (working)
 - ✅ Read gyroscope (rotation) values via `GetRotationX/Y/Z()` (implemented)
-- ⚠️ Configure internal I2C master for AK8963 magnetometer
-- ⚠️ Read magnetometer from EXT_SENS_DATA registers
+- ✅ Configure internal I2C master for AK8963 magnetometer (complete)
+- ✅ Read magnetometer from EXT_SENS_DATA registers (working with test code)
+- ⚠️ Magnetometer calibration (hard-iron and soft-iron correction TODO)
+- ⚠️ Integration of magnetometer into yaw calculation (fusion TODO)
 
 ### Environmental sensors (BMP)
 - ❌ Initialize BMP sensors on I2C
@@ -87,10 +104,13 @@ The Pi never talks directly to the magnetometer.
 - ✅ Refactored to call `ReadRaw()` and `AccelToPose()` separately
 - ✅ Mock mode still works (can switch via `useMock` flag)
 - ✅ Left IMU gyro values are now read and published
-- ✅ Producer logs pose and left IMU accel/gyro each 100ms tick
+- ✅ Left and right IMU magnetometer values are now read and published
+- ✅ Producer logs pose, accel, gyro, and mag (with magnitude) each 100ms tick
+- ✅ Test/debug MQTT topic `inertial/mag/left` publishes magnetometer data with norm
 - ⚠️ Currently publishes zeros for BMP (driver TODO)
-- ⚠️ Magnetometer values still TODO (driver)
-- Ready for: right IMU integration, gyro/mag fusion, multi-sensor fusion
+- ⚠️ Magnetometer calibration not yet applied (hard/soft-iron correction TODO)
+- ⚠️ Magnetometer not yet integrated into yaw calculation
+- Ready for: magnetometer calibration, gyro/mag fusion, multi-sensor fusion
 
 ### GPS Producer
 - ✅ Functional (reads NMEA, publishes GPS fixes)
@@ -120,16 +140,17 @@ The Pi never talks directly to the magnetometer.
 
 ## 8. Next steps (priority order)
 
-1. **Merge refactor branch** — raw reads separated from pose computation
+1. **Merge refactor branch** — raw reads separated from pose computation ✅ done
 2. **Gyro driver integration** — read actual gyroscope values in `ReadRaw()` ✅ done
-3. **Gyro integration function** — integrate angular velocity to get yaw estimate
-4. **Magnetometer driver integration** — read from EXT_SENS_DATA (internal I2C slave)
-5. **Magnetometer correction function** — compute yaw from mag + soft-iron calibration
-6. **Complementary filter** — blend accel/gyro/mag for robust orientation
-7. **Right IMU driver** — duplicate left IMU logic with different SPI/CS
-8. **BMP environmental sensor driver** — I2C temperature/pressure reads
-9. **Dual-IMU fusion** — cross-validate and combine left/right readings
-10. **Optional: Kalman filter** — advanced fusion for production use
+3. **Right IMU driver** — duplicate left IMU logic with different SPI/CS ✅ done
+4. **Magnetometer driver integration** — read from EXT_SENS_DATA (internal I2C slave) ✅ done (test code active)
+5. **Magnetometer calibration** — implement hard-iron and soft-iron correction
+6. **Gyro integration function** — integrate angular velocity to get yaw estimate
+7. **Magnetometer correction function** — compute yaw from mag + calibration applied
+8. **Complementary filter** — blend accel/gyro/mag for robust orientation
+9. **BMP environmental sensor driver** — I2C temperature/pressure reads
+10. **Dual-IMU fusion** — cross-validate and combine left/right readings
+11. **Optional: Kalman filter** — advanced fusion for production use
 
 ---
 
