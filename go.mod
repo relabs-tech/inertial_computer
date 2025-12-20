@@ -11,6 +11,8 @@ require (
 	periph.io/x/host/v3 v3.8.5
 )
 
+replace periph.io/x/devices/v3 => /home/dalarub/go/src/github.com/relabs-tech/devices
+
 require (
 	github.com/gorilla/websocket v1.5.3 // indirect
 	golang.org/x/net v0.44.0 // indirect
