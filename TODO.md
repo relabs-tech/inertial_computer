@@ -157,4 +157,6 @@ The Pi never talks directly to the magnetometer.
 
 6. **Incorporate two SSD1306 displays** — wire and initialize two SSD1306 I2C/OLED displays, add lightweight UI showing key telemetry (pose, imu values, connection status) and expose a simple API to update display content.
 
+7. **Add CLI options to ./cmd/xxx/main.go apps** — use Go's flag package to add configurable options like MQTT broker URL, IMU selection (mock/real), debug levels, serial ports, and web server ports. Update RunXXX functions to accept config structs. Low effort (1-2 hours total for all 5 apps).
+
 ---
