@@ -10,29 +10,31 @@ import (
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 	serial "github.com/jacobsa/go-serial/serial"
 
+	"github.com/relabs-tech/inertial_computer/internal/config"
 	"github.com/relabs-tech/inertial_computer/internal/gps"
 )
 
 // RunGPSProducer opens the GPS serial port, parses NMEA sentences, and
-// publishes combined GPS fixes as JSON to MQTT topic "inertial/gps".
+// publishes combined GPS fixes as JSON to MQTT.
 func RunGPSProducer() error {
+	cfg := config.Get()
+
 	// ---- 1) Connect to MQTT broker ----
 	opts := mqtt.NewClientOptions().
-		AddBroker("tcp://localhost:1883").
-		SetClientID("inertial-gps-producer")
+		AddBroker(cfg.MQTTBroker).
+		SetClientID(cfg.MQTTClientIDGPS)
 
 	client := mqtt.NewClient(opts)
 	if token := client.Connect(); token.Wait() && token.Error() != nil {
 		log.Fatalf("MQTT connect error: %v", token.Error())
 		return token.Error()
 	}
-	log.Println("GPS producer connected to MQTT broker at tcp://localhost:1883")
+	log.Printf("GPS producer connected to MQTT broker at %s", cfg.MQTTBroker)
 
 	// ---- 2) Open GPS serial port ----
-	// NOTE: adjust PortName to match your setup: /dev/serial0, /dev/ttyAMA0, /dev/ttyUSB0, etc.
 	serialOpts := serial.OpenOptions{
-		PortName:              "/dev/serial0",
-		BaudRate:              9600,
+		PortName:              cfg.GPSSerialPort,
+		BaudRate:              uint(cfg.GPSBaudRate),
 		DataBits:              8,
 		StopBits:              1,
 		MinimumReadSize:       1,
@@ -96,7 +98,7 @@ func RunGPSProducer() error {
 				continue
 			}
 
-			token := client.Publish("inertial/gps", 0, true, payload)
+			token := client.Publish(cfg.TopicGPS, 0, true, payload)
 			token.Wait()
 			if token.Error() != nil {
 				log.Printf("GPS publish error: %v", token.Error())

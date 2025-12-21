@@ -55,6 +55,30 @@ See [TODO.md](TODO.md) for detailed task list and [ARCHITECTURE.md](ARCHITECTURE
 
 ---
 
+## Configuration
+
+All system settings are centralized in `inertial_config.txt` at the project root. This includes:
+
+- **MQTT broker address and client IDs**
+- **MQTT topic names** for all data streams
+- **IMU hardware settings** (SPI devices and CS pins)
+- **GPS serial port** and baud rate
+- **Timing intervals** (IMU sample rate)
+- **Web server port**
+
+To customize your setup, edit `inertial_config.txt` before running any program. The configuration file uses a simple `KEY=VALUE` format with comments starting with `#`.
+
+Example configuration snippet:
+```
+MQTT_BROKER=tcp://localhost:1883
+IMU_LEFT_SPI_DEVICE=/dev/spidev6.0
+IMU_LEFT_CS_PIN=18
+GPS_SERIAL_PORT=/dev/serial0
+IMU_SAMPLE_INTERVAL=100
+```
+
+---
+
 ## Hardware Connection
 
 The Raspberry Pi requires specific hardware interfaces enabled in `/boot/firmware/config.txt`:

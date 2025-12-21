@@ -1,0 +1,38 @@
+# Inertial Computer Configuration File
+# Lines starting with # are comments
+# Format: KEY=VALUE
+
+# MQTT Configuration
+MQTT_BROKER=tcp://localhost:1883
+MQTT_CLIENT_ID_PRODUCER=inertial-main-producer
+MQTT_CLIENT_ID_GPS=inertial-gps-producer
+MQTT_CLIENT_ID_CONSOLE=inertial-console-subscriber
+MQTT_CLIENT_ID_WEB=inertial-web-subscriber
+
+# MQTT Topics
+TOPIC_POSE=inertial/pose
+TOPIC_POSE_FUSED=inertial/pose/fused
+TOPIC_IMU_LEFT=inertial/imu/left
+TOPIC_IMU_RIGHT=inertial/imu/right
+TOPIC_MAG_LEFT=inertial/mag/left
+TOPIC_BMP_LEFT=inertial/bmp/left
+TOPIC_BMP_RIGHT=inertial/bmp/right
+TOPIC_GPS=inertial/gps
+
+# IMU Hardware Configuration - Left IMU
+IMU_LEFT_SPI_DEVICE=/dev/spidev6.0
+IMU_LEFT_CS_PIN=18
+
+# IMU Hardware Configuration - Right IMU
+IMU_RIGHT_SPI_DEVICE=/dev/spidev0.0
+IMU_RIGHT_CS_PIN=8
+
+# GPS Configuration
+GPS_SERIAL_PORT=/dev/serial0
+GPS_BAUD_RATE=9600
+
+# Timing Configuration (milliseconds)
+IMU_SAMPLE_INTERVAL=100
+
+# Web Server Configuration
+WEB_SERVER_PORT=8080

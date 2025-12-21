@@ -2,12 +2,14 @@ package app
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"sync"
 
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 
+	"github.com/relabs-tech/inertial_computer/internal/config"
 	"github.com/relabs-tech/inertial_computer/internal/env"
 	"github.com/relabs-tech/inertial_computer/internal/gps"
 	imu_raw "github.com/relabs-tech/inertial_computer/internal/imu"
@@ -15,6 +17,8 @@ import (
 )
 
 func RunWeb() error {
+	cfg := config.Get()
+
 	var (
 		mu       sync.RWMutex
 		lastPose orientation.Pose
@@ -39,17 +43,17 @@ func RunWeb() error {
 
 	// 1) Connect to MQTT
 	opts := mqtt.NewClientOptions().
-		AddBroker("tcp://localhost:1883").
-		SetClientID("inertial-web-subscriber")
+		AddBroker(cfg.MQTTBroker).
+		SetClientID(cfg.MQTTClientIDWeb)
 
 	client := mqtt.NewClient(opts)
 	if token := client.Connect(); token.Wait() && token.Error() != nil {
 		return token.Error()
 	}
-	log.Println("web: connected to MQTT broker at tcp://localhost:1883")
+	log.Printf("web: connected to MQTT broker at %s", cfg.MQTTBroker)
 
-	// 2) Subscribe to inertial/pose
-	poseToken := client.Subscribe("inertial/pose", 0, func(_ mqtt.Client, msg mqtt.Message) {
+	// 2) Subscribe to pose
+	poseToken := client.Subscribe(cfg.TopicPose, 0, func(_ mqtt.Client, msg mqtt.Message) {
 		var p orientation.Pose
 		if err := json.Unmarshal(msg.Payload(), &p); err != nil {
 			log.Printf("web: pose unmarshal error: %v", err)
@@ -64,10 +68,10 @@ func RunWeb() error {
 	if poseToken.Error() != nil {
 		return poseToken.Error()
 	}
-	log.Println("web: subscribed to MQTT topic inertial/pose")
+	log.Printf("web: subscribed to MQTT topic %s", cfg.TopicPose)
 
-	// 3) Subscribe to inertial/gps
-	gpsToken := client.Subscribe("inertial/gps", 0, func(_ mqtt.Client, msg mqtt.Message) {
+	// 3) Subscribe to GPS
+	gpsToken := client.Subscribe(cfg.TopicGPS, 0, func(_ mqtt.Client, msg mqtt.Message) {
 		var f gps.Fix
 		if err := json.Unmarshal(msg.Payload(), &f); err != nil {
 			log.Printf("web: gps unmarshal error: %v", err)
@@ -82,10 +86,10 @@ func RunWeb() error {
 	if gpsToken.Error() != nil {
 		return gpsToken.Error()
 	}
-	log.Println("web: subscribed to MQTT topic inertial/gps")
+	log.Printf("web: subscribed to MQTT topic %s", cfg.TopicGPS)
 
-	// 4) Subscribe to inertial/pose/fused
-	fusedToken := client.Subscribe("inertial/pose/fused", 0, func(_ mqtt.Client, msg mqtt.Message) {
+	// 4) Subscribe to fused pose
+	fusedToken := client.Subscribe(cfg.TopicPoseFused, 0, func(_ mqtt.Client, msg mqtt.Message) {
 		var p orientation.Pose
 		if err := json.Unmarshal(msg.Payload(), &p); err != nil {
 			log.Printf("web: fused pose unmarshal error: %v", err)
@@ -100,10 +104,10 @@ func RunWeb() error {
 	if fusedToken.Error() != nil {
 		return fusedToken.Error()
 	}
-	log.Println("web: subscribed to MQTT topic inertial/pose/fused")
+	log.Printf("web: subscribed to MQTT topic %s", cfg.TopicPoseFused)
 
-	// 4b) inertial/imu/left
-	imuLeftToken := client.Subscribe("inertial/imu/left", 0, func(_ mqtt.Client, msg mqtt.Message) {
+	// Subscribe to IMU left
+	imuLeftToken := client.Subscribe(cfg.TopicIMULeft, 0, func(_ mqtt.Client, msg mqtt.Message) {
 		var s imu_raw.IMURaw
 		if err := json.Unmarshal(msg.Payload(), &s); err != nil {
 			log.Printf("web: imu left unmarshal error: %v", err)
@@ -118,10 +122,10 @@ func RunWeb() error {
 	if imuLeftToken.Error() != nil {
 		return imuLeftToken.Error()
 	}
-	log.Println("web: subscribed to inertial/imu/left")
+	log.Printf("web: subscribed to %s", cfg.TopicIMULeft)
 
-	// 4c)inertial/imu/right
-	imuRightToken := client.Subscribe("inertial/imu/right", 0, func(_ mqtt.Client, msg mqtt.Message) {
+	// Subscribe to IMU right
+	imuRightToken := client.Subscribe(cfg.TopicIMURight, 0, func(_ mqtt.Client, msg mqtt.Message) {
 		var s imu_raw.IMURaw
 		if err := json.Unmarshal(msg.Payload(), &s); err != nil {
 			log.Printf("web: imu right unmarshal error: %v", err)
@@ -136,10 +140,10 @@ func RunWeb() error {
 	if imuRightToken.Error() != nil {
 		return imuRightToken.Error()
 	}
-	log.Println("web: subscribed to inertial/imu/right")
+	log.Printf("web: subscribed to %s", cfg.TopicIMURight)
 
-	// 4d)inertial/bmp/left
-	envLeftToken := client.Subscribe("inertial/bmp/left", 0, func(_ mqtt.Client, msg mqtt.Message) {
+	// Subscribe to BMP left
+	envLeftToken := client.Subscribe(cfg.TopicBMPLeft, 0, func(_ mqtt.Client, msg mqtt.Message) {
 		var s env.Sample
 		if err := json.Unmarshal(msg.Payload(), &s); err != nil {
 			log.Printf("web: env left unmarshal error: %v", err)
@@ -154,10 +158,10 @@ func RunWeb() error {
 	if envLeftToken.Error() != nil {
 		return envLeftToken.Error()
 	}
-	log.Println("web: subscribed to inertial/bmp/left")
+	log.Printf("web: subscribed to %s", cfg.TopicBMPLeft)
 
-	// 4e) inertial/bmp/right
-	envRightToken := client.Subscribe("inertial/bmp/right", 0, func(_ mqtt.Client, msg mqtt.Message) {
+	// 4e) Subscribe to BMP right
+	envRightToken := client.Subscribe(cfg.TopicBMPRight, 0, func(_ mqtt.Client, msg mqtt.Message) {
 		var s env.Sample
 		if err := json.Unmarshal(msg.Payload(), &s); err != nil {
 			log.Printf("web: env right unmarshal error: %v", err)
@@ -172,7 +176,7 @@ func RunWeb() error {
 	if envRightToken.Error() != nil {
 		return envRightToken.Error()
 	}
-	log.Println("web: subscribed to inertial/bmp/right")
+	log.Printf("web: subscribed to %s", cfg.TopicBMPRight)
 
 	// 5) JSON API: latest pose
 	http.HandleFunc("/api/orientation", func(w http.ResponseWriter, r *http.Request) {
@@ -280,7 +284,7 @@ func RunWeb() error {
 	fs := http.FileServer(http.Dir("web"))
 	http.Handle("/", fs)
 
-	addr := ":8080"
+	addr := fmt.Sprintf(":%d", cfg.WebServerPort)
 	log.Printf("web: listening on %s", addr)
 	return http.ListenAndServe(addr, nil)
 }

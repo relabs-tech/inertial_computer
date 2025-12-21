@@ -10,24 +10,27 @@ import (
 
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 
+	"github.com/relabs-tech/inertial_computer/internal/config"
 	"github.com/relabs-tech/inertial_computer/internal/gps"
 	imu_raw "github.com/relabs-tech/inertial_computer/internal/imu"
 	"github.com/relabs-tech/inertial_computer/internal/orientation"
 )
 
 func RunConsoleMQTT() error {
+	cfg := config.Get()
+
 	opts := mqtt.NewClientOptions().
-		AddBroker("tcp://localhost:1883").
-		SetClientID("inertial-console-subscriber")
+		AddBroker(cfg.MQTTBroker).
+		SetClientID(cfg.MQTTClientIDConsole)
 
 	client := mqtt.NewClient(opts)
 	if token := client.Connect(); token.Wait() && token.Error() != nil {
 		return token.Error()
 	}
-	log.Println("console: connected to MQTT broker at tcp://localhost:1883")
+	log.Printf("console: connected to MQTT broker at %s", cfg.MQTTBroker)
 
 	// Subscribe to orientation
-	poseToken := client.Subscribe("inertial/pose", 0, func(_ mqtt.Client, msg mqtt.Message) {
+	poseToken := client.Subscribe(cfg.TopicPose, 0, func(_ mqtt.Client, msg mqtt.Message) {
 		var p orientation.Pose
 		if err := json.Unmarshal(msg.Payload(), &p); err != nil {
 			log.Printf("console: pose unmarshal error: %v", err)
@@ -43,10 +46,10 @@ func RunConsoleMQTT() error {
 	if poseToken.Error() != nil {
 		return poseToken.Error()
 	}
-	log.Println("console: subscribed to inertial/pose")
+	log.Printf("console: subscribed to %s", cfg.TopicPose)
 
 	// Subscribe to fused orientation
-	fusedToken := client.Subscribe("inertial/pose/fused", 0, func(_ mqtt.Client, msg mqtt.Message) {
+	fusedToken := client.Subscribe(cfg.TopicPoseFused, 0, func(_ mqtt.Client, msg mqtt.Message) {
 		var p orientation.Pose
 		if err := json.Unmarshal(msg.Payload(), &p); err != nil {
 			log.Printf("console: fused pose unmarshal error: %v", err)
@@ -62,10 +65,10 @@ func RunConsoleMQTT() error {
 	if fusedToken.Error() != nil {
 		return fusedToken.Error()
 	}
-	log.Println("console: subscribed to inertial/pose/fused")
+	log.Printf("console: subscribed to %s", cfg.TopicPoseFused)
 
 	// Subscribe to IMU left
-	imuLeftToken := client.Subscribe("inertial/imu/left", 0, func(_ mqtt.Client, msg mqtt.Message) {
+	imuLeftToken := client.Subscribe(cfg.TopicIMULeft, 0, func(_ mqtt.Client, msg mqtt.Message) {
 		var s imu_raw.IMURaw
 		if err := json.Unmarshal(msg.Payload(), &s); err != nil {
 			log.Printf("console: imu left unmarshal error: %v", err)
@@ -83,7 +86,7 @@ func RunConsoleMQTT() error {
 	}
 
 	// Subscribe to IMU right
-	imuRightToken := client.Subscribe("inertial/imu/right", 0, func(_ mqtt.Client, msg mqtt.Message) {
+	imuRightToken := client.Subscribe(cfg.TopicIMURight, 0, func(_ mqtt.Client, msg mqtt.Message) {
 		var s imu_raw.IMURaw
 		if err := json.Unmarshal(msg.Payload(), &s); err != nil {
 			log.Printf("console: imu right unmarshal error: %v", err)
@@ -100,10 +103,10 @@ func RunConsoleMQTT() error {
 		return imuRightToken.Error()
 	}
 
-	log.Println("console: subscribed to inertial/imu/right")
+	log.Printf("console: subscribed to %s", cfg.TopicIMURight)
 
 	// Subscribe to GPS
-	gpsToken := client.Subscribe("inertial/gps", 0, func(_ mqtt.Client, msg mqtt.Message) {
+	gpsToken := client.Subscribe(cfg.TopicGPS, 0, func(_ mqtt.Client, msg mqtt.Message) {
 		var f gps.Fix
 		if err := json.Unmarshal(msg.Payload(), &f); err != nil {
 			log.Printf("console: gps unmarshal error: %v", err)
@@ -119,7 +122,7 @@ func RunConsoleMQTT() error {
 	if gpsToken.Error() != nil {
 		return gpsToken.Error()
 	}
-	log.Println("console: subscribed to inertial/gps")
+	log.Printf("console: subscribed to %s", cfg.TopicGPS)
 
 	// Wait for Ctrl+C
 	sigCh := make(chan os.Signal, 1)

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	mqtt "github.com/eclipse/paho.mqtt.golang"
+	"github.com/relabs-tech/inertial_computer/internal/config"
 	imu_raw "github.com/relabs-tech/inertial_computer/internal/imu"
 	"github.com/relabs-tech/inertial_computer/internal/orientation"
 	"github.com/relabs-tech/inertial_computer/internal/sensors"
@@ -24,31 +25,34 @@ func magNorm(mx, my, mz int16) float64 {
 func RunInertialProducer() error {
 	log.Println("starting inertial-computer orientation/env producer")
 
-	// --- choose orientation source (mock vs IMU) ---
-	useMock := false
+	cfg := config.Get()
 
-	var (
-		imuReader sensors.IMURawReader
-		mockSrc   orientation.Source
-		err       error
-	)
+	// --- Initialize IMU manager (both left and right) ---
+	imuManager := sensors.GetIMUManager()
+	if err := imuManager.Init(); err != nil {
+		log.Fatalf("failed to initialize IMU manager: %v", err)
+		return err
+	}
+
+	// --- Choose orientation source (mock vs real IMU) ---
+	useMock := false
+	var mockSrc orientation.Source
 
 	if useMock {
 		log.Println("using mock orientation source")
 		mockSrc = orientation.NewMockSource()
 	} else {
-		log.Println("using LEFT IMU raw reader")
-		imuReader, err = sensors.NewIMUSourceLeft()
-		if err != nil {
-			log.Fatalf("failed to initialize IMU source: %v", err)
-			return err
+		if imuManager.IsLeftIMUAvailable() {
+			log.Println("using left IMU for orientation")
+		} else {
+			log.Println("WARNING: left IMU not available, orientation may be unreliable")
 		}
 	}
 
 	// --- connect to MQTT ---
 	opts := mqtt.NewClientOptions().
-		AddBroker("tcp://localhost:1883").
-		SetClientID("inertial-main-producer")
+		AddBroker(cfg.MQTTBroker).
+		SetClientID(cfg.MQTTClientIDProducer)
 
 	client := mqtt.NewClient(opts)
 	if token := client.Connect(); token.Wait() && token.Error() != nil {
@@ -64,7 +68,7 @@ func RunInertialProducer() error {
 	var lastTickTime time.Time
 
 	// main tick
-	ticker := time.NewTicker(100 * time.Millisecond)
+	ticker := time.NewTicker(time.Duration(cfg.IMUSampleInterval) * time.Millisecond)
 	defer ticker.Stop()
 
 	for t := range ticker.C {
@@ -88,15 +92,14 @@ func RunInertialProducer() error {
 				continue
 			}
 		} else {
-			// Read raw IMU data and compute pose with gyro integration
+			// Read raw IMU data from left IMU
 			var err error
-			rawIMU, err = imuReader.ReadRaw()
+			rawIMU, err = imuManager.ReadLeftIMU()
 			if err != nil {
-				log.Printf("error reading raw IMU: %v", err)
+				log.Printf("error reading left IMU: %v", err)
 				continue
 			}
-			// Convert int16 to float64 for pose computation
-			// Use gyro integration to get yaw from angular velocity
+			// Compute pose with gyro integration
 			pose = orientation.ComputePoseFromIMURaw(
 				float64(rawIMU.Ax),
 				float64(rawIMU.Ay),
@@ -117,12 +120,12 @@ func RunInertialProducer() error {
 		if err != nil {
 			log.Printf("json marshal error (pose): %v", err)
 		} else {
-			if token := client.Publish("inertial/pose", 0, true, payload); token.Wait() && token.Error() != nil {
+			if token := client.Publish(cfg.TopicPose, 0, true, payload); token.Wait() && token.Error() != nil {
 				log.Printf("MQTT publish error (pose): %v", token.Error())
 				continue
 			}
 			// fused pose (same for now)
-			if token := client.Publish("inertial/pose/fused", 0, true, payload); token.Wait() && token.Error() != nil {
+			if token := client.Publish(cfg.TopicPoseFused, 0, true, payload); token.Wait() && token.Error() != nil {
 				log.Printf("MQTT publish error (pose/fused): %v", token.Error())
 				continue
 			}
@@ -131,14 +134,10 @@ func RunInertialProducer() error {
 		// 2) Left/right IMU raw
 		var imuL imu_raw.IMURaw
 		if useMock {
-			var err error
-			imuL, err = sensors.ReadLeftIMURaw()
-			if err != nil {
-				log.Printf("left IMU read error: %v", err)
-				continue
-			}
+			// In mock mode, create a dummy reading
+			imuL = imu_raw.IMURaw{Source: "mock"}
 		} else {
-			// we already read rawIMU above from the real IMU
+			// In real mode, we already read from left IMU for orientation
 			imuL = rawIMU
 		}
 
@@ -146,13 +145,13 @@ func RunInertialProducer() error {
 			log.Printf("left IMU marshal error: %v", err)
 			continue
 		} else {
-			if token := client.Publish("inertial/imu/left", 0, true, payload); token.Wait() && token.Error() != nil {
+			if token := client.Publish(cfg.TopicIMULeft, 0, true, payload); token.Wait() && token.Error() != nil {
 				log.Printf("MQTT publish error (imu/left): %v", token.Error())
 				continue
 			}
 		}
 
-		// --- MAG TEST/DEBUG: publish mag-only topic ---
+		// --- MAG TEST/DEBUG: publish mag-only topic for left IMU ---
 		{
 			mn := magNorm(imuL.Mx, imuL.My, imuL.Mz)
 			magTest := struct {
@@ -172,21 +171,20 @@ func RunInertialProducer() error {
 			if payload, err := json.Marshal(magTest); err != nil {
 				log.Printf("mag marshal error: %v", err)
 			} else {
-				// fire-and-forget publish (debug)
-				client.Publish("inertial/mag/left", 0, true, payload)
+				client.Publish(cfg.TopicMagLeft, 0, true, payload)
 			}
 		}
 
-		if imuR, err := sensors.ReadRightIMURaw(); err != nil {
-			log.Printf("right IMU read error: %v", err)
-			continue
-		} else if payload, err := json.Marshal(imuR); err != nil {
-			log.Printf("right IMU marshal error: %v", err)
-			continue
-		} else {
-			if token := client.Publish("inertial/imu/right", 0, true, payload); token.Wait() && token.Error() != nil {
-				log.Printf("MQTT publish error (imu/right): %v", token.Error())
-				continue
+		// Read and publish right IMU
+		if imuManager.IsRightIMUAvailable() {
+			if imuR, err := imuManager.ReadRightIMU(); err != nil {
+				log.Printf("right IMU read error: %v", err)
+			} else if payload, err := json.Marshal(imuR); err != nil {
+				log.Printf("right IMU marshal error: %v", err)
+			} else {
+				if token := client.Publish(cfg.TopicIMURight, 0, true, payload); token.Wait() && token.Error() != nil {
+					log.Printf("MQTT publish error (imu/right): %v", token.Error())
+				}
 			}
 		}
 
@@ -198,7 +196,7 @@ func RunInertialProducer() error {
 			log.Printf("left env marshal error: %v", err)
 			continue
 		} else {
-			if token := client.Publish("inertial/bmp/left", 0, true, payload); token.Wait() && token.Error() != nil {
+			if token := client.Publish(cfg.TopicBMPLeft, 0, true, payload); token.Wait() && token.Error() != nil {
 				log.Printf("MQTT publish error (bmp/left): %v", token.Error())
 				continue
 			}
@@ -211,7 +209,7 @@ func RunInertialProducer() error {
 			log.Printf("right env marshal error: %v", err)
 			continue
 		} else {
-			if token := client.Publish("inertial/bmp/right", 0, true, payload); token.Wait() && token.Error() != nil {
+			if token := client.Publish(cfg.TopicBMPRight, 0, true, payload); token.Wait() && token.Error() != nil {
 				log.Printf("MQTT publish error (bmp/right): %v", token.Error())
 				continue
 			}
