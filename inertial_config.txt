@@ -15,6 +15,7 @@ TOPIC_POSE_FUSED=inertial/pose/fused
 TOPIC_IMU_LEFT=inertial/imu/left
 TOPIC_IMU_RIGHT=inertial/imu/right
 TOPIC_MAG_LEFT=inertial/mag/left
+TOPIC_MAG_RIGHT=inertial/mag/right
 TOPIC_BMP_LEFT=inertial/bmp/left
 TOPIC_BMP_RIGHT=inertial/bmp/right
 TOPIC_GPS=inertial/gps
@@ -27,12 +28,19 @@ IMU_LEFT_CS_PIN=18
 IMU_RIGHT_SPI_DEVICE=/dev/spidev0.0
 IMU_RIGHT_CS_PIN=8
 
+# BMP Hardware Configuration - Left BMP
+BMP_LEFT_SPI_DEVICE=/dev/spidev6.1
+
+# BMP Hardware Configuration - Right BMP
+BMP_RIGHT_SPI_DEVICE=/dev/spidev0.1
+
 # GPS Configuration
 GPS_SERIAL_PORT=/dev/serial0
 GPS_BAUD_RATE=9600
 
 # Timing Configuration (milliseconds)
 IMU_SAMPLE_INTERVAL=100
+CONSOLE_LOG_INTERVAL=1000
 
 # Web Server Configuration
 WEB_SERVER_PORT=8080

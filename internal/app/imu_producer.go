@@ -67,11 +67,16 @@ func RunInertialProducer() error {
 	var prevPose orientation.Pose
 	var lastTickTime time.Time
 
+	// Counter for per-second logging (log extra data every N ticks)
+	tickCounter := 0
+	logInterval := cfg.ConsoleLogInterval / cfg.IMUSampleInterval // Calculate ticks per log interval
+
 	// main tick
 	ticker := time.NewTicker(time.Duration(cfg.IMUSampleInterval) * time.Millisecond)
 	defer ticker.Stop()
 
 	for t := range ticker.C {
+		tickCounter++
 		// Calculate delta time for gyro integration
 		var deltaTime float64
 		if lastTickTime.IsZero() {
@@ -185,6 +190,28 @@ func RunInertialProducer() error {
 				if token := client.Publish(cfg.TopicIMURight, 0, true, payload); token.Wait() && token.Error() != nil {
 					log.Printf("MQTT publish error (imu/right): %v", token.Error())
 				}
+
+				// --- MAG TEST/DEBUG: publish mag-only topic for right IMU ---
+				mn := magNorm(imuR.Mx, imuR.My, imuR.Mz)
+				magTest := struct {
+					Mx   int16   `json:"mx"`
+					My   int16   `json:"my"`
+					Mz   int16   `json:"mz"`
+					Norm float64 `json:"norm"`
+					Time string  `json:"time"`
+				}{
+					Mx:   imuR.Mx,
+					My:   imuR.My,
+					Mz:   imuR.Mz,
+					Norm: mn,
+					Time: t.Format(time.RFC3339),
+				}
+
+				if payload, err := json.Marshal(magTest); err != nil {
+					log.Printf("right mag marshal error: %v", err)
+				} else {
+					client.Publish(cfg.TopicMagRight, 0, true, payload)
+				}
 			}
 		}
 
@@ -215,16 +242,46 @@ func RunInertialProducer() error {
 			}
 		}
 
-		// --- MAG TEST/DEBUG: include mag in the existing tick log ---
-		mn := magNorm(imuL.Mx, imuL.My, imuL.Mz)
-		log.Printf("%s tick: pose R=%.2f P=%.2f Y=%.2f | left accel ax=%d ay=%d az=%d | left gyro gx=%d gy=%d gz=%d | left mag mx=%d my=%d mz=%d | |B|=%.1f",
-			t.Format(time.RFC3339),
-			pose.Roll, pose.Pitch, pose.Yaw,
-			imuL.Ax, imuL.Ay, imuL.Az,
-			imuL.Gx, imuL.Gy, imuL.Gz,
-			imuL.Mx, imuL.My, imuL.Mz,
-			mn,
-		)
+		// --- Log all sensor data once per second ---
+		if tickCounter >= logInterval {
+			tickCounter = 0
+
+			// Left IMU
+			mn := magNorm(imuL.Mx, imuL.My, imuL.Mz)
+			log.Printf("%s | pose R=%.2f P=%.2f Y=%.2f",
+				t.Format(time.RFC3339),
+				pose.Roll, pose.Pitch, pose.Yaw,
+			)
+			log.Printf("  [LEFT IMU] accel ax=%d ay=%d az=%d | gyro gx=%d gy=%d gz=%d | mag mx=%d my=%d mz=%d | |B|=%.1f",
+				imuL.Ax, imuL.Ay, imuL.Az,
+				imuL.Gx, imuL.Gy, imuL.Gz,
+				imuL.Mx, imuL.My, imuL.Mz,
+				mn,
+			)
+
+			// Right IMU
+			if imuManager.IsRightIMUAvailable() {
+				if imuR, err := imuManager.ReadRightIMU(); err == nil {
+					mnR := magNorm(imuR.Mx, imuR.My, imuR.Mz)
+					log.Printf("  [RIGHT IMU] accel ax=%d ay=%d az=%d | gyro gx=%d gy=%d gz=%d | mag mx=%d my=%d mz=%d | |B|=%.1f",
+						imuR.Ax, imuR.Ay, imuR.Az,
+						imuR.Gx, imuR.Gy, imuR.Gz,
+						imuR.Mx, imuR.My, imuR.Mz,
+						mnR,
+					)
+				}
+			}
+
+			// Left BMP
+			if envL, err := sensors.ReadLeftEnv(); err == nil {
+				log.Printf("  [LEFT BMP] temp=%.2f°C pressure=%.2fmbar / %.2fhPa", envL.Temperature, envL.PressureMbar, envL.PressureHPa)
+			}
+
+			// Right BMP
+			if envR, err := sensors.ReadRightEnv(); err == nil {
+				log.Printf("  [RIGHT BMP] temp=%.2f°C pressure=%.2fmbar / %.2fhPa", envR.Temperature, envR.PressureMbar, envR.PressureHPa)
+			}
+		}
 	}
 	return nil
 }

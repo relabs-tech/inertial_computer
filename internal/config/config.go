@@ -19,14 +19,15 @@ type Config struct {
 	MQTTClientIDWeb      string
 
 	// Topics
-	TopicPose       string
-	TopicPoseFused  string
-	TopicIMULeft    string
-	TopicIMURight   string
-	TopicMagLeft    string
-	TopicBMPLeft    string
-	TopicBMPRight   string
-	TopicGPS        string
+	TopicPose      string
+	TopicPoseFused string
+	TopicIMULeft   string
+	TopicIMURight  string
+	TopicMagLeft   string
+	TopicMagRight  string
+	TopicBMPLeft   string
+	TopicBMPRight  string
+	TopicGPS       string
 
 	// IMU Hardware
 	IMULeftSPIDevice  string
@@ -34,12 +35,17 @@ type Config struct {
 	IMURightSPIDevice string
 	IMURightCSPin     string
 
+	// BMP Hardware
+	BMPLeftSPIDevice  string
+	BMPRightSPIDevice string
+
 	// GPS
 	GPSSerialPort string
 	GPSBaudRate   int
 
 	// Timing
-	IMUSampleInterval int // milliseconds
+	IMUSampleInterval  int // milliseconds
+	ConsoleLogInterval int // milliseconds
 
 	// Web Server
 	WebServerPort int
@@ -124,6 +130,8 @@ func (c *Config) setValue(key, value string) error {
 		c.TopicIMURight = value
 	case "TOPIC_MAG_LEFT":
 		c.TopicMagLeft = value
+	case "TOPIC_MAG_RIGHT":
+		c.TopicMagRight = value
 	case "TOPIC_BMP_LEFT":
 		c.TopicBMPLeft = value
 	case "TOPIC_BMP_RIGHT":
@@ -140,6 +148,12 @@ func (c *Config) setValue(key, value string) error {
 		c.IMURightSPIDevice = value
 	case "IMU_RIGHT_CS_PIN":
 		c.IMURightCSPin = value
+
+	// BMP Hardware
+	case "BMP_LEFT_SPI_DEVICE":
+		c.BMPLeftSPIDevice = value
+	case "BMP_RIGHT_SPI_DEVICE":
+		c.BMPRightSPIDevice = value
 
 	// GPS
 	case "GPS_SERIAL_PORT":
@@ -158,6 +172,12 @@ func (c *Config) setValue(key, value string) error {
 			return fmt.Errorf("invalid IMU_SAMPLE_INTERVAL %q: %w", value, err)
 		}
 		c.IMUSampleInterval = interval
+	case "CONSOLE_LOG_INTERVAL":
+		interval, err := strconv.Atoi(value)
+		if err != nil {
+			return fmt.Errorf("invalid CONSOLE_LOG_INTERVAL %q: %w", value, err)
+		}
+		c.ConsoleLogInterval = interval
 
 	// Web Server
 	case "WEB_SERVER_PORT":
@@ -193,6 +213,9 @@ func (c *Config) validate() error {
 	}
 	if c.IMUSampleInterval == 0 {
 		return fmt.Errorf("IMU_SAMPLE_INTERVAL is required")
+	}
+	if c.ConsoleLogInterval == 0 {
+		return fmt.Errorf("CONSOLE_LOG_INTERVAL is required")
 	}
 	return nil
 }
