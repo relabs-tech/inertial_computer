@@ -54,3 +54,24 @@ The core goals are:
 See [TODO.md](TODO.md) for detailed task list and [ARCHITECTURE.md](ARCHITECTURE.md) for system design.
 
 ---
+
+## Hardware Connection
+
+The Raspberry Pi requires specific hardware interfaces enabled in `/boot/firmware/config.txt`:
+
+```plaintext
+# Uncomment some or all of these to enable the optional hardware interfaces
+dtparam=i2c_arm=on
+#dtparam=i2s=on
+dtparam=spi=on
+
+dtoverlay=spi6-2cs,cs0_pin=18,cs1_pin=27
+dtoverlay=spi0-2cs,cs0_pin=8,cs1_pin=7
+```
+
+- **I2C**: Enabled via `dtparam=i2c_arm=on` for MPU9250 IMU communication
+- **SPI**: Enabled via `dtparam=spi=on` for additional sensor interfaces
+- **SPI6**: Configured with CS pins 18 and 27
+- **SPI0**: Configured with CS pins 8 and 7
+
+---
