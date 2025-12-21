@@ -107,7 +107,11 @@ The Pi never talks directly to the magnetometer.
 - ✅ Left and right IMU magnetometer values are now read and published
 - ✅ Producer logs pose, accel, gyro, and mag (with magnitude) each 100ms tick
 - ✅ Test/debug MQTT topic `inertial/mag/left` publishes magnetometer data with norm
-- ⚠️ Currently publishes zeros for BMP (driver TODO)
+- ✅ Right magnetometer MQTT topic `inertial/mag/right` publishes right sensor data
+- ✅ BMP sensors fully integrated with bmxx80 driver (temperature and pressure in Pa, mbar, hPa)
+- ✅ Configuration system implemented - all hardcoded values externalized to `inertial_config.txt`
+- ✅ IMU manager singleton pattern - persistent hardware access without re-initialization
+- ✅ Configurable console logging interval via `CONSOLE_LOG_INTERVAL` setting
 - ⚠️ Magnetometer calibration not yet applied (hard/soft-iron correction TODO)
 - ⚠️ Magnetometer not yet integrated into yaw calculation
 - Ready for: magnetometer calibration, gyro/mag fusion, multi-sensor fusion
@@ -143,14 +147,17 @@ The Pi never talks directly to the magnetometer.
 1. **Merge refactor branch** — raw reads separated from pose computation ✅ done
 2. **Gyro driver integration** — read actual gyroscope values in `ReadRaw()` ✅ done
 3. **Right IMU driver** — duplicate left IMU logic with different SPI/CS ✅ done
-4. **Magnetometer driver integration** — read from EXT_SENS_DATA (internal I2C slave) ✅ done (test code active)
-5. **Magnetometer calibration** — implement hard-iron and soft-iron correction
-6. **Gyro integration function** — integrate angular velocity to get yaw estimate
-7. **Magnetometer correction function** — compute yaw from mag + calibration applied
-8. **Complementary filter** — blend accel/gyro/mag for robust orientation
-9. **BMP environmental sensor driver** — I2C temperature/pressure reads
-10. **Dual-IMU fusion** — cross-validate and combine left/right readings
-11. **Optional: Kalman filter** — advanced fusion for production use
+4. **Magnetometer driver integration** — read from EXT_SENS_DATA (internal I2C slave) ✅ done
+5. **Right magnetometer topic** — add dedicated publishing for right sensor ✅ done
+6. **BMP environmental sensor driver** — SPI temperature/pressure reads with bmxx80 ✅ done
+7. **Configuration system** — externalize all hardcoded values to config file ✅ done
+8. **IMU manager singleton** — persistent hardware access pattern ✅ done
+9. **Magnetometer calibration** — implement hard-iron and soft-iron correction
+10. **Gyro integration function** — integrate angular velocity to get yaw estimate
+11. **Magnetometer correction function** — compute yaw from mag + calibration applied
+12. **Complementary filter** — blend accel/gyro/mag for robust orientation
+13. **Dual-IMU fusion** — cross-validate and combine left/right readings
+14. **Optional: Kalman filter** — advanced fusion for production use
 
 ---
 
@@ -158,7 +165,12 @@ The Pi never talks directly to the magnetometer.
 
 1. **Fuse Left and Right IMUs for Pose** — implement fusion algorithm to combine left and right IMU readings into a single, robust `Pose` output. Start with simple averaging or weighted fusion, then move to complementary filter or EKF as needed.
 
-2. **Wire up BMPxx80 sensors** — add drivers for BMP280/BMP388, initialize on I2C, and implement `ReadLeftEnv()` / `ReadRightEnv()` to publish temperature and pressure.
+2. **Wire up BMPxx80 sensors** ✅ COMPLETED
+   - ✅ Added bmxx80 drivers for BMP280/BMP388 via SPI
+   - ✅ Implemented `ReadLeftEnv()` / `ReadRightEnv()` with temperature and pressure
+   - ✅ Pressure output in multiple units: Pa, mbar, and hPa
+   - ✅ Uses singleton pattern with sync.Once for initialization
+   - ✅ Configuration-driven SPI device paths
 
 3. **Calibration Application (Web UI)** — separate standalone calibration tool with its own code and drivers
    - Web UI for interactive calibration procedures
@@ -174,10 +186,19 @@ The Pi never talks directly to the magnetometer.
 
 4. **Calibrate accelerometers and gyros** — add calibration routines (bias estimation, scale factors) and tooling/documentation to persist calibration parameters.
 
-5. **Add the magnetometers (AK8963)** — enable MPU9250 internal I2C master, read AK8963 via EXT_SENS_DATA, add soft-iron / hard-iron calibration, and expose magnetometer data for yaw fusion.
+5. **Add the magnetometers (AK8963)** ✅ COMPLETED
+   - ✅ Enabled MPU9250 internal I2C master
+   - ✅ Read AK8963 via EXT_SENS_DATA registers
+   - ✅ Exposed magnetometer data for both left and right sensors
+   - ✅ Added dedicated MQTT topics for left and right magnetometers
+   - ⚠️ Soft-iron / hard-iron calibration TODO
+   - ⚠️ Integration into yaw fusion TODO
 
 6. **Incorporate two SSD1306 displays** — wire and initialize two SSD1306 I2C/OLED displays, add lightweight UI showing key telemetry (pose, imu values, connection status) and expose a simple API to update display content.
 
-7. **Add CLI options to ./cmd/xxx/main.go apps** — use Go's flag package to add configurable options like MQTT broker URL, IMU selection (mock/real), debug levels, serial ports, and web server ports. Update RunXXX functions to accept config structs. Low effort (1-2 hours total for all 5 apps).
+7. **Add CLI options to ./cmd/xxx/main.go apps** ✅ PARTIALLY COMPLETED
+   - ✅ Configuration system implemented via `inertial_config.txt`
+   - ✅ All apps read config at startup (MQTT broker, ports, hardware settings)
+   - ⚠️ Runtime CLI flags not yet implemented (could add flag overrides for config values)
 
 ---

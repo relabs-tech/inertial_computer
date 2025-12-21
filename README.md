@@ -39,17 +39,21 @@ The core goals are:
 - ✅ MQTT-based message bus architecture
 - ✅ Console subscriber for real-time monitoring
 - ✅ Web UI with REST API for data access
-- ✅ Magnetometer driver integration complete (test/debug mode active)
+- ✅ Magnetometer driver integration with dedicated topics for left and right sensors
+- ✅ Environmental sensors (BMP280/BMP388 temperature and pressure via SPI)
+- ✅ Configuration system with centralized `inertial_config.txt`
+- ✅ IMU manager with singleton pattern for persistent hardware access
 
 **In Progress**:
 - ⚠️ Magnetometer calibration (hard-iron and soft-iron correction)
 - ⚠️ Sensor fusion (integrating gyro and mag into yaw calculation)
-- ⚠️ Environmental sensors (BMP temperature/pressure drivers)
 
 **Recent Changes**:
-- Magnetometer (AK8963) driver integrated via internal I2C on MPU9250
-- Test MQTT topic `inertial/mag/left` publishing magnetometer data with field magnitude
-- Local fork of `periph.io/x/devices` for magnetometer support
+- **IMU Refactoring**: Implemented singleton IMUManager pattern for persistent sensor access
+- **BMP Integration**: Added bmxx80 driver support for real temperature and pressure readings with multiple units (Pa, mbar, hPa)
+- **Configuration System**: Externalized all hardcoded values to `inertial_config.txt` (MQTT broker, topics, SPI devices, GPIO pins, timing intervals)
+- **Right Magnetometer**: Added dedicated MQTT topic `inertial/mag/right` for right sensor magnetometer data
+- **Configurable Logging**: Console output now configurable with `CONSOLE_LOG_INTERVAL` setting
 
 See [TODO.md](TODO.md) for detailed task list and [ARCHITECTURE.md](ARCHITECTURE.md) for system design.
 
