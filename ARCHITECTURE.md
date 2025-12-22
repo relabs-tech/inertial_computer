@@ -134,8 +134,12 @@ Published on:
 
 ### 2.4 GPS
 
+Enhanced GPS data model with support for comprehensive NMEA sentence parsing:
+
 ```go
+// Full GPS fix (legacy/combined topic)
 type Fix struct {
+    // From RMC (Recommended Minimum)
     Time       string  `json:"time"`
     Date       string  `json:"date"`
     Latitude   float64 `json:"lat"`
@@ -143,13 +147,73 @@ type Fix struct {
     SpeedKnots float64 `json:"speed_knots"`
     CourseDeg  float64 `json:"course_deg"`
     Validity   string  `json:"validity"`
+
+    // From GGA (Global Positioning System Fix Data)
+    Altitude      float64 `json:"altitude_m"`
+    FixQuality    string  `json:"fix_quality"`
+    NumSatellites int64   `json:"num_satellites"`
+    HDOP          float64 `json:"hdop"`
+
+    // From GSA (GPS DOP and Active Satellites)
+    FixType string  `json:"fix_type"`
+    PDOP    float64 `json:"pdop"`
+    VDOP    float64 `json:"vdop"`
+
+    // From VTG (Track Made Good and Ground Speed)
+    SpeedKmh float64 `json:"speed_kmh"`
+
+    // From GSV (GPS Satellites in View)
+    SatellitesInView []Satellite `json:"satellites_in_view"`
+}
+
+// Position data (separate topic)
+type Position struct {
+    Time      string  `json:"time"`
+    Date      string  `json:"date"`
+    Latitude  float64 `json:"lat"`
+    Longitude float64 `json:"lon"`
+    Altitude  float64 `json:"altitude_m"`
+    Validity  string  `json:"validity"`
+}
+
+// Velocity data (separate topic)
+type Velocity struct {
+    SpeedKnots float64 `json:"speed_knots"`
+    SpeedKmh   float64 `json:"speed_kmh"`
+    CourseDeg  float64 `json:"course_deg"`
+}
+
+// Quality metrics (separate topic)
+type Quality struct {
+    FixType       string  `json:"fix_type"`
+    FixQuality    string  `json:"fix_quality"`
+    NumSatellites int64   `json:"num_satellites"`
+    HDOP          float64 `json:"hdop"`
+    PDOP          float64 `json:"pdop"`
+    VDOP          float64 `json:"vdop"`
+}
+
+// Satellite tracking (separate topic)
+type Satellite struct {
+    SVNumber  int64 `json:"sv_number"`  // satellite vehicle number (PRN)
+    Elevation int64 `json:"elevation"`  // elevation in degrees (0-90)
+    Azimuth   int64 `json:"azimuth"`    // azimuth in degrees (0-359)
+    SNR       int64 `json:"snr"`        // signal-to-noise ratio in dB (0-99)
+}
+
+type SatellitesInView struct {
+    Satellites []Satellite `json:"satellites"`
+    Count      int         `json:"count"`
 }
 ```
 
 Published on:
 
-- `inertial/gps`
-- `inertial/mag/right` (right sensor magnetometer)
+- `inertial/gps` — full GPS data (all fields, legacy compatibility)
+- `inertial/gps/position` — position and time only
+- `inertial/gps/velocity` — speed and course only
+- `inertial/gps/quality` — fix quality and DOP metrics
+- `inertial/gps/satellites` — satellite visibility with signal strength
 
 ---
 
@@ -176,8 +240,12 @@ TOPIC_IMU_LEFT=inertial/imu/left
 TOPIC_IMU_RIGHT=inertial/imu/right
 TOPIC_MAG_LEFT=inertial/mag/left
 TOPIC_MAG_RIGHT=inertial/mag/right
-TOPIC_ENV_LEFT=inertial/env/left
-TOPIC_ENV_RIGHT=inertial/env/right
+TOPIC_BMP_LEFT=inertial/bmp/left
+TOPIC_BMP_RIGHT=inertial/bmp/right
+TOPIC_GPS_POSITION=inertial/gps/position
+TOPIC_GPS_VELOCITY=inertial/gps/velocity
+TOPIC_GPS_QUALITY=inertial/gps/quality
+TOPIC_GPS_SATELLITES=inertial/gps/satellites
 TOPIC_GPS=inertial/gps
 
 # IMU Hardware
@@ -200,6 +268,7 @@ CONSOLE_LOG_INTERVAL=1000
 
 # Web Server
 WEB_SERVER_PORT=8080
+WEATHER_UPDATE_INTERVAL_MINUTES=5
 ```
 
 ### Implementation
@@ -284,7 +353,7 @@ The rest of the system **never** imports periph.io or hardware-specific code dir
 
 ## 5. Producers
 
-### 5.1 Inertial producer (`cmd/producer`)
+### 5.1 Inertial producer (`cmd/imu_producer`)
 
 Entry point: `internal/app/RunInertialProducer()`
 
@@ -340,28 +409,34 @@ Responsibilities:
 
 - read GPS serial port and baud rate from `inertial_config.txt`
 - open GPS serial port (configurable, default `/dev/serial0` at 9600 baud)
-- read and parse NMEA sentences from GPS module
-- extract RMC (Recommended Minimum Sentence) messages
-- populate GPS Fix struct with:
-  - time, date, latitude, longitude
-  - speed over ground (knots)
-  - course over ground (degrees)
-  - validity indicator
-- publish complete fix as JSON to configured GPS topic (default: `inertial/gps`)
+- read and parse NMEA sentences from GPS module (RMC, GGA, GSA, VTG, GSV)
+- extract comprehensive GPS data including:
+  - position and time (from RMC and GGA)
+  - speed and course (from RMC and VTG)
+  - altitude above sea level (from GGA)
+  - fix quality and DOP metrics (from GGA and GSA)
+  - satellite visibility with signal strength (from GSV)
+- publish to multiple MQTT topics for topic-based filtering:
+  - `inertial/gps/position` — position, time, and altitude
+  - `inertial/gps/velocity` — speed and course
+  - `inertial/gps/quality` — fix type, quality, and DOP values
+  - `inertial/gps/satellites` — satellites in view with elevation, azimuth, SNR
+  - `inertial/gps` — full combined data (legacy compatibility)
 
 Current implementation:
 
-- uses `github.com/adrianmo/go-nmea` for parsing
-- uses `github.com/jacobsa/go-serial` for serial I/O
-- reads sentences in a loop and publishes each RMC as a separate fix
-- skips unparseable sentences silently
-- ✅ Configuration-driven serial port and MQTT settings
+- ✅ uses `github.com/adrianmo/go-nmea` for parsing
+- ✅ uses `github.com/jacobsa/go-serial` for serial I/O
+- ✅ handles all major NMEA sentence types (RMC, GGA, GSA, VTG, GSV)
+- ✅ accumulates GSV messages across multiple sentences (MessageNumber/TotalMessages logic)
+- ✅ publishes to 5 separate topics for granular data access
+- ✅ configuration-driven serial port and MQTT settings
 
 Future enhancements:
 
-- support additional NMEA sentences (GGA for altitude, GSA for fix quality)
 - implement time synchronization
 - add data validation and outlier detection
+- support additional sentence types (ZDA, GLL, etc.)
 
 ## 6. Consumers
 
@@ -417,26 +492,39 @@ GET /api/imu/left             → last left IMURaw
 GET /api/imu/right            → last right IMURaw
 GET /api/env/left             → last left Sample (temp + pressure)
 GET /api/env/right            → last right Sample (temp + pressure)
-GET /api/gps                  → last GPS Fix
+GET /api/gps                  → last GPS Fix (full data)
+GET /api/config               → system configuration (weather update interval, etc.)
 ```
 
 - serve static HTML/JS dashboard from `web/` directory on configured port (default: 8080)
 - ✅ Configuration-driven MQTT topics, broker address, and server port
+- ✅ Config API endpoint for dynamic client configuration
 
 Frontend behavior:
 
-- polls all APIs every 500ms
-- updates live dashboard with latest values
-- displays connection status for each stream
-- renders 8 cards in a responsive grid layout
-- uses dark theme with accent lighting
+- polls most APIs every 500ms for real-time updates
+- weather data cached and updated based on configurable interval (default 5 minutes)
+- displays 10 dashboard cards in optimized compact layout:
+  - Orientation (roll, pitch, yaw)
+  - Fused orientation
+  - GPS position and speed
+  - Satellite sky plot (polar chart with 30°/60°/90° circles)
+  - Satellite signal strength bar chart
+  - Weather @ GPS (met.no API: temp, pressure, humidity, conditions)
+  - Left and right IMU raw data
+  - Left and right BMP environmental data
+- ✅ Satellite visualizations with color-coded signal strength
+- ✅ Weather integration with sea level pressure calculation
+- ✅ Responsive grid layout optimized for single-screen viewing
+- ✅ Dark theme with accent lighting
+- ✅ Connection status for each stream
 
 Future enhancements:
 
 - WebSocket support for lower-latency updates
 - 3D visualization (three.js) for orientation
 - time-series graphs and data logging
-- stream health indicators
+- configurable weather provider selection
 
 ---
 

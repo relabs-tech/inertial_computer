@@ -280,6 +280,17 @@ func RunWeb() error {
 		}
 	})
 
+	// API endpoint for configuration
+	http.HandleFunc("/api/config", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		configData := map[string]interface{}{
+			"weather_update_interval_minutes": cfg.WeatherUpdateIntervalMinutes,
+		}
+		if err := json.NewEncoder(w).Encode(configData); err != nil {
+			log.Printf("web: config JSON encode error: %v", err)
+		}
+	})
+
 	// 7) Static UI from ./web
 	fs := http.FileServer(http.Dir("web"))
 	http.Handle("/", fs)

@@ -100,7 +100,7 @@ The Pi never talks directly to the magnetometer.
 
 ## 5. Producers
 
-### Inertial Producer (`cmd/producer`)
+### IMU Producer (`cmd/imu_producer`, renamed from `cmd/producer`)
 - ✅ Refactored to call `ReadRaw()` and `AccelToPose()` separately
 - ✅ Mock mode still works (can switch via `useMock` flag)
 - ✅ Left IMU gyro values are now read and published
@@ -116,8 +116,12 @@ The Pi never talks directly to the magnetometer.
 - ⚠️ Magnetometer not yet integrated into yaw calculation
 - Ready for: magnetometer calibration, gyro/mag fusion, multi-sensor fusion
 
-### GPS Producer
-- ✅ Functional (reads NMEA, publishes GPS fixes)
+### GPS Producer (`cmd/gps_producer`)
+- ✅ Comprehensive NMEA parsing (RMC, GGA, GSA, VTG, GSV sentences)
+- ✅ Multi-topic publishing: position, velocity, quality, satellites, legacy
+- ✅ Satellite tracking with elevation, azimuth, and SNR
+- ✅ GSV sentence accumulation logic (handles multi-sentence satellite messages)
+- ✅ Configurable MQTT topics via `inertial_config.txt`
 
 ---
 

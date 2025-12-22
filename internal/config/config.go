@@ -52,7 +52,8 @@ type Config struct {
 	ConsoleLogInterval int // milliseconds
 
 	// Web Server
-	WebServerPort int
+	WebServerPort                int
+	WeatherUpdateIntervalMinutes int
 }
 
 var (
@@ -198,6 +199,12 @@ func (c *Config) setValue(key, value string) error {
 			return fmt.Errorf("invalid WEB_SERVER_PORT %q: %w", value, err)
 		}
 		c.WebServerPort = port
+	case "WEATHER_UPDATE_INTERVAL_MINUTES":
+		minutes, err := strconv.Atoi(value)
+		if err != nil {
+			return fmt.Errorf("invalid WEATHER_UPDATE_INTERVAL_MINUTES %q: %w", value, err)
+		}
+		c.WeatherUpdateIntervalMinutes = minutes
 
 	default:
 		return fmt.Errorf("unknown config key: %q", key)

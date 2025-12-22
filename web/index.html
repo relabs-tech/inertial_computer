@@ -383,6 +383,25 @@
     const atmConditions = document.getElementById('atm-conditions');
     const atmStatus = document.getElementById('atmStatus');
 
+    // Weather API cache - fetch interval loaded from config
+    let WEATHER_UPDATE_INTERVAL_MINUTES = 5; // default
+    let lastWeatherFetch = 0;
+    let cachedWeatherData = null;
+
+    // Load configuration from server
+    async function loadConfig() {
+      try {
+        const res = await fetch('/api/config', { cache: 'no-store' });
+        if (res.ok) {
+          const config = await res.json();
+          WEATHER_UPDATE_INTERVAL_MINUTES = config.weather_update_interval_minutes || 5;
+          console.log(`Weather update interval: ${WEATHER_UPDATE_INTERVAL_MINUTES} minutes`);
+        }
+      } catch (err) {
+        console.error('Failed to load config:', err);
+      }
+    }
+
     async function fetchOrientation() {
       try {
         const res = await fetch('/api/orientation', { cache: 'no-store' });
@@ -818,47 +837,66 @@
           atmLocalSLP.textContent = '--';
         }
 
-        // Fetch weather data from met.no
-        const weatherUrl = `https://api.met.no/weatherapi/locationforecast/2.0/compact?lat=${lat}&lon=${lon}&altitude=${Math.round(alt)}`;
-        const weatherRes = await fetch(weatherUrl, {
-          headers: {
-            'User-Agent': 'InertialComputer/1.0 github.com/relabs-tech/inertial_computer'
+        // Check if we need to fetch new weather data (throttle API calls)
+        const now = Date.now();
+        const intervalMs = WEATHER_UPDATE_INTERVAL_MINUTES * 60 * 1000;
+        const shouldFetch = !cachedWeatherData || (now - lastWeatherFetch) >= intervalMs;
+
+        if (shouldFetch) {
+          // Fetch weather data from met.no
+          const weatherUrl = `https://api.met.no/weatherapi/locationforecast/2.0/compact?lat=${lat}&lon=${lon}&altitude=${Math.round(alt)}`;
+          const weatherRes = await fetch(weatherUrl, {
+            headers: {
+              'User-Agent': 'InertialComputer/1.0 github.com/relabs-tech/inertial_computer'
+            }
+          });
+          
+          if (!weatherRes.ok) {
+            throw new Error('Met.no API HTTP ' + weatherRes.status);
           }
-        });
-        
-        if (!weatherRes.ok) {
-          throw new Error('Met.no API HTTP ' + weatherRes.status);
+
+          const weatherData = await weatherRes.json();
+          
+          // Get current conditions from first timeseries entry
+          const current = weatherData.properties?.timeseries?.[0];
+          if (!current) {
+            throw new Error('No weather data available');
+          }
+
+          const instant = current.data?.instant?.details;
+          const next1h = current.data?.next_1_hours;
+
+          // Cache the weather data
+          cachedWeatherData = { instant, next1h, lat, lon, alt };
+          lastWeatherFetch = now;
         }
 
-        const weatherData = await weatherRes.json();
-        
-        // Get current conditions from first timeseries entry
-        const current = weatherData.properties?.timeseries?.[0];
-        if (!current) {
-          throw new Error('No weather data available');
+        // Use cached data for display
+        if (cachedWeatherData) {
+          const { instant, next1h, lat: cachedLat, lon: cachedLon, alt: cachedAlt } = cachedWeatherData;
+          
+          // Update display
+          const latDir = cachedLat >= 0 ? 'N' : 'S';
+          const lonDir = cachedLon >= 0 ? 'E' : 'W';
+          atmLocation.textContent = `${Math.abs(cachedLat).toFixed(2)}°${latDir}, ${Math.abs(cachedLon).toFixed(2)}°${lonDir}`;
+          atmCoords.textContent = `Alt: ${Math.round(cachedAlt)}m`;
+          
+          // Ensure temperature is treated as a number and format with 2 decimals
+          const temp = parseFloat(instant?.air_temperature);
+          atmTemp.textContent = !isNaN(temp) ? temp.toFixed(2) : '--';
+          
+          const press = parseFloat(instant?.air_pressure_at_sea_level);
+          atmPress.textContent = !isNaN(press) ? press.toFixed(1) : '--';
+          
+          const humid = parseFloat(instant?.relative_humidity);
+          atmHumidity.textContent = !isNaN(humid) ? humid.toFixed(1) : '--';
+          
+          atmConditions.textContent = next1h?.summary?.symbol_code?.replace(/_/g, ' ') || '--';
+          
+          // Show time since last fetch
+          const minsSinceUpdate = Math.floor((Date.now() - lastWeatherFetch) / 60000);
+          atmStatus.textContent = minsSinceUpdate === 0 ? 'Weather: live from met.no' : `Weather: ${minsSinceUpdate}m ago`;
         }
-
-        const instant = current.data?.instant?.details;
-        const next1h = current.data?.next_1_hours;
-
-        // Update display
-        const latDir = lat >= 0 ? 'N' : 'S';
-        const lonDir = lon >= 0 ? 'E' : 'W';
-        atmLocation.textContent = `${Math.abs(lat).toFixed(2)}°${latDir}, ${Math.abs(lon).toFixed(2)}°${lonDir}`;
-        atmCoords.textContent = `Alt: ${Math.round(alt)}m`;
-        
-        // Ensure temperature is treated as a number and format with 2 decimals
-        const temp = parseFloat(instant?.air_temperature);
-        atmTemp.textContent = !isNaN(temp) ? temp.toFixed(2) : '--';
-        
-        const press = parseFloat(instant?.air_pressure_at_sea_level);
-        atmPress.textContent = !isNaN(press) ? press.toFixed(1) : '--';
-        
-        const humid = parseFloat(instant?.relative_humidity);
-        atmHumidity.textContent = !isNaN(humid) ? humid.toFixed(1) : '--';
-        
-        atmConditions.textContent = next1h?.summary?.symbol_code?.replace(/_/g, ' ') || '--';
-        atmStatus.textContent = 'Weather: live from met.no';
       } catch (err) {
         atmStatus.textContent = 'Weather error: ' + err.message;
       }
@@ -875,8 +913,11 @@
       fetchAtmospheric();
     }
 
-    setInterval(tick, 500);
-    tick();
+    // Load config then start polling
+    loadConfig().then(() => {
+      setInterval(tick, 500);
+      tick();
+    });
   </script>
 </body>
 </html>
