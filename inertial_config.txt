@@ -18,6 +18,10 @@ TOPIC_MAG_LEFT=inertial/mag/left
 TOPIC_MAG_RIGHT=inertial/mag/right
 TOPIC_BMP_LEFT=inertial/bmp/left
 TOPIC_BMP_RIGHT=inertial/bmp/right
+TOPIC_GPS_POSITION=inertial/gps/position
+TOPIC_GPS_VELOCITY=inertial/gps/velocity
+TOPIC_GPS_QUALITY=inertial/gps/quality
+TOPIC_GPS_SATELLITES=inertial/gps/satellites
 TOPIC_GPS=inertial/gps
 
 # IMU Hardware Configuration - Left IMU
