@@ -77,6 +77,8 @@ The core goals are:
 - **IMU Refactoring**: Implemented singleton IMUManager pattern for persistent sensor access
 - **BMP Integration**: Added bmxx80 driver support for real temperature and pressure readings
 - **Configuration System**: Externalized all hardcoded values to `inertial_config.txt`
+- **BMP Configuration**: Added comprehensive sensor configuration (oversampling, IIR filter, standby time, mode) for both left and right BMP sensors
+- **IMU Sensor Ranges**: Configurable accelerometer (±2g to ±16g) and gyroscope (±250°/s to ±2000°/s) ranges
 
 See [TODO.md](TODO.md) for detailed task list and [ARCHITECTURE.md](ARCHITECTURE.md) for system design.
 
@@ -89,7 +91,9 @@ All system settings are centralized in `inertial_config.txt` at the project root
 - **MQTT broker address and client IDs**
 - **MQTT topic names** for all data streams (including GPS subtopics)
 - **IMU hardware settings** (SPI devices and CS pins)
+- **IMU sensor ranges** (accelerometer: ±2g/±4g/±8g/±16g, gyroscope: ±250°/s to ±2000°/s)
 - **BMP hardware settings** (SPI devices)
+- **BMP sensor configuration** (oversampling, filter, standby time for both left and right sensors)
 - **GPS serial port** and baud rate
 - **Timing intervals** (IMU sample rate, console logging)
 - **Web server port**
@@ -102,6 +106,13 @@ Example configuration snippet:
 MQTT_BROKER=tcp://localhost:1883
 IMU_LEFT_SPI_DEVICE=/dev/spidev6.0
 IMU_LEFT_CS_PIN=18
+IMU_ACCEL_RANGE=2
+IMU_GYRO_RANGE=1
+BMP_LEFT_SPI_DEVICE=/dev/spidev6.1
+BMP_LEFT_PRESSURE_OSR=5
+BMP_LEFT_TEMP_OSR=2
+BMP_LEFT_IIR_FILTER=3
+BMP_LEFT_STANDBY_TIME=1
 GPS_SERIAL_PORT=/dev/serial0
 IMU_SAMPLE_INTERVAL=100
 WEATHER_UPDATE_INTERVAL_MINUTES=5

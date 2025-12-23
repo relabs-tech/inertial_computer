@@ -253,10 +253,20 @@ IMU_LEFT_SPI_DEVICE=/dev/spidev6.0
 IMU_LEFT_CS_PIN=18
 IMU_RIGHT_SPI_DEVICE=/dev/spidev0.0
 IMU_RIGHT_CS_PIN=8
+IMU_ACCEL_RANGE=2
+IMU_GYRO_RANGE=1
 
 # BMP Hardware
 BMP_LEFT_SPI_DEVICE=/dev/spidev6.1
+BMP_LEFT_PRESSURE_OSR=5
+BMP_LEFT_TEMP_OSR=2
+BMP_LEFT_IIR_FILTER=3
+BMP_LEFT_STANDBY_TIME=1
 BMP_RIGHT_SPI_DEVICE=/dev/spidev0.1
+BMP_RIGHT_PRESSURE_OSR=5
+BMP_RIGHT_TEMP_OSR=2
+BMP_RIGHT_IIR_FILTER=3
+BMP_RIGHT_STANDBY_TIME=1
 
 # GPS Hardware
 GPS_SERIAL_PORT=/dev/serial0
@@ -661,6 +671,9 @@ Fusion algorithms remain **internal to the producer**. Consumers always receive 
 - **Magnetometer calibration**: Hard-iron and soft-iron correction not yet implemented
 - **Yaw calculation**: Currently hardcoded to 0; needs gyro integration and magnetometer fusion
 - **Environmental sensors**: ✅ Both left and right BMP sensors fully operational with bmxx80 driver (temperature and pressure in Pa, mbar, hPa)
+  - ✅ Configurable oversampling, IIR filtering, standby time, and operating mode
+  - ✅ Independent configuration for left and right sensors via `inertial_config.txt`
+  - ✅ Default settings optimized for high accuracy: 16x pressure, 2x temperature, F8 filter, 62.5ms standby
 - **Configuration**: ✅ All hardcoded values externalized to `inertial_config.txt`
 - **Hardware management**: ✅ Singleton pattern implemented for IMU and BMP sensors
 
@@ -689,7 +702,15 @@ Fusion algorithms remain **internal to the producer**. Consumers always receive 
 - Replaced stubs with real bmxx80 SPI driver
 - `initBMP()` singleton with `sync.Once` initializes both sensors
 - Opens SPI buses from config: `BMP_LEFT_SPI_DEVICE`, `BMP_RIGHT_SPI_DEVICE`
-- `ReadLeftEnv()` / `ReadRightEnv()` call `bmxx80.Sense()`
+- Configurable sensor parameters for each BMP:
+  - **Pressure oversampling** (`BMP_LEFT_PRESSURE_OSR` / `BMP_RIGHT_PRESSURE_OSR`): 0=off, 1=1x, 2=2x, 3=4x, 4=8x, 5=16x
+  - **Temperature oversampling** (`BMP_LEFT_TEMP_OSR` / `BMP_RIGHT_TEMP_OSR`): 0=off, 1=1x, 2=2x, 3=4x, 4=8x, 5=16x
+  - **Operating mode** (`BMP_LEFT_MODE` / `BMP_RIGHT_MODE`): 0=Sleep, 1=Forced, 3=Normal
+  - **IIR filter** (`BMP_LEFT_IIR_FILTER` / `BMP_RIGHT_IIR_FILTER`): 0=off, 1=F2, 2=F4, 3=F8, 4=F16
+  - **Standby time** (`BMP_LEFT_STANDBY_TIME` / `BMP_RIGHT_STANDBY_TIME`): 0=0.5ms, 1=62.5ms, 2=125ms, 3=250ms, 4=500ms, 5=1000ms, 6=2000ms, 7=4000ms
+- Default configuration: 16x pressure oversampling, 2x temperature oversampling, Normal mode, F8 filter, 62.5ms standby (optimized for accuracy)
+- `standbyTimeToDuration()` helper converts config values to Go `time.Duration`
+- `ReadLeftEnv()` / `ReadRightEnv()` call `bmxx80.Sense()` with custom options
 - Pressure conversion: `float64(e.Pressure) / float64(physic.Pascal)` for accurate values
 - Returns temperature (°C) and pressure in Pa, mbar, and hPa
 

@@ -41,9 +41,29 @@ IMU_GYRO_RANGE=1
 
 # BMP Hardware Configuration - Left BMP
 BMP_LEFT_SPI_DEVICE=/dev/spidev6.1
+# Pressure Oversampling: 0=off, 1=1x, 2=2x, 3=4x, 4=8x, 5=16x
+BMP_LEFT_PRESSURE_OSR=5
+# Temperature Oversampling: 0=off, 1=1x, 2=2x, 3=4x, 4=8x, 5=16x
+BMP_LEFT_TEMP_OSR=2
+# Mode: 0=Sleep, 1=Forced, 3=Normal
+BMP_LEFT_MODE=3
+# IIR Filter: 0=off, 1=2, 2=4, 3=8, 4=16
+BMP_LEFT_IIR_FILTER=3
+# Standby Time: 0=0.5ms, 1=62.5ms, 2=125ms, 3=250ms, 4=500ms, 5=1000ms, 6=2000ms, 7=4000ms
+BMP_LEFT_STANDBY_TIME=1
 
 # BMP Hardware Configuration - Right BMP
 BMP_RIGHT_SPI_DEVICE=/dev/spidev0.1
+# Pressure Oversampling: 0=off, 1=1x, 2=2x, 3=4x, 4=8x, 5=16x
+BMP_RIGHT_PRESSURE_OSR=5
+# Temperature Oversampling: 0=off, 1=1x, 2=2x, 3=4x, 4=8x, 5=16x
+BMP_RIGHT_TEMP_OSR=2
+# Mode: 0=Sleep, 1=Forced, 3=Normal
+BMP_RIGHT_MODE=3
+# IIR Filter: 0=off, 1=2, 2=4, 3=8, 4=16
+BMP_RIGHT_IIR_FILTER=3
+# Standby Time: 0=0.5ms, 1=62.5ms, 2=125ms, 3=250ms, 4=500ms, 5=1000ms, 6=2000ms, 7=4000ms
+BMP_RIGHT_STANDBY_TIME=1
 
 # GPS Configuration
 GPS_SERIAL_PORT=/dev/serial0

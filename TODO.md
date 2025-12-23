@@ -76,10 +76,12 @@ The Pi never talks directly to the magnetometer.
 - ⚠️ Integration of magnetometer into yaw calculation (fusion TODO)
 
 ### Environmental sensors (BMP)
-- ❌ Initialize BMP sensors on I2C
-- ❌ Read temperature and pressure
-- ❌ Implement ReadLeftEnv / ReadRightEnv stubs
-- Note: currently return zero values
+- ✅ Initialize BMP sensors on SPI
+- ✅ Read temperature and pressure
+- ✅ Implement ReadLeftEnv / ReadRightEnv
+- ✅ Configure oversampling, IIR filter, standby time, and operating mode
+- ✅ Independent configuration for left and right BMP sensors via inertial_config.txt
+- Note: Fully operational with configurable parameters
 
 ---
 
@@ -175,6 +177,9 @@ The Pi never talks directly to the magnetometer.
    - ✅ Pressure output in multiple units: Pa, mbar, and hPa
    - ✅ Uses singleton pattern with sync.Once for initialization
    - ✅ Configuration-driven SPI device paths
+   - ✅ **NEW**: Configurable sensor parameters (oversampling, IIR filter, standby time, mode)
+   - ✅ **NEW**: Independent configuration for left and right sensors via `inertial_config.txt`
+   - ✅ **NEW**: Default settings optimized for accuracy (16x pressure, 2x temp, F8 filter, 62.5ms standby)
 
 3. **Calibration Application (Web UI)** — separate standalone calibration tool with its own code and drivers
    - Web UI for interactive calibration procedures

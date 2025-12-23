@@ -50,6 +50,20 @@ type Config struct {
 	BMPLeftSPIDevice  string
 	BMPRightSPIDevice string
 
+	// BMP Left Configuration
+	BMPLeftPressureOSR byte
+	BMPLeftTempOSR     byte
+	BMPLeftMode        byte
+	BMPLeftIIRFilter   byte
+	BMPLeftStandbyTime byte
+
+	// BMP Right Configuration
+	BMPRightPressureOSR byte
+	BMPRightTempOSR     byte
+	BMPRightMode        byte
+	BMPRightIIRFilter   byte
+	BMPRightStandbyTime byte
+
 	// GPS
 	GPSSerialPort string
 	GPSBaudRate   int
@@ -205,6 +219,100 @@ func (c *Config) setValue(key, value string) error {
 		c.BMPLeftSPIDevice = value
 	case "BMP_RIGHT_SPI_DEVICE":
 		c.BMPRightSPIDevice = value
+
+	// BMP Left Configuration
+	case "BMP_LEFT_PRESSURE_OSR":
+		val, err := strconv.Atoi(value)
+		if err != nil {
+			return fmt.Errorf("invalid BMP_LEFT_PRESSURE_OSR %q: %w", value, err)
+		}
+		if val < 0 || val > 5 {
+			return fmt.Errorf("BMP_LEFT_PRESSURE_OSR must be 0-5, got %d", val)
+		}
+		c.BMPLeftPressureOSR = byte(val)
+	case "BMP_LEFT_TEMP_OSR":
+		val, err := strconv.Atoi(value)
+		if err != nil {
+			return fmt.Errorf("invalid BMP_LEFT_TEMP_OSR %q: %w", value, err)
+		}
+		if val < 0 || val > 5 {
+			return fmt.Errorf("BMP_LEFT_TEMP_OSR must be 0-5, got %d", val)
+		}
+		c.BMPLeftTempOSR = byte(val)
+	case "BMP_LEFT_MODE":
+		val, err := strconv.Atoi(value)
+		if err != nil {
+			return fmt.Errorf("invalid BMP_LEFT_MODE %q: %w", value, err)
+		}
+		if val < 0 || val > 3 {
+			return fmt.Errorf("BMP_LEFT_MODE must be 0-3, got %d", val)
+		}
+		c.BMPLeftMode = byte(val)
+	case "BMP_LEFT_IIR_FILTER":
+		val, err := strconv.Atoi(value)
+		if err != nil {
+			return fmt.Errorf("invalid BMP_LEFT_IIR_FILTER %q: %w", value, err)
+		}
+		if val < 0 || val > 4 {
+			return fmt.Errorf("BMP_LEFT_IIR_FILTER must be 0-4, got %d", val)
+		}
+		c.BMPLeftIIRFilter = byte(val)
+	case "BMP_LEFT_STANDBY_TIME":
+		val, err := strconv.Atoi(value)
+		if err != nil {
+			return fmt.Errorf("invalid BMP_LEFT_STANDBY_TIME %q: %w", value, err)
+		}
+		if val < 0 || val > 7 {
+			return fmt.Errorf("BMP_LEFT_STANDBY_TIME must be 0-7, got %d", val)
+		}
+		c.BMPLeftStandbyTime = byte(val)
+
+	// BMP Right Configuration
+	case "BMP_RIGHT_PRESSURE_OSR":
+		val, err := strconv.Atoi(value)
+		if err != nil {
+			return fmt.Errorf("invalid BMP_RIGHT_PRESSURE_OSR %q: %w", value, err)
+		}
+		if val < 0 || val > 5 {
+			return fmt.Errorf("BMP_RIGHT_PRESSURE_OSR must be 0-5, got %d", val)
+		}
+		c.BMPRightPressureOSR = byte(val)
+	case "BMP_RIGHT_TEMP_OSR":
+		val, err := strconv.Atoi(value)
+		if err != nil {
+			return fmt.Errorf("invalid BMP_RIGHT_TEMP_OSR %q: %w", value, err)
+		}
+		if val < 0 || val > 5 {
+			return fmt.Errorf("BMP_RIGHT_TEMP_OSR must be 0-5, got %d", val)
+		}
+		c.BMPRightTempOSR = byte(val)
+	case "BMP_RIGHT_MODE":
+		val, err := strconv.Atoi(value)
+		if err != nil {
+			return fmt.Errorf("invalid BMP_RIGHT_MODE %q: %w", value, err)
+		}
+		if val < 0 || val > 3 {
+			return fmt.Errorf("BMP_RIGHT_MODE must be 0-3, got %d", val)
+		}
+		c.BMPRightMode = byte(val)
+	case "BMP_RIGHT_IIR_FILTER":
+		val, err := strconv.Atoi(value)
+		if err != nil {
+			return fmt.Errorf("invalid BMP_RIGHT_IIR_FILTER %q: %w", value, err)
+		}
+		if val < 0 || val > 4 {
+			return fmt.Errorf("BMP_RIGHT_IIR_FILTER must be 0-4, got %d", val)
+		}
+		c.BMPRightIIRFilter = byte(val)
+	case "BMP_RIGHT_STANDBY_TIME":
+		val, err := strconv.Atoi(value)
+		if err != nil {
+			return fmt.Errorf("invalid BMP_RIGHT_STANDBY_TIME %q: %w", value, err)
+		}
+		if val < 0 || val > 7 {
+			return fmt.Errorf("BMP_RIGHT_STANDBY_TIME must be 0-7, got %d", val)
+		}
+		c.BMPRightStandbyTime = byte(val)
 
 	// GPS
 	case "GPS_SERIAL_PORT":
