@@ -19,7 +19,8 @@ type Config struct {
 	MQTTClientIDWeb      string
 
 	// Topics
-	TopicPose          string
+	TopicPoseLeft      string
+	TopicPoseRight     string
 	TopicPoseFused     string
 	TopicIMULeft       string
 	TopicIMURight      string
@@ -134,8 +135,10 @@ func (c *Config) setValue(key, value string) error {
 		c.MQTTClientIDWeb = value
 
 	// Topics
-	case "TOPIC_POSE":
-		c.TopicPose = value
+	case "TOPIC_POSE_LEFT":
+		c.TopicPoseLeft = value
+	case "TOPIC_POSE_RIGHT":
+		c.TopicPoseRight = value
 	case "TOPIC_POSE_FUSED":
 		c.TopicPoseFused = value
 	case "TOPIC_IMU_LEFT":

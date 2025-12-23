@@ -29,24 +29,43 @@ func RunConsoleMQTT() error {
 	}
 	log.Printf("console: connected to MQTT broker at %s", cfg.MQTTBroker)
 
-	// Subscribe to orientation
-	poseToken := client.Subscribe(cfg.TopicPose, 0, func(_ mqtt.Client, msg mqtt.Message) {
+	// Subscribe to left pose
+	poseLeftToken := client.Subscribe(cfg.TopicPoseLeft, 0, func(_ mqtt.Client, msg mqtt.Message) {
 		var p orientation.Pose
 		if err := json.Unmarshal(msg.Payload(), &p); err != nil {
-			log.Printf("console: pose unmarshal error: %v", err)
+			log.Printf("console: left pose unmarshal error: %v", err)
 			return
 		}
 
 		fmt.Printf(
-			"[POSE]  ROLL=%6.2f  PITCH=%6.2f  YAW=%6.2f\n",
+			"[LEFT]  ROLL=%6.2f  PITCH=%6.2f  YAW=%6.2f\n",
 			p.Roll, p.Pitch, p.Yaw,
 		)
 	})
-	poseToken.Wait()
-	if poseToken.Error() != nil {
-		return poseToken.Error()
+	poseLeftToken.Wait()
+	if poseLeftToken.Error() != nil {
+		return poseLeftToken.Error()
 	}
-	log.Printf("console: subscribed to %s", cfg.TopicPose)
+	log.Printf("console: subscribed to %s", cfg.TopicPoseLeft)
+
+	// Subscribe to right pose
+	poseRightToken := client.Subscribe(cfg.TopicPoseRight, 0, func(_ mqtt.Client, msg mqtt.Message) {
+		var p orientation.Pose
+		if err := json.Unmarshal(msg.Payload(), &p); err != nil {
+			log.Printf("console: right pose unmarshal error: %v", err)
+			return
+		}
+
+		fmt.Printf(
+			"[RIGHT] ROLL=%6.2f  PITCH=%6.2f  YAW=%6.2f\n",
+			p.Roll, p.Pitch, p.Yaw,
+		)
+	})
+	poseRightToken.Wait()
+	if poseRightToken.Error() != nil {
+		return poseRightToken.Error()
+	}
+	log.Printf("console: subscribed to %s", cfg.TopicPoseRight)
 
 	// Subscribe to fused orientation
 	fusedToken := client.Subscribe(cfg.TopicPoseFused, 0, func(_ mqtt.Client, msg mqtt.Message) {

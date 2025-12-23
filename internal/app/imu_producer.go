@@ -86,78 +86,51 @@ func RunInertialProducer() error {
 		}
 		lastTickTime = t
 
-		// 1) Orientation (raw and fused)
-		var pose orientation.Pose
-		var rawIMU imu_raw.IMURaw
+		// Step 1: Read all IMU sensors
+		var imuL, imuR imu_raw.IMURaw
+		var hasLeftIMU, hasRightIMU bool
+
 		if useMock {
-			var err error
-			pose, err = mockSrc.Next()
-			if err != nil {
-				log.Printf("error from mock orientation source: %v", err)
-				continue
-			}
-		} else {
-			// Read raw IMU data from left IMU
-			var err error
-			rawIMU, err = imuManager.ReadLeftIMU()
-			if err != nil {
-				log.Printf("error reading left IMU: %v", err)
-				continue
-			}
-			// Compute pose with gyro integration
-			pose = orientation.ComputePoseFromIMURaw(
-				float64(rawIMU.Ax),
-				float64(rawIMU.Ay),
-				float64(rawIMU.Az),
-				float64(rawIMU.Gx),
-				float64(rawIMU.Gy),
-				float64(rawIMU.Gz),
-				prevPose,
-				deltaTime,
-			)
-		}
-
-		// Update previous pose for next iteration
-		prevPose = pose
-
-		// Publish raw pose
-		payload, err := json.Marshal(pose)
-		if err != nil {
-			log.Printf("json marshal error (pose): %v", err)
-		} else {
-			if token := client.Publish(cfg.TopicPose, 0, true, payload); token.Wait() && token.Error() != nil {
-				log.Printf("MQTT publish error (pose): %v", token.Error())
-				continue
-			}
-			// fused pose (same for now)
-			if token := client.Publish(cfg.TopicPoseFused, 0, true, payload); token.Wait() && token.Error() != nil {
-				log.Printf("MQTT publish error (pose/fused): %v", token.Error())
-				continue
-			}
-		}
-
-		// 2) Left/right IMU raw
-		var imuL imu_raw.IMURaw
-		if useMock {
-			// In mock mode, create a dummy reading
+			// In mock mode, create dummy readings
 			imuL = imu_raw.IMURaw{Source: "mock"}
+			imuR = imu_raw.IMURaw{Source: "mock"}
+			hasLeftIMU = true
+			hasRightIMU = true
 		} else {
-			// In real mode, we already read from left IMU for orientation
-			imuL = rawIMU
-		}
+			// Read left IMU
+			if imuManager.IsLeftIMUAvailable() {
+				var err error
+				imuL, err = imuManager.ReadLeftIMU()
+				if err != nil {
+					log.Printf("error reading left IMU: %v", err)
+				} else {
+					hasLeftIMU = true
+				}
+			}
 
-		if payload, err := json.Marshal(imuL); err != nil {
-			log.Printf("left IMU marshal error: %v", err)
-			continue
-		} else {
-			if token := client.Publish(cfg.TopicIMULeft, 0, true, payload); token.Wait() && token.Error() != nil {
-				log.Printf("MQTT publish error (imu/left): %v", token.Error())
-				continue
+			// Read right IMU
+			if imuManager.IsRightIMUAvailable() {
+				var err error
+				imuR, err = imuManager.ReadRightIMU()
+				if err != nil {
+					log.Printf("error reading right IMU: %v", err)
+				} else {
+					hasRightIMU = true
+				}
 			}
 		}
 
-		// --- MAG TEST/DEBUG: publish mag-only topic for left IMU ---
-		{
+		// Step 2: Publish left IMU raw data
+		if hasLeftIMU {
+			if payload, err := json.Marshal(imuL); err != nil {
+				log.Printf("left IMU marshal error: %v", err)
+			} else {
+				if token := client.Publish(cfg.TopicIMULeft, 0, true, payload); token.Wait() && token.Error() != nil {
+					log.Printf("MQTT publish error (imu/left): %v", token.Error())
+				}
+			}
+
+			// MAG TEST/DEBUG: publish mag-only topic for left IMU
 			mn := magNorm(imuL.Mx, imuL.My, imuL.Mz)
 			magTest := struct {
 				Mx   int16   `json:"mx"`
@@ -172,7 +145,6 @@ func RunInertialProducer() error {
 				Norm: mn,
 				Time: t.Format(time.RFC3339),
 			}
-
 			if payload, err := json.Marshal(magTest); err != nil {
 				log.Printf("mag marshal error: %v", err)
 			} else {
@@ -180,42 +152,39 @@ func RunInertialProducer() error {
 			}
 		}
 
-		// Read and publish right IMU
-		if imuManager.IsRightIMUAvailable() {
-			if imuR, err := imuManager.ReadRightIMU(); err != nil {
-				log.Printf("right IMU read error: %v", err)
-			} else if payload, err := json.Marshal(imuR); err != nil {
+		// Step 3: Publish right IMU raw data
+		if hasRightIMU {
+			if payload, err := json.Marshal(imuR); err != nil {
 				log.Printf("right IMU marshal error: %v", err)
 			} else {
 				if token := client.Publish(cfg.TopicIMURight, 0, true, payload); token.Wait() && token.Error() != nil {
 					log.Printf("MQTT publish error (imu/right): %v", token.Error())
 				}
+			}
 
-				// --- MAG TEST/DEBUG: publish mag-only topic for right IMU ---
-				mn := magNorm(imuR.Mx, imuR.My, imuR.Mz)
-				magTest := struct {
-					Mx   int16   `json:"mx"`
-					My   int16   `json:"my"`
-					Mz   int16   `json:"mz"`
-					Norm float64 `json:"norm"`
-					Time string  `json:"time"`
-				}{
-					Mx:   imuR.Mx,
-					My:   imuR.My,
-					Mz:   imuR.Mz,
-					Norm: mn,
-					Time: t.Format(time.RFC3339),
-				}
-
-				if payload, err := json.Marshal(magTest); err != nil {
-					log.Printf("right mag marshal error: %v", err)
-				} else {
-					client.Publish(cfg.TopicMagRight, 0, true, payload)
-				}
+			// MAG TEST/DEBUG: publish mag-only topic for right IMU
+			mn := magNorm(imuR.Mx, imuR.My, imuR.Mz)
+			magTest := struct {
+				Mx   int16   `json:"mx"`
+				My   int16   `json:"my"`
+				Mz   int16   `json:"mz"`
+				Norm float64 `json:"norm"`
+				Time string  `json:"time"`
+			}{
+				Mx:   imuR.Mx,
+				My:   imuR.My,
+				Mz:   imuR.Mz,
+				Norm: mn,
+				Time: t.Format(time.RFC3339),
+			}
+			if payload, err := json.Marshal(magTest); err != nil {
+				log.Printf("right mag marshal error: %v", err)
+			} else {
+				client.Publish(cfg.TopicMagRight, 0, true, payload)
 			}
 		}
 
-		// 3) Left/right env (BMP)
+		// Step 4: Read and publish BMP environmental sensors
 		if envL, err := sensors.ReadLeftEnv(); err != nil {
 			log.Printf("left env read error: %v", err)
 			continue
@@ -242,34 +211,129 @@ func RunInertialProducer() error {
 			}
 		}
 
+		// Step 5: Calculate and publish orientation poses
+		var poseLeft, poseRight, poseFused orientation.Pose
+
+		if useMock {
+			// In mock mode, use mock source for all poses
+			var err error
+			poseLeft, err = mockSrc.Next()
+			if err != nil {
+				log.Printf("error from mock orientation source: %v", err)
+				continue
+			}
+			poseRight = poseLeft // Same for mock
+			poseFused = poseLeft // Same for mock
+		} else {
+			// Calculate pose from left IMU
+			if hasLeftIMU {
+				poseLeft = orientation.ComputePoseFromIMURaw(
+					float64(imuL.Ax),
+					float64(imuL.Ay),
+					float64(imuL.Az),
+					float64(imuL.Gx),
+					float64(imuL.Gy),
+					float64(imuL.Gz),
+					prevPose,
+					deltaTime,
+				)
+			}
+
+			// Calculate pose from right IMU
+			if hasRightIMU {
+				poseRight = orientation.ComputePoseFromIMURaw(
+					float64(imuR.Ax),
+					float64(imuR.Ay),
+					float64(imuR.Az),
+					float64(imuR.Gx),
+					float64(imuR.Gy),
+					float64(imuR.Gz),
+					prevPose,
+					deltaTime,
+				)
+			}
+
+			// Calculate fused pose (simple average if both available, otherwise use available one)
+			if hasLeftIMU && hasRightIMU {
+				poseFused = orientation.Pose{
+					Roll:  (poseLeft.Roll + poseRight.Roll) / 2.0,
+					Pitch: (poseLeft.Pitch + poseRight.Pitch) / 2.0,
+					Yaw:   (poseLeft.Yaw + poseRight.Yaw) / 2.0,
+				}
+			} else if hasLeftIMU {
+				poseFused = poseLeft
+			} else if hasRightIMU {
+				poseFused = poseRight
+			}
+		}
+
+		// Update previous pose for next iteration (use fused)
+		prevPose = poseFused
+
+		// Publish left pose
+		if hasLeftIMU {
+			if payload, err := json.Marshal(poseLeft); err != nil {
+				log.Printf("json marshal error (pose/left): %v", err)
+			} else {
+				if token := client.Publish(cfg.TopicPoseLeft, 0, true, payload); token.Wait() && token.Error() != nil {
+					log.Printf("MQTT publish error (pose/left): %v", token.Error())
+				}
+			}
+		}
+
+		// Publish right pose
+		if hasRightIMU {
+			if payload, err := json.Marshal(poseRight); err != nil {
+				log.Printf("json marshal error (pose/right): %v", err)
+			} else {
+				if token := client.Publish(cfg.TopicPoseRight, 0, true, payload); token.Wait() && token.Error() != nil {
+					log.Printf("MQTT publish error (pose/right): %v", token.Error())
+				}
+			}
+		}
+
+		// Publish fused pose
+		if hasLeftIMU || hasRightIMU {
+			if payload, err := json.Marshal(poseFused); err != nil {
+				log.Printf("json marshal error (pose/fused): %v", err)
+			} else {
+				if token := client.Publish(cfg.TopicPoseFused, 0, true, payload); token.Wait() && token.Error() != nil {
+					log.Printf("MQTT publish error (pose/fused): %v", token.Error())
+				}
+			}
+		}
+
 		// --- Log all sensor data once per second ---
 		if tickCounter >= logInterval {
 			tickCounter = 0
 
-			// Left IMU
-			mn := magNorm(imuL.Mx, imuL.My, imuL.Mz)
-			log.Printf("%s | pose R=%.2f P=%.2f Y=%.2f",
+			// Poses
+			log.Printf("%s | LEFT pose R=%.2f P=%.2f Y=%.2f | RIGHT pose R=%.2f P=%.2f Y=%.2f | FUSED pose R=%.2f P=%.2f Y=%.2f",
 				t.Format(time.RFC3339),
-				pose.Roll, pose.Pitch, pose.Yaw,
-			)
-			log.Printf("  [LEFT IMU] accel ax=%d ay=%d az=%d | gyro gx=%d gy=%d gz=%d | mag mx=%d my=%d mz=%d | |B|=%.1f",
-				imuL.Ax, imuL.Ay, imuL.Az,
-				imuL.Gx, imuL.Gy, imuL.Gz,
-				imuL.Mx, imuL.My, imuL.Mz,
-				mn,
+				poseLeft.Roll, poseLeft.Pitch, poseLeft.Yaw,
+				poseRight.Roll, poseRight.Pitch, poseRight.Yaw,
+				poseFused.Roll, poseFused.Pitch, poseFused.Yaw,
 			)
 
+			// Left IMU
+			if hasLeftIMU {
+				mn := magNorm(imuL.Mx, imuL.My, imuL.Mz)
+				log.Printf("  [LEFT IMU] accel ax=%d ay=%d az=%d | gyro gx=%d gy=%d gz=%d | mag mx=%d my=%d mz=%d | |B|=%.1f",
+					imuL.Ax, imuL.Ay, imuL.Az,
+					imuL.Gx, imuL.Gy, imuL.Gz,
+					imuL.Mx, imuL.My, imuL.Mz,
+					mn,
+				)
+			}
 			// Right IMU
-			if imuManager.IsRightIMUAvailable() {
-				if imuR, err := imuManager.ReadRightIMU(); err == nil {
-					mnR := magNorm(imuR.Mx, imuR.My, imuR.Mz)
-					log.Printf("  [RIGHT IMU] accel ax=%d ay=%d az=%d | gyro gx=%d gy=%d gz=%d | mag mx=%d my=%d mz=%d | |B|=%.1f",
-						imuR.Ax, imuR.Ay, imuR.Az,
-						imuR.Gx, imuR.Gy, imuR.Gz,
-						imuR.Mx, imuR.My, imuR.Mz,
-						mnR,
-					)
-				}
+			if hasRightIMU {
+				mnR := magNorm(imuR.Mx, imuR.My, imuR.Mz)
+				log.Printf("  [RIGHT IMU] accel ax=%d ay=%d az=%d | gyro gx=%d gy=%d gz=%d | mag mx=%d my=%d mz=%d | |B|=%.1f",
+					imuR.Ax, imuR.Ay, imuR.Az,
+					imuR.Gx, imuR.Gy, imuR.Gz,
+					imuR.Mx, imuR.My, imuR.Mz,
+					mnR,
+				)
 			}
 
 			// Left BMP

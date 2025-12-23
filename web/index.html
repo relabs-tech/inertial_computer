@@ -143,30 +143,48 @@
   <div class="page">
     <div class="app">
       <h1>Inertial Computer (MQTT Data)</h1>
-      <div class="subtitle">Live data from IMUs, BMPs, GPS and fused orientation</div>
+      <div class="subtitle">Live data from dual IMUs, BMPs, GPS with left/right/fused orientation</div>
 
       <div class="grid">
-        <!-- Orientation (raw) -->
+        <!-- Left IMU Orientation -->
         <div class="card">
-          <h2>Orientation</h2>
+          <h2>Left Pose</h2>
           <div class="value-row">
             <div class="label">Roll</div>
-            <div class="value"><span id="roll">0.00</span><span class="unit">deg</span></div>
+            <div class="value"><span id="left-roll">0.00</span><span class="unit">deg</span></div>
           </div>
           <div class="value-row">
             <div class="label">Pitch</div>
-            <div class="value"><span id="pitch">0.00</span><span class="unit">deg</span></div>
+            <div class="value"><span id="left-pitch">0.00</span><span class="unit">deg</span></div>
           </div>
           <div class="value-row">
             <div class="label">Yaw</div>
-            <div class="value"><span id="yaw">0.00</span><span class="unit">deg</span></div>
+            <div class="value"><span id="left-yaw">0.00</span><span class="unit">deg</span></div>
           </div>
-          <div class="status" id="oriStatus">Orientation: connecting…</div>
+          <div class="status" id="leftStatus">Left: connecting…</div>
+        </div>
+
+        <!-- Right IMU Orientation -->
+        <div class="card">
+          <h2>Right Pose</h2>
+          <div class="value-row">
+            <div class="label">Roll</div>
+            <div class="value"><span id="right-roll">0.00</span><span class="unit">deg</span></div>
+          </div>
+          <div class="value-row">
+            <div class="label">Pitch</div>
+            <div class="value"><span id="right-pitch">0.00</span><span class="unit">deg</span></div>
+          </div>
+          <div class="value-row">
+            <div class="label">Yaw</div>
+            <div class="value"><span id="right-yaw">0.00</span><span class="unit">deg</span></div>
+          </div>
+          <div class="status" id="rightStatus">Right: connecting…</div>
         </div>
 
         <!-- Fused Orientation -->
         <div class="card">
-          <h2>Fused Orientation</h2>
+          <h2>Fused Pose</h2>
           <div class="value-row">
             <div class="label">Roll</div>
             <div class="value"><span id="fuse-roll">0.00</span><span class="unit">deg</span></div>
@@ -308,11 +326,17 @@
   <script>
     // === existing JS, just re-attached to new DOM ===
 
-    // Orientation
-    const rollEl = document.getElementById('roll');
-    const pitchEl = document.getElementById('pitch');
-    const yawEl = document.getElementById('yaw');
-    const oriStatusEl = document.getElementById('oriStatus');
+    // Left Pose
+    const leftRollEl = document.getElementById('left-roll');
+    const leftPitchEl = document.getElementById('left-pitch');
+    const leftYawEl = document.getElementById('left-yaw');
+    const leftStatusEl = document.getElementById('leftStatus');
+
+    // Right Pose
+    const rightRollEl = document.getElementById('right-roll');
+    const rightPitchEl = document.getElementById('right-pitch');
+    const rightYawEl = document.getElementById('right-yaw');
+    const rightStatusEl = document.getElementById('rightStatus');
 
     // Fused
     const fuseRollEl = document.getElementById('fuse-roll');
@@ -402,17 +426,31 @@
       }
     }
 
-    async function fetchOrientation() {
+    async function fetchLeftOrientation() {
       try {
-        const res = await fetch('/api/orientation', { cache: 'no-store' });
+        const res = await fetch('/api/orientation/left', { cache: 'no-store' });
         if (!res.ok) throw new Error('HTTP ' + res.status);
         const data = await res.json();
-        rollEl.textContent = (data.roll ?? 0).toFixed(2);
-        pitchEl.textContent = (data.pitch ?? 0).toFixed(2);
-        yawEl.textContent = (data.yaw ?? 0).toFixed(2);
-        oriStatusEl.textContent = 'Orientation: live from MQTT';
+        leftRollEl.textContent = (data.roll ?? 0).toFixed(2);
+        leftPitchEl.textContent = (data.pitch ?? 0).toFixed(2);
+        leftYawEl.textContent = (data.yaw ?? 0).toFixed(2);
+        leftStatusEl.textContent = 'Left: live from MQTT';
       } catch (err) {
-        oriStatusEl.textContent = 'Orientation error: ' + err.message;
+        leftStatusEl.textContent = 'Left error: ' + err.message;
+      }
+    }
+
+    async function fetchRightOrientation() {
+      try {
+        const res = await fetch('/api/orientation/right', { cache: 'no-store' });
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const data = await res.json();
+        rightRollEl.textContent = (data.roll ?? 0).toFixed(2);
+        rightPitchEl.textContent = (data.pitch ?? 0).toFixed(2);
+        rightYawEl.textContent = (data.yaw ?? 0).toFixed(2);
+        rightStatusEl.textContent = 'Right: live from MQTT';
+      } catch (err) {
+        rightStatusEl.textContent = 'Right error: ' + err.message;
       }
     }
 
@@ -903,7 +941,8 @@
     }
 
     function tick() {
-      fetchOrientation();
+      fetchLeftOrientation();
+      fetchRightOrientation();
       fetchFusedOrientation();
       fetchGPS();
       fetchIMULeft();

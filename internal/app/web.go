@@ -20,9 +20,12 @@ func RunWeb() error {
 	cfg := config.Get()
 
 	var (
-		mu       sync.RWMutex
-		lastPose orientation.Pose
-		havePose bool
+		mu           sync.RWMutex
+		lastPoseLeft orientation.Pose
+		havePoseLeft bool
+
+		lastPoseRight orientation.Pose
+		havePoseRight bool
 
 		lastFusedPose orientation.Pose
 		haveFusedPose bool
@@ -52,41 +55,41 @@ func RunWeb() error {
 	}
 	log.Printf("web: connected to MQTT broker at %s", cfg.MQTTBroker)
 
-	// 2) Subscribe to pose
-	poseToken := client.Subscribe(cfg.TopicPose, 0, func(_ mqtt.Client, msg mqtt.Message) {
+	// 2) Subscribe to left pose
+	poseLeftToken := client.Subscribe(cfg.TopicPoseLeft, 0, func(_ mqtt.Client, msg mqtt.Message) {
 		var p orientation.Pose
 		if err := json.Unmarshal(msg.Payload(), &p); err != nil {
-			log.Printf("web: pose unmarshal error: %v", err)
+			log.Printf("web: pose left unmarshal error: %v", err)
 			return
 		}
 		mu.Lock()
-		lastPose = p
-		havePose = true
+		lastPoseLeft = p
+		havePoseLeft = true
 		mu.Unlock()
 	})
-	poseToken.Wait()
-	if poseToken.Error() != nil {
-		return poseToken.Error()
+	poseLeftToken.Wait()
+	if poseLeftToken.Error() != nil {
+		return poseLeftToken.Error()
 	}
-	log.Printf("web: subscribed to MQTT topic %s", cfg.TopicPose)
+	log.Printf("web: subscribed to MQTT topic %s", cfg.TopicPoseLeft)
 
-	// 3) Subscribe to GPS
-	gpsToken := client.Subscribe(cfg.TopicGPS, 0, func(_ mqtt.Client, msg mqtt.Message) {
-		var f gps.Fix
-		if err := json.Unmarshal(msg.Payload(), &f); err != nil {
-			log.Printf("web: gps unmarshal error: %v", err)
+	// 3) Subscribe to right pose
+	poseRightToken := client.Subscribe(cfg.TopicPoseRight, 0, func(_ mqtt.Client, msg mqtt.Message) {
+		var p orientation.Pose
+		if err := json.Unmarshal(msg.Payload(), &p); err != nil {
+			log.Printf("web: pose right unmarshal error: %v", err)
 			return
 		}
 		mu.Lock()
-		lastFix = f
-		haveFix = true
+		lastPoseRight = p
+		havePoseRight = true
 		mu.Unlock()
 	})
-	gpsToken.Wait()
-	if gpsToken.Error() != nil {
-		return gpsToken.Error()
+	poseRightToken.Wait()
+	if poseRightToken.Error() != nil {
+		return poseRightToken.Error()
 	}
-	log.Printf("web: subscribed to MQTT topic %s", cfg.TopicGPS)
+	log.Printf("web: subscribed to MQTT topic %s", cfg.TopicPoseRight)
 
 	// 4) Subscribe to fused pose
 	fusedToken := client.Subscribe(cfg.TopicPoseFused, 0, func(_ mqtt.Client, msg mqtt.Message) {
@@ -105,6 +108,25 @@ func RunWeb() error {
 		return fusedToken.Error()
 	}
 	log.Printf("web: subscribed to MQTT topic %s", cfg.TopicPoseFused)
+
+	// 5) Subscribe to GPS
+	// 5) Subscribe to GPS
+	gpsToken := client.Subscribe(cfg.TopicGPS, 0, func(_ mqtt.Client, msg mqtt.Message) {
+		var f gps.Fix
+		if err := json.Unmarshal(msg.Payload(), &f); err != nil {
+			log.Printf("web: gps unmarshal error: %v", err)
+			return
+		}
+		mu.Lock()
+		lastFix = f
+		haveFix = true
+		mu.Unlock()
+	})
+	gpsToken.Wait()
+	if gpsToken.Error() != nil {
+		return gpsToken.Error()
+	}
+	log.Printf("web: subscribed to MQTT topic %s", cfg.TopicGPS)
 
 	// Subscribe to IMU left
 	imuLeftToken := client.Subscribe(cfg.TopicIMULeft, 0, func(_ mqtt.Client, msg mqtt.Message) {
@@ -178,23 +200,39 @@ func RunWeb() error {
 	}
 	log.Printf("web: subscribed to %s", cfg.TopicBMPRight)
 
-	// 5) JSON API: latest pose
-	http.HandleFunc("/api/orientation", func(w http.ResponseWriter, r *http.Request) {
+	// 5) JSON API: latest left pose
+	http.HandleFunc("/api/orientation/left", func(w http.ResponseWriter, r *http.Request) {
 		mu.RLock()
 		defer mu.RUnlock()
 
-		if !havePose {
-			http.Error(w, "no orientation data yet", http.StatusServiceUnavailable)
+		if !havePoseLeft {
+			http.Error(w, "no left orientation data yet", http.StatusServiceUnavailable)
 			return
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		if err := json.NewEncoder(w).Encode(lastPose); err != nil {
-			log.Printf("web: orientation JSON encode error: %v", err)
+		if err := json.NewEncoder(w).Encode(lastPoseLeft); err != nil {
+			log.Printf("web: left orientation JSON encode error: %v", err)
 		}
 	})
 
-	// 5b) JSON API: latest fused pose
+	// 5b) JSON API: latest right pose
+	http.HandleFunc("/api/orientation/right", func(w http.ResponseWriter, r *http.Request) {
+		mu.RLock()
+		defer mu.RUnlock()
+
+		if !havePoseRight {
+			http.Error(w, "no right orientation data yet", http.StatusServiceUnavailable)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		if err := json.NewEncoder(w).Encode(lastPoseRight); err != nil {
+			log.Printf("web: right orientation JSON encode error: %v", err)
+		}
+	})
+
+	// 5c) JSON API: latest fused pose
 	http.HandleFunc("/api/orientation/fused", func(w http.ResponseWriter, r *http.Request) {
 		mu.RLock()
 		defer mu.RUnlock()
