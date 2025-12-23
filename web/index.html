@@ -137,13 +137,53 @@
         grid-column: 1 / -1;
       }
     }
+
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 0.8rem;
+    }
+
+    .header-left {
+      flex: 1;
+    }
+
+    .cal-button {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      padding: 0.6rem 1.2rem;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+      transition: all 0.3s ease;
+    }
+
+    .cal-button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+    }
+
+    .cal-button:active {
+      transform: translateY(0);
+    }
   </style>
 </head>
 <body>
   <div class="page">
     <div class="app">
-      <h1>Inertial Computer (MQTT Data)</h1>
-      <div class="subtitle">Live data from dual IMUs, BMPs, GPS with left/right/fused orientation</div>
+      <div class="header">
+        <div class="header-left">
+          <h1>Inertial Computer (MQTT Data)</h1>
+          <div class="subtitle">Live data from dual IMUs, BMPs, GPS with left/right/fused orientation</div>
+        </div>
+        <button class="cal-button" onclick="window.location.href='/calibration.html'">
+          🎯 Calibrate IMU
+        </button>
+      </div>
 
       <div class="grid">
         <!-- Left IMU Orientation -->

@@ -329,6 +329,9 @@ func RunWeb() error {
 		}
 	})
 
+	// Calibration WebSocket endpoint
+	http.HandleFunc("/api/calibration/ws", HandleCalibrationWS)
+
 	// 7) Static UI from ./web
 	fs := http.FileServer(http.Dir("web"))
 	http.Handle("/", fs)
