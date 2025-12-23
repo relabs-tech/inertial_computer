@@ -17,3 +17,6 @@ go.work.sum
 
 # Logs
 *.log
+
+# Calibration files
+*_inertial_calibration.json
