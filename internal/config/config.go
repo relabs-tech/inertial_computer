@@ -56,6 +56,15 @@ type Config struct {
 	WeatherUpdateIntervalMinutes int
 }
 
+// Package-level unexported variables for singleton pattern:
+//   - globalConfig: unexported (lowercase) so other packages cannot access it directly.
+//     This enforces encapsulation and prevents external code from modifying config without proper locking.
+//     Has package-level scope (visible to all functions in this package, persists for program lifetime).
+//   - configOnce: ensures InitGlobal() only runs once, even if called multiple times.
+//   - configMu: RWMutex protects concurrent access. Write lock (Lock) for initialization,
+//     read lock (RLock) for Get() allows multiple concurrent readers without blocking each other.
+//
+// External code must use InitGlobal() to set and Get() to read, ensuring thread safety.
 var (
 	globalConfig *Config
 	configOnce   sync.Once
@@ -240,6 +249,9 @@ func (c *Config) validate() error {
 }
 
 // InitGlobal initializes the global configuration from file.
+// Uses sync.Once to ensure this only runs once, even if called multiple times.
+// Acquires write lock (configMu.Lock) during initialization to prevent concurrent access.
+// This is the only function that can set globalConfig.
 func InitGlobal(configPath string) error {
 	var err error
 	configOnce.Do(func() {
@@ -251,7 +263,9 @@ func InitGlobal(configPath string) error {
 }
 
 // Get returns the global configuration instance.
-// InitGlobal must be called first.
+// InitGlobal must be called first, or this will return nil.
+// Uses read lock (configMu.RLock) to allow multiple concurrent readers without blocking.
+// This is thread-safe and efficient for concurrent access across goroutines.
 func Get() *Config {
 	configMu.RLock()
 	defer configMu.RUnlock()
