@@ -77,7 +77,11 @@ func newIMUSource(name, spiDev, csPin string) (IMURawReader, error) {
 	if err != nil {
 		log.Printf("Warning: %s IMU self-test failed: %v", name, err)
 	} else {
-		log.Printf("%s IMU self-test passed: %+v", name, testResult)
+		log.Printf("%s IMU self-test passed:", name)
+		log.Printf("  Accelerometer deviation: X: %.2f%%, Y: %.2f%%, Z: %.2f%%",
+			testResult.AccelDeviation.X, testResult.AccelDeviation.Y, testResult.AccelDeviation.Z)
+		log.Printf("  Gyroscope deviation: X: %.2f%%, Y: %.2f%%, Z: %.2f%%",
+			testResult.GyroDeviation.X, testResult.GyroDeviation.Y, testResult.GyroDeviation.Z)
 	}
 
 	// Calibration
