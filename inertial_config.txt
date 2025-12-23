@@ -33,6 +33,12 @@ IMU_LEFT_CS_PIN=18
 IMU_RIGHT_SPI_DEVICE=/dev/spidev0.0
 IMU_RIGHT_CS_PIN=8
 
+# IMU Sensor Ranges (applied to both left and right IMUs)
+# Accelerometer: 0=±2g, 1=±4g, 2=±8g, 3=±16g
+IMU_ACCEL_RANGE=2
+# Gyroscope: 0=±250°/s, 1=±500°/s, 2=±1000°/s, 3=±2000°/s
+IMU_GYRO_RANGE=1
+
 # BMP Hardware Configuration - Left BMP
 BMP_LEFT_SPI_DEVICE=/dev/spidev6.1
 

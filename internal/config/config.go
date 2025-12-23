@@ -40,6 +40,12 @@ type Config struct {
 	IMURightSPIDevice string
 	IMURightCSPin     string
 
+	// IMU Sensor Ranges
+	// Accelerometer: 0=±2g, 1=±4g, 2=±8g, 3=±16g
+	IMUAccelRange byte
+	// Gyroscope: 0=±250°/s, 1=±500°/s, 2=±1000°/s, 3=±2000°/s
+	IMUGyroRange byte
+
 	// BMP Hardware
 	BMPLeftSPIDevice  string
 	BMPRightSPIDevice string
@@ -173,6 +179,26 @@ func (c *Config) setValue(key, value string) error {
 		c.IMURightSPIDevice = value
 	case "IMU_RIGHT_CS_PIN":
 		c.IMURightCSPin = value
+
+	// IMU Sensor Ranges
+	case "IMU_ACCEL_RANGE":
+		rangeVal, err := strconv.Atoi(value)
+		if err != nil {
+			return fmt.Errorf("invalid IMU_ACCEL_RANGE %q: %w", value, err)
+		}
+		if rangeVal < 0 || rangeVal > 3 {
+			return fmt.Errorf("IMU_ACCEL_RANGE must be 0-3 (0=±2g, 1=±4g, 2=±8g, 3=±16g), got %d", rangeVal)
+		}
+		c.IMUAccelRange = byte(rangeVal)
+	case "IMU_GYRO_RANGE":
+		rangeVal, err := strconv.Atoi(value)
+		if err != nil {
+			return fmt.Errorf("invalid IMU_GYRO_RANGE %q: %w", value, err)
+		}
+		if rangeVal < 0 || rangeVal > 3 {
+			return fmt.Errorf("IMU_GYRO_RANGE must be 0-3 (0=±250°/s, 1=±500°/s, 2=±1000°/s, 3=±2000°/s), got %d", rangeVal)
+		}
+		c.IMUGyroRange = byte(rangeVal)
 
 	// BMP Hardware
 	case "BMP_LEFT_SPI_DEVICE":

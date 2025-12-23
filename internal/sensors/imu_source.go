@@ -60,6 +60,18 @@ func newIMUSource(name, spiDev, csPin string) (IMURawReader, error) {
 		return nil, fmt.Errorf("%s IMU: initialization: %w", name, err)
 	}
 
+	// Apply configured sensor ranges
+	cfg := config.Get()
+	if err := imu.SetAccelRange(cfg.IMUAccelRange); err != nil {
+		return nil, fmt.Errorf("%s IMU: set accel range: %w", name, err)
+	}
+	log.Printf("%s IMU: accelerometer range set to %d (±%dg)", name, cfg.IMUAccelRange, []int{2, 4, 8, 16}[cfg.IMUAccelRange])
+
+	if err := imu.SetGyroRange(cfg.IMUGyroRange); err != nil {
+		return nil, fmt.Errorf("%s IMU: set gyro range: %w", name, err)
+	}
+	log.Printf("%s IMU: gyroscope range set to %d (±%d°/s)", name, cfg.IMUGyroRange, []int{250, 500, 1000, 2000}[cfg.IMUGyroRange])
+
 	// Self-test
 	testResult, err := imu.SelfTest()
 	if err != nil {
