@@ -38,6 +38,11 @@ The core goals are:
   - ✅ Satellite sky plot (polar chart showing satellite positions)
   - ✅ Satellite signal strength bar chart
   - ✅ Weather widget with external API integration
+  - ✅ **Interactive calibration UI** with 3D visualization and guided workflows
+- CLI calibration tool
+  - ✅ **Console-based calibration** for gyroscope, accelerometer, magnetometer
+  - ✅ Guided step-by-step process with confidence scoring
+  - ✅ JSON output with timestamped calibration files
 
 ---
 
@@ -60,8 +65,9 @@ The core goals are:
 - ✅ Optimized dashboard layout for single-screen viewing
 
 **In Progress**:
-- ⚠️ Magnetometer calibration (hard-iron and soft-iron correction)
+- ⚠️ Magnetometer calibration application to sensor readings
 - ⚠️ Sensor fusion (integrating gyro and mag into yaw calculation)
+- ⚠️ Apply calibration coefficients in producers
 
 **Recent Changes**:
 - **Enhanced GPS**: Full NMEA support with RMC, GGA, GSA, VTG, and GSV sentence parsing
@@ -79,8 +85,11 @@ The core goals are:
 - **Configuration System**: Externalized all hardcoded values to `inertial_config.txt`
 - **BMP Configuration**: Added comprehensive sensor configuration (oversampling, IIR filter, standby time, mode) for both left and right BMP sensors
 - **IMU Sensor Ranges**: Configurable accelerometer (±2g to ±16g) and gyroscope (±250°/s to ±2000°/s) ranges
+- **Web Calibration UI**: Interactive 3D-guided calibration interface with real-time visualization (Three.js)
+- **CLI Calibration Tool**: Console-based alternative with step-by-step guided workflows
+- **Calibration Output**: Timestamped JSON files with bias, scale factors, and confidence metrics
 
-See [TODO.md](TODO.md) for detailed task list and [ARCHITECTURE.md](ARCHITECTURE.md) for system design.
+See [TODO.md](TODO.md) for detailed task list, [ARCHITECTURE.md](ARCHITECTURE.md) for system design, [CALIBRATION_UI.md](CALIBRATION_UI.md) for calibration UI details, and [QUICKSTART.md](QUICKSTART.md) for setup instructions.
 
 ---
 

@@ -144,7 +144,9 @@ The Pi never talks directly to the magnetometer.
 
 - README.md ✔
 - ARCHITECTURE.md ✔
-- To add: HARDWARE.md, CALIBRATION.md
+- CALIBRATION_UI.md ✔
+- QUICKSTART.md ✔
+- To add: HARDWARE.md (detailed wiring/pinout guide)
 
 ---
 
@@ -158,12 +160,13 @@ The Pi never talks directly to the magnetometer.
 6. **BMP environmental sensor driver** — SPI temperature/pressure reads with bmxx80 ✅ done
 7. **Configuration system** — externalize all hardcoded values to config file ✅ done
 8. **IMU manager singleton** — persistent hardware access pattern ✅ done
-9. **Magnetometer calibration** — implement hard-iron and soft-iron correction
-10. **Gyro integration function** — integrate angular velocity to get yaw estimate
-11. **Magnetometer correction function** — compute yaw from mag + calibration applied
-12. **Complementary filter** — blend accel/gyro/mag for robust orientation
-13. **Dual-IMU fusion** — cross-validate and combine left/right readings
-14. **Optional: Kalman filter** — advanced fusion for production use
+9. **Calibration tools** ✅ COMPLETED — web UI and CLI tools for gyro/accel/mag calibration
+10. **Apply calibration in producers** — load calibration JSON and apply corrections to sensor reads
+11. **Gyro integration function** — integrate angular velocity to get yaw estimate
+12. **Magnetometer correction function** — compute yaw from mag + calibration applied
+13. **Complementary filter** — blend accel/gyro/mag for robust orientation
+14. **Dual-IMU fusion** — cross-validate and combine left/right readings
+15. **Optional: Kalman filter** — advanced fusion for production use
 
 ---
 
@@ -181,19 +184,25 @@ The Pi never talks directly to the magnetometer.
    - ✅ **NEW**: Independent configuration for left and right sensors via `inertial_config.txt`
    - ✅ **NEW**: Default settings optimized for accuracy (16x pressure, 2x temp, F8 filter, 62.5ms standby)
 
-3. **Calibration Application (Web UI)** — separate standalone calibration tool with its own code and drivers
-   - Web UI for interactive calibration procedures
-   - Dedicated command (`cmd/calibration` or similar)
-   - Own driver instances for left/right IMUs and BMPs (independent from main producer)
-   - Calibration functions:
-     - **Accelerometer calibration**: capture bias, scale factors for left/right
-     - **Gyroscope calibration**: capture drift/bias for left/right
-     - **Magnetometer calibration**: hard-iron and soft-iron correction for left/right
-     - **BMP calibration**: temperature coefficient adjustment if needed
-   - Store calibration parameters persistently (config file or database)
-   - Apply calibration coefficients when main producer reads sensors
+3. **Calibration Application** ✅ COMPLETED
+   - ✅ Web UI with interactive 3D-guided calibration (Three.js visualization)
+   - ✅ CLI tool at `cmd/calibration` for console-based calibration
+   - ✅ WebSocket-based real-time communication for web UI
+   - ✅ Dedicated calibration handler with state machine
+   - ✅ Calibration functions implemented:
+     - **Gyroscope calibration**: Static bias + per-axis dynamic refinement
+     - **Accelerometer calibration**: 6-point orientation capture with bias and scale
+     - **Magnetometer calibration**: Min/max ellipsoid for hard-iron offset and soft-iron diagonal scale
+   - ✅ JSON output with timestamped calibration files
+   - ✅ Confidence scoring for each sensor type
+   - ⚠️ Apply calibration coefficients in producers (TODO)
+   - ⚠️ Persistent calibration profile management (TODO)
 
-4. **Calibrate accelerometers and gyros** — add calibration routines (bias estimation, scale factors) and tooling/documentation to persist calibration parameters.
+4. **Calibrate accelerometers and gyros** ✅ TOOLS COMPLETED
+   - ✅ Calibration routines implemented in both web UI and CLI tool
+   - ✅ Bias estimation and scale factors calculated
+   - ✅ JSON persistence with timestamped output files
+   - ⚠️ Integration into producer pipeline (apply corrections to sensor reads) TODO
 
 5. **Add the magnetometers (AK8963)** ✅ COMPLETED
    - ✅ Enabled MPU9250 internal I2C master

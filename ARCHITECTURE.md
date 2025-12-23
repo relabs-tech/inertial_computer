@@ -509,6 +509,12 @@ GET /api/config               → system configuration (weather update interval,
 - serve static HTML/JS dashboard from `web/` directory on configured port (default: 8080)
 - ✅ Configuration-driven MQTT topics, broker address, and server port
 - ✅ Config API endpoint for dynamic client configuration
+- ✅ WebSocket endpoint for real-time calibration
+
+Calibration endpoint:
+```
+WS /api/calibration/ws        → WebSocket for interactive calibration
+```
 
 Frontend behavior:
 
@@ -528,17 +534,171 @@ Frontend behavior:
 - ✅ Responsive grid layout optimized for single-screen viewing
 - ✅ Dark theme with accent lighting
 - ✅ Connection status for each stream
+- ✅ **Interactive calibration UI** with 3D visualization (Three.js)
+- ✅ Guided step-by-step calibration workflows
+
+Calibration UI (`/calibration.html`):
+
+- 3D device visualization showing required orientations
+- Real-time WebSocket communication for calibration progress
+- Three-phase guided workflow:
+  1. **Gyroscope**: Static calibration + 3-axis dynamic rotations
+  2. **Accelerometer**: 6-point orientation holds (±X, ±Y, ±Z)
+  3. **Magnetometer**: Figure-8 motion for 20 seconds
+- Live confidence metrics and progress tracking
+- Timestamped JSON output with bias, scale, and offset values
+- Automated state machine managing calibration flow
 
 Future enhancements:
 
-- WebSocket support for lower-latency updates
-- 3D visualization (three.js) for orientation
-- time-series graphs and data logging
-- configurable weather provider selection
+- Apply calibration coefficients in real-time sensor reads
+- Calibration profile management (save/load/switch)
+- Time-series graphs and data logging
+- Configurable weather provider selection
 
 ---
 
-## 7. Fusion strategy (current and future)
+## 7. Calibration system
+
+### 7.1 Overview
+
+The Inertial Computer includes two calibration tools for IMU sensors:
+
+1. **Web UI** (`/calibration.html`) - Interactive 3D-guided calibration
+2. **CLI Tool** (`cmd/calibration`) - Console-based alternative
+
+Both tools calibrate gyroscope, accelerometer, and magnetometer sensors independently for left and right IMUs.
+
+### 7.2 Web UI calibration
+
+**Architecture**:
+- Frontend: `web/calibration.html` with Three.js 3D visualization
+- Backend: `internal/app/calibration_handler.go` with WebSocket communication
+- Protocol: Bidirectional JSON messages over WebSocket
+
+**WebSocket message types** (client → server):
+```json
+{"action": "init", "imu": "left"}     // Initialize calibration
+{"action": "next"}                     // Proceed to next step
+{"action": "cancel"}                   // Cancel calibration
+```
+
+**WebSocket message types** (server → client):
+```json
+{"type": "phase", "phase": "gyro"}                    // Current phase
+{"type": "step", "step": "gyro-x", "phase": "gyro"}  // Current step
+{"type": "progress", "progress": 45.2}                // Progress %
+{"type": "stats", "stats": {...}}                     // Live statistics
+{"type": "action", "message": "ready"}                // Enable next button
+{"type": "complete", "results": {...}}                // Calibration done
+{"type": "error", "message": "..."}                   // Error occurred
+```
+
+**State machine** (`CalibrationSession`):
+1. **Gyroscope phase** (4 steps):
+   - Static calibration: Device on flat surface for 10 seconds
+   - X-axis rotation: Pitch forward/backward
+   - Y-axis rotation: Roll left/right
+   - Z-axis rotation: Yaw/spin
+   
+2. **Accelerometer phase** (6 steps):
+   - Six orientations: ±X, ±Y, ±Z axis pointing up
+   - Hold each position for 5 seconds
+   - Calculates bias and scale factors per axis
+   
+3. **Magnetometer phase** (1 step):
+   - Figure-8 motion for 20 seconds
+   - Covers all orientations for hard-iron offset
+   - Diagonal soft-iron scale approximation
+
+**Visualization**:
+- Real-time 3D device model with animated orientations
+- Color-coded axes (Red=X, Green=Y, Blue=Z)
+- Automatic rotation animations showing required movements
+- Progress bars and confidence metrics updated live
+
+### 7.3 CLI calibration tool
+
+**Location**: `cmd/calibration/main.go`
+
+**Features**:
+- Interactive console prompts with text-based guidance
+- Same calibration algorithms as web UI
+- L/R IMU selection with availability detection
+- 5-second pause for user to read instructions
+- Confidence scoring for each sensor type
+- JSON output matching web UI format
+
+**Usage**:
+```bash
+sudo ./calibration
+```
+
+**Output format** (`{imu}_{timestamp}_inertial_calibration.json`):
+```json
+{
+  "version": 1,
+  "imu": "left",
+  "timestamp": "2025-12-23T12:34:56Z",
+  "gyro_bias_x": -12.5,
+  "gyro_bias_y": 8.3,
+  "gyro_bias_z": -3.7,
+  "gyro_confidence": 95.2,
+  "accel_bias_x": 0.02,
+  "accel_bias_y": -0.01,
+  "accel_bias_z": 0.03,
+  "accel_scale_x": 1.001,
+  "accel_scale_y": 0.998,
+  "accel_scale_z": 1.002,
+  "accel_confidence": 92.5,
+  "mag_offset_x": -180.5,
+  "mag_offset_y": 210.3,
+  "mag_offset_z": -50.2,
+  "mag_scale_x": 1.05,
+  "mag_scale_y": 0.98,
+  "mag_scale_z": 1.02,
+  "mag_confidence": 88.7,
+  "total_samples": 450
+}
+```
+
+### 7.4 Calibration algorithms
+
+**Gyroscope**:
+- Static bias: Mean of 100 samples with device stationary
+- Dynamic refinement: Standard deviation during axis rotations
+- Confidence: `100 / (1 + static_stddev * 1000)`
+
+**Accelerometer**:
+- Six-point calibration using gravity as reference (±1g)
+- Bias: Center offset for each axis
+- Scale: Deviation from expected 1g magnitude
+- Confidence: `100 / (1 + avg_stddev * 100)`
+
+**Magnetometer**:
+- Hard-iron offset: Center of min/max ellipsoid
+- Soft-iron scale: Diagonal approximation (avgRange / axisRange)
+- Confidence: Based on axis range uniformity (minRange / maxRange * 100)
+
+### 7.5 Integration (TODO)
+
+Current status:
+- ✅ Calibration tools functional and producing output
+- ⚠️ Calibration coefficients not yet applied in producers
+- ⚠️ No persistent profile management
+
+Next steps:
+1. Load calibration JSON files at producer startup
+2. Apply corrections to sensor readings:
+   - Gyro: `corrected = raw - bias`
+   - Accel: `corrected = (raw - bias) * scale`
+   - Mag: `corrected = (raw - offset) * scale`
+3. Implement profile selection (default, custom, per-session)
+4. Add calibration status indicators to web UI
+
+---
+
+## 8. Fusion strategy (current and future)
 
 ### Current state
 
