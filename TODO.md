@@ -163,6 +163,12 @@ The Pi never talks directly to the magnetometer.
 8. **IMU manager singleton** — persistent hardware access pattern ✅ done
 9. **Calibration tools** ✅ COMPLETED — web UI and CLI tools for gyro/accel/mag calibration
 10. **Apply calibration in producers** — load calibration JSON and apply corrections to sensor reads
+   - Load most recent calibration file for selected IMU (left/right)
+   - Apply gyro bias correction: `corrected = raw - bias`
+   - Apply accel bias and scale: `corrected = (raw - bias) * scale`
+   - Apply mag hard-iron offset and soft-iron scale: `corrected = (raw - offset) * scale`
+   - Configuration option to specify calibration file path or auto-detect latest
+   - Fallback to uncorrected data if calibration file not found
 11. **Gyro integration function** — integrate angular velocity to get yaw estimate
 12. **Magnetometer correction function** — compute yaw from mag + calibration applied
 13. **Complementary filter** — blend accel/gyro/mag for robust orientation
