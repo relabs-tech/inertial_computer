@@ -43,6 +43,11 @@ The core goals are:
   - ✅ **Console-based calibration** for gyroscope, accelerometer, magnetometer
   - ✅ Guided step-by-step process with confidence scoring
   - ✅ JSON output with timestamped calibration files
+- Display consumer (SSD1306 OLED displays)
+  - ✅ **Dual display support** with configurable I2C addresses
+  - ✅ **Configurable content** per display (raw IMU, orientation, GPS)
+  - ✅ Real-time updates at configurable intervals
+  - ✅ Support for: `imu_raw_left`, `imu_raw_right`, `orientation_left`, `orientation_right`, `gps`
 
 ---
 
@@ -63,6 +68,7 @@ The core goals are:
 - ✅ Configuration system with centralized `inertial_config.txt`
 - ✅ IMU manager with singleton pattern for persistent hardware access
 - ✅ Optimized dashboard layout for single-screen viewing
+- ✅ Display consumer with dual SSD1306 OLED support and configurable content
 
 **In Progress**:
 - ⚠️ Magnetometer calibration application to sensor readings

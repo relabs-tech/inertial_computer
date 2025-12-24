@@ -17,6 +17,7 @@ type Config struct {
 	MQTTClientIDGPS      string
 	MQTTClientIDConsole  string
 	MQTTClientIDWeb      string
+	MQTTClientIDDisplay  string
 
 	// Topics
 	TopicPoseLeft      string
@@ -75,6 +76,13 @@ type Config struct {
 	// Web Server
 	WebServerPort                int
 	WeatherUpdateIntervalMinutes int
+
+	// Display
+	DisplayLeftI2CAddr    uint16
+	DisplayRightI2CAddr   uint16
+	DisplayUpdateInterval int    // milliseconds
+	DisplayLeftContent    string // what to show: "imu_raw_left", "imu_raw_right", "orientation_left", "orientation_right", "gps"
+	DisplayRightContent   string // what to show: "imu_raw_left", "imu_raw_right", "orientation_left", "orientation_right", "gps"
 }
 
 // Package-level unexported variables for singleton pattern:
@@ -153,6 +161,8 @@ func (c *Config) setValue(key, value string) error {
 		c.MQTTClientIDConsole = value
 	case "MQTT_CLIENT_ID_WEB":
 		c.MQTTClientIDWeb = value
+	case "MQTT_CLIENT_ID_DISPLAY":
+		c.MQTTClientIDDisplay = value
 
 	// Topics
 	case "TOPIC_POSE_LEFT":
@@ -351,6 +361,30 @@ func (c *Config) setValue(key, value string) error {
 			return fmt.Errorf("invalid WEATHER_UPDATE_INTERVAL_MINUTES %q: %w", value, err)
 		}
 		c.WeatherUpdateIntervalMinutes = minutes
+
+	// Display
+	case "DISPLAY_LEFT_I2C_ADDR":
+		addr, err := strconv.ParseUint(value, 0, 16)
+		if err != nil {
+			return fmt.Errorf("invalid DISPLAY_LEFT_I2C_ADDR %q: %w", value, err)
+		}
+		c.DisplayLeftI2CAddr = uint16(addr)
+	case "DISPLAY_RIGHT_I2C_ADDR":
+		addr, err := strconv.ParseUint(value, 0, 16)
+		if err != nil {
+			return fmt.Errorf("invalid DISPLAY_RIGHT_I2C_ADDR %q: %w", value, err)
+		}
+		c.DisplayRightI2CAddr = uint16(addr)
+	case "DISPLAY_UPDATE_INTERVAL":
+		interval, err := strconv.Atoi(value)
+		if err != nil {
+			return fmt.Errorf("invalid DISPLAY_UPDATE_INTERVAL %q: %w", value, err)
+		}
+		c.DisplayUpdateInterval = interval
+	case "DISPLAY_LEFT_CONTENT":
+		c.DisplayLeftContent = value
+	case "DISPLAY_RIGHT_CONTENT":
+		c.DisplayRightContent = value
 
 	default:
 		return fmt.Errorf("unknown config key: %q", key)

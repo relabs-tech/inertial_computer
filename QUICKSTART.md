@@ -22,6 +22,7 @@ go build -o imu_producer ./cmd/imu_producer/
 go build -o gps_producer ./cmd/gps_producer/
 go build -o web ./cmd/web/
 go build -o calibration ./cmd/calibration/
+go build -o display ./cmd/display/
 ```
 
 ## Step 2: Configure
@@ -106,6 +107,47 @@ web: subscribed to MQTT topic orientation/right
 web: listening on :8080
 ```
 
+### Terminal 4: Display Consumer (Optional)
+
+If you have SSD1306 OLED displays connected via I2C:
+
+```bash
+cd ~/go/src/github.com/relabs-tech/inertial_computer
+sudo ./display
+```
+
+Expected output:
+```
+starting inertial-computer display subscriber
+display: left display initialized at 0x3C
+display: right display initialized at 0x3D
+display: connected to MQTT broker at tcp://localhost:1883
+display: subscribed to orientation/left
+display: subscribed to gps/position
+display: starting update loop
+```
+
+**Note**: The display consumer requires hardware (SSD1306 displays) and runs independently of the web UI.
+
+### Configuring Display Content
+
+You can configure what data appears on each display by editing `inertial_config.txt`:
+
+```bash
+# Display content options: imu_raw_left, imu_raw_right, orientation_left, orientation_right, gps
+DISPLAY_LEFT_CONTENT=imu_raw_left
+DISPLAY_RIGHT_CONTENT=imu_raw_right
+```
+
+**Available content types:**
+- `imu_raw_left` - Left IMU raw data (Accel X/Y/Z, Gyro X/Y/Z)
+- `imu_raw_right` - Right IMU raw data (Accel X/Y/Z, Gyro X/Y/Z)
+- `orientation_left` - Left orientation (Roll, Pitch, Yaw in degrees)
+- `orientation_right` - Right orientation (Roll, Pitch, Yaw in degrees)
+- `gps` - GPS position (Latitude, Longitude, Altitude)
+
+**Default configuration:** Raw left IMU on left display, raw right IMU on right display.
+
 ## Step 5: Access the Dashboard
 
 Open a web browser and navigate to:
@@ -161,6 +203,10 @@ sudo ./gps_producer
 # Split window horizontally again (Ctrl+B then ")
 # Terminal 3: Start web server
 ./web
+
+# Optional: Split window for display consumer (Ctrl+B then ")
+# Terminal 4: Start display consumer (if hardware available)
+sudo ./display
 
 # Navigate between panes: Ctrl+B then arrow keys
 # Detach from session: Ctrl+B then D
@@ -292,6 +338,28 @@ RestartSec=10
 WantedBy=multi-user.target
 ```
 
+**Optional: Display Consumer Service** (`/etc/systemd/system/inertial-display.service`)
+
+```ini
+[Unit]
+Description=Inertial Computer Display Consumer
+After=network.target mosquitto.service
+Requires=mosquitto.service
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/home/dalarub/go/src/github.com/relabs-tech/inertial_computer
+ExecStart=/home/dalarub/go/src/github.com/relabs-tech/inertial_computer/display
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
+```
+
+**Note**: Display service runs as root for I2C hardware access.
+
 ### Enable and Start Services
 
 ```bash
@@ -302,11 +370,13 @@ sudo systemctl daemon-reload
 sudo systemctl enable inertial-imu
 sudo systemctl enable inertial-gps
 sudo systemctl enable inertial-web
+sudo systemctl enable inertial-display  # Optional
 
 # Start services now
 sudo systemctl start inertial-imu
 sudo systemctl start inertial-gps
 sudo systemctl start inertial-web
+sudo systemctl start inertial-display  # Optional
 
 # Check status
 sudo systemctl status inertial-imu

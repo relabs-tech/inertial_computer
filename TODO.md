@@ -17,6 +17,7 @@ current state, known-good references, and all remaining work.
 - GPS ingestion and publication working
 - Core domain models defined
 - README.md and ARCHITECTURE.md written
+- **Display consumer** ✅ Dual SSD1306 OLED support with configurable content
 - **[DONE]** Separated raw sensor reads from pose computation (branch: `refactor/separate-raw-reads-from-pose`)
   - `IMURawReader` interface for hardware reads
   - Pure functions `AccelToPose()`, `ComputePoseFromAccel()` in orientation package
@@ -212,7 +213,17 @@ The Pi never talks directly to the magnetometer.
    - ⚠️ Soft-iron / hard-iron calibration TODO
    - ⚠️ Integration into yaw fusion TODO
 
-6. **Incorporate two SSD1306 displays** — wire and initialize two SSD1306 I2C/OLED displays, add lightweight UI showing key telemetry (pose, imu values, connection status) and expose a simple API to update display content.
+6. **Incorporate two SSD1306 displays** ✅ COMPLETED
+   - ✅ Dual SSD1306 128x64 OLED displays via I2C
+   - ✅ Configurable I2C addresses (default: 0x3C and 0x3D)
+   - ✅ Configurable content per display via `DISPLAY_LEFT_CONTENT` and `DISPLAY_RIGHT_CONTENT`
+   - ✅ Available content types: `imu_raw_left`, `imu_raw_right`, `orientation_left`, `orientation_right`, `gps`
+   - ✅ Default configuration: raw left IMU on left display, raw right IMU on right display
+   - ✅ Configurable update interval (default: 250ms)
+   - ✅ Splash screens on startup
+   - ✅ Real-time MQTT subscription based on content configuration
+   - ✅ 7x13 bitmap font rendering with direct pixel buffer manipulation
+   - ✅ Entry point at `cmd/display/main.go`
 
 7. **Add CLI options to ./cmd/xxx/main.go apps** ✅ PARTIALLY COMPLETED
    - ✅ Configuration system implemented via `inertial_config.txt`

@@ -1,6 +1,11 @@
 # binaries
 /bin/
 *.exe
+/imu_producer
+/gps_producer
+/web
+/calibration
+/display
 
 # Go build artifacts
 *.test

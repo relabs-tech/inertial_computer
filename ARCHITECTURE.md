@@ -27,12 +27,13 @@ The system is built around **MQTT as a message bus**.
 │ Broker         │
 └──────┬─────────┘
        │
-       ├───────────────────┐
-       ▼                   ▼
-┌──────────────┐   ┌────────────────┐
-│ Console      │   │ Web Server +    │
-│ Subscriber   │   │ Web UI          │
-└──────────────┘   └────────────────┘
+       ├───────────────────┬──────────────┐
+       ▼                   ▼              ▼
+┌──────────────┐   ┌────────────────┐  ┌──────────────┐
+│ Console      │   │ Web Server +    │  │ Display      │
+│ Subscriber   │   │ Web UI          │  │ Consumer     │
+└──────────────┘   └────────────────┘  │ (OLED x2)    │
+                                        └──────────────┘
 ```
 
 Characteristics:
@@ -555,6 +556,67 @@ Future enhancements:
 - Calibration profile management (save/load/switch)
 - Time-series graphs and data logging
 - Configurable weather provider selection
+
+---
+
+### 6.3 Display consumer (`cmd/display`)
+
+Entry point: `internal/app/RunDisplay()`
+
+Responsibilities:
+
+- read MQTT broker, topics, I2C addresses, and display configuration from `inertial_config.txt`
+- initialize dual SSD1306 OLED displays (128x64 pixels) via I2C bus
+- connect to MQTT broker and subscribe to topics based on display content configuration
+- maintain in-memory cache of latest sensor data (protected by RWMutex)
+- render display content at configured update intervals (default: 250ms)
+- support configurable content per display
+
+**Configuration parameters:**
+
+```
+DISPLAY_LEFT_I2C_ADDR=0x3C
+DISPLAY_RIGHT_I2C_ADDR=0x3D
+DISPLAY_UPDATE_INTERVAL=250
+DISPLAY_LEFT_CONTENT=imu_raw_left
+DISPLAY_RIGHT_CONTENT=imu_raw_right
+```
+
+**Content types:**
+
+- `imu_raw_left` - Left IMU raw data (Accel X/Y/Z, Gyro X/Y/Z)
+- `imu_raw_right` - Right IMU raw data (Accel X/Y/Z, Gyro X/Y/Z)
+- `orientation_left` - Left orientation (Roll, Pitch, Yaw in degrees)
+- `orientation_right` - Right orientation (Roll, Pitch, Yaw in degrees)
+- `gps` - GPS position (Latitude, Longitude, Altitude)
+
+**Display rendering:**
+
+- 1-bit vertical LSB image format for SSD1306
+- 7x13 bitmap font (golang.org/x/image/font/basicfont)
+- Direct pixel buffer manipulation for performance
+- Splash screens on startup
+
+**Hardware requirements:**
+
+- Two SSD1306 128x64 OLED displays
+- I2C bus access (typically `/dev/i2c-1` on Raspberry Pi)
+- Different I2C addresses for each display (default: 0x3C and 0x3D)
+- Root privileges for I2C hardware access
+
+**Data flow:**
+
+```
+MQTT Topics → Display Consumer → I2C Bus → SSD1306 Displays
+(JSON)         (subscribe)        (periph.io)  (pixel data)
+```
+
+Design principles:
+
+- **Configurable content**: Any display can show any data type
+- **Independent operation**: Runs separately from web UI
+- **Real-time updates**: Configurable refresh rate for responsiveness
+- **Hardware abstraction**: periph.io for cross-platform I2C access
 
 ---
 
