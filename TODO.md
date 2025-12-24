@@ -204,6 +204,12 @@ The Pi never talks directly to the magnetometer.
    - ✅ Confidence scoring for each sensor type
    - ⚠️ Apply calibration coefficients in producers (TODO)
    - ⚠️ Persistent calibration profile management (TODO)
+   - ⚠️ **Magnetometer test visualization** (TODO)
+     - Add "Test Magnetometer" button to calibration screen
+     - Launch 3D scatter plot widget (Three.js) showing real-time mag data points (Mx, My, Mz)
+     - Continuously plot points as user moves device to visualize magnetic field sphere/ellipsoid
+     - Include "Back to Calibration" button to return to main calibration screen
+     - Useful for verifying calibration quality and detecting magnetic distortions
 
 4. **Calibrate accelerometers and gyros** ✅ TOOLS COMPLETED
    - ✅ Calibration routines implemented in both web UI and CLI tool
