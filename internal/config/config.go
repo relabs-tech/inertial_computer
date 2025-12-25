@@ -47,6 +47,11 @@ type Config struct {
 	// Gyroscope: 0=±250°/s, 1=±500°/s, 2=±1000°/s, 3=±2000°/s
 	IMUGyroRange byte
 
+	// IMU Sample Rate Configuration
+	IMUDLPFConfig byte // Digital Low Pass Filter configuration (0-7)
+	IMUSampleRateDiv byte // Sample rate divider (output rate = internal rate / (1 + div))
+	IMUAccelDLPF byte // Accelerometer DLPF configuration (0-7)
+
 	// BMP Hardware
 	BMPLeftSPIDevice  string
 	BMPRightSPIDevice string
@@ -223,6 +228,35 @@ func (c *Config) setValue(key, value string) error {
 			return fmt.Errorf("IMU_GYRO_RANGE must be 0-3 (0=±250°/s, 1=±500°/s, 2=±1000°/s, 3=±2000°/s), got %d", rangeVal)
 		}
 		c.IMUGyroRange = byte(rangeVal)
+
+	// IMU Sample Rate Configuration
+	case "IMU_DLPF_CFG":
+		val, err := strconv.Atoi(value)
+		if err != nil {
+			return fmt.Errorf("invalid IMU_DLPF_CFG %q: %w", value, err)
+		}
+		if val < 0 || val > 7 {
+			return fmt.Errorf("IMU_DLPF_CFG must be 0-7, got %d", val)
+		}
+		c.IMUDLPFConfig = byte(val)
+	case "IMU_SMPLRT_DIV":
+		val, err := strconv.Atoi(value)
+		if err != nil {
+			return fmt.Errorf("invalid IMU_SMPLRT_DIV %q: %w", value, err)
+		}
+		if val < 0 || val > 255 {
+			return fmt.Errorf("IMU_SMPLRT_DIV must be 0-255, got %d", val)
+		}
+		c.IMUSampleRateDiv = byte(val)
+	case "IMU_ACCEL_DLPF":
+		val, err := strconv.Atoi(value)
+		if err != nil {
+			return fmt.Errorf("invalid IMU_ACCEL_DLPF %q: %w", value, err)
+		}
+		if val < 0 || val > 7 {
+			return fmt.Errorf("IMU_ACCEL_DLPF must be 0-7, got %d", val)
+		}
+		c.IMUAccelDLPF = byte(val)
 
 	// BMP Hardware
 	case "BMP_LEFT_SPI_DEVICE":

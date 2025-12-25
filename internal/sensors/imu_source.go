@@ -72,6 +72,27 @@ func newIMUSource(name, spiDev, csPin string) (IMURawReader, error) {
 	}
 	log.Printf("%s IMU: gyroscope range set to %d (±%d°/s)", name, cfg.IMUGyroRange, []int{250, 500, 1000, 2000}[cfg.IMUGyroRange])
 
+	// Configure sample rate
+	if err := imu.SetDLPFMode(cfg.IMUDLPFConfig); err != nil {
+		return nil, fmt.Errorf("%s IMU: set DLPF config: %w", name, err)
+	}
+	log.Printf("%s IMU: DLPF config set to %d", name, cfg.IMUDLPFConfig)
+
+	if err := imu.SetSampleRateDivider(cfg.IMUSampleRateDiv); err != nil {
+		return nil, fmt.Errorf("%s IMU: set sample rate divider: %w", name, err)
+	}
+	internalRate := 1000 // 1kHz for DLPF modes 0-6
+	if cfg.IMUDLPFConfig == 7 {
+		internalRate = 8000 // 8kHz when DLPF disabled
+	}
+	outputRate := internalRate / (1 + int(cfg.IMUSampleRateDiv))
+	log.Printf("%s IMU: sample rate divider set to %d (output rate: %d Hz)", name, cfg.IMUSampleRateDiv, outputRate)
+
+	if err := imu.SetAccelDLPF(cfg.IMUAccelDLPF); err != nil {
+		return nil, fmt.Errorf("%s IMU: set accel DLPF: %w", name, err)
+	}
+	log.Printf("%s IMU: accelerometer DLPF set to %d", name, cfg.IMUAccelDLPF)
+
 	// Self-test
 	testResult, err := imu.SelfTest()
 	if err != nil {

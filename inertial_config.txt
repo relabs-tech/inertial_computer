@@ -50,6 +50,18 @@ IMU_ACCEL_RANGE=2
 # Gyroscope: 0=±250°/s, 1=±500°/s, 2=±1000°/s, 3=±2000°/s
 IMU_GYRO_RANGE=1
 
+# IMU Sample Rate Configuration
+# DLPF (Digital Low Pass Filter): 0-6 sets bandwidth and internal sample rate
+# 0=260Hz/256Hz, 1=184Hz, 2=94Hz, 3=44Hz, 4=21Hz, 5=10Hz, 6=5Hz
+# Values 0-6 set gyro/accel to 1kHz rate. 7=3600Hz/4kHz (no DLPF)
+IMU_DLPF_CFG=3
+# Sample Rate Divider: Output Rate = Internal Rate / (1 + SMPLRT_DIV)
+# Example: 1kHz / (1 + 4) = 200Hz output rate
+IMU_SMPLRT_DIV=4
+# Accel DLPF: 0-7 sets accel bandwidth (when DLPF enabled)
+# 0=460Hz, 1=184Hz, 2=92Hz, 3=41Hz, 4=20Hz, 5=10Hz, 6=5Hz, 7=460Hz
+IMU_ACCEL_DLPF=3
+
 # BMP Hardware Configuration - Left BMP
 BMP_LEFT_SPI_DEVICE=/dev/spidev6.1
 # Pressure Oversampling: 0=off, 1=1x, 2=2x, 3=4x, 4=8x, 5=16x
@@ -81,7 +93,7 @@ GPS_SERIAL_PORT=/dev/serial0
 GPS_BAUD_RATE=9600
 
 # Timing Configuration (milliseconds)
-IMU_SAMPLE_INTERVAL=100
+IMU_SAMPLE_INTERVAL=40
 CONSOLE_LOG_INTERVAL=1000
 
 # Web Server Configuration

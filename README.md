@@ -69,6 +69,7 @@ The core goals are:
 - ✅ IMU manager with singleton pattern for persistent hardware access
 - ✅ Optimized dashboard layout for single-screen viewing
 - ✅ Display consumer with dual SSD1306 OLED support and configurable content
+- ✅ **Configurable IMU sample rates** with DLPF, sample rate divider, and accel DLPF settings
 
 **In Progress**:
 - ⚠️ Magnetometer calibration application to sensor readings
