@@ -48,9 +48,9 @@ type Config struct {
 	IMUGyroRange byte
 
 	// IMU Sample Rate Configuration
-	IMUDLPFConfig byte // Digital Low Pass Filter configuration (0-7)
+	IMUDLPFConfig    byte // Digital Low Pass Filter configuration (0-7)
 	IMUSampleRateDiv byte // Sample rate divider (output rate = internal rate / (1 + div))
-	IMUAccelDLPF byte // Accelerometer DLPF configuration (0-7)
+	IMUAccelDLPF     byte // Accelerometer DLPF configuration (0-7)
 
 	// BMP Hardware
 	BMPLeftSPIDevice  string
