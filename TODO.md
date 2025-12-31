@@ -243,3 +243,139 @@ The Pi never talks directly to the magnetometer.
    - ⚠️ Runtime CLI flags not yet implemented (could add flag overrides for config values)
 
 ---
+
+## 9. MPU9250 Register Debugging Tool (Standalone Development)
+
+### Overview
+**STANDALONE APP** — Creates NEW files only, NO modifications to existing code.
+MQTT-based low-level register interface for direct MPU9250 hardware tinkering.
+
+### Status: ⚠️ PLANNED
+
+### New Files to Create
+- **NEW**: `cmd/register_debug/main.go` — standalone producer binary
+- **NEW**: `internal/app/register_debug.go` — register debug app logic
+- **NEW**: `internal/sensors/imu_registers.go` — low-level register read/write functions
+- **NEW**: `web/register_debug.html` — register debugging web interface
+- **NO modifications** to existing producers, consumers, or sensor files
+
+### Architecture
+Follows standard MQTT producer/consumer isolation pattern with complete independence from existing codebase.
+
+#### Producer Component
+Location: `cmd/register_debug/main.go`, `internal/app/register_debug.go`
+
+**MQTT Communication**:
+- Subscribes to command topics: `inertial/registers/cmd/read`, `inertial/registers/cmd/write`, `inertial/registers/cmd/init`, `inertial/registers/cmd/spi_speed`
+- Publishes responses to: `inertial/registers/data/left`, `inertial/registers/data/right`
+- Publishes register map metadata to: `inertial/registers/map`
+- Publishes status updates to: `inertial/registers/status`
+
+**Message Formats**:
+- Read/Write command: `{"imu":"left","addr":"0x1B","value":"0x10"}` (value only for writes)
+- Init command: `{"imu":"left"}` — reinitialize IMU hardware
+- SPI speed command: `{"imu":"left","read_speed":"1000000","write_speed":"500000"}` — set speeds in Hz
+- Response: `{"imu":"left","addr":"0x1B","value":"0x10","timestamp":"..."}`
+- Bulk read: `{"imu":"left","registers":{...all 128 registers...}}`
+- Status response: `{"imu":"left","status":"initialized","read_speed":1000000,"write_speed":500000}`
+
+**Hardware Access**:
+- Creates its own periph.io SPI connections (does NOT modify existing IMUManager)
+- Can reference `config.Get()` for device paths, but uses independent hardware access
+- Runs as separate process from imu_producer
+
+#### Low-Level Hardware Functions
+Location: NEW file `internal/sensors/imu_registers.go`
+
+Functions to implement:
+- `ReadRegister(imuID string, regAddr byte) (byte, error)` — single register read
+- `WriteRegister(imuID string, regAddr byte, value byte) error` — single register write
+- `ReadAllRegisters(imuID string) (map[byte]byte, error)` — bulk read 0x00-0x7F
+- `GetRegisterMap() []RegisterInfo` — metadata (name, address, description, R/W/RW)
+- `ReinitializeIMU(imuID string) error` — close and reopen SPI connection, reset IMU state
+- `SetSPISpeed(imuID string, readSpeed, writeSpeed int64) error` — configure separate speeds for read/write operations
+- `GetSPISpeed(imuID string) (readSpeed, writeSpeed int64, err error)` — query current SPI speeds
+
+**Key constraint**: Creates its own periph.io SPI connections, completely separate from existing sensor layer.
+
+#### Web UI Component
+Location: NEW file `web/register_debug.html`
+
+**Features**:
+- Pure MQTT consumer (subscribes via JavaScript MQTT client)
+- IMU selector dropdown (left/right)
+- "Read All Registers" button — publishes command to `inertial/registers/cmd/read`
+- Register table: Address (hex) | Name | Description | Current Value | Write Value | R/W
+- Input fields for writing new values to registers
+- "Write Register" button — publishes command to `inertial/registers/cmd/write`
+- **"Reinitialize IMU" button** — publishes command to `inertial/registers/cmd/init` to reset hardware
+- **SPI Speed controls**:
+  - Input fields for read speed and write speed (Hz)
+  - "Set SPI Speed" button — publishes command to `inertial/registers/cmd/spi_speed`
+  - Display current SPI speeds from status updates
+  - Presets: Fast (4MHz/1MHz), Normal (1MHz/500kHz), Slow (500kHz/250kHz)
+- Status indicator showing IMU initialization state and current SPI speeds
+- Card widgets for live sensor data (accel, gyro, mag) subscribing to existing IMU topics
+- Subscribes to `inertial/registers/data/#` for register responses
+- Subscribes to `inertial/registers/map` for metadata (loaded once on page load)
+- Subscribes to `inertial/registers/status` for initialization and speed updates
+
+#### MQTT Topics
+- `inertial/registers/cmd/read` — command: read register(s)
+- `inertial/registers/cmd/write` — command: write register
+- `inertial/registers/cmd/init` — command: reinitialize IMU hardware
+- `inertial/registers/cmd/spi_speed` — command: set SPI read/write speeds
+- `inertial/registers/data/left` — left IMU register data responses
+- `inertial/registers/data/right` — right IMU register data responses
+- `inertial/registers/map` — register metadata (published on producer startup)
+- `inertial/registers/status` — IMU status (initialization state, SPI speeds)
+- Reuses existing topics for live sensor data: `inertial/imu/left`, `inertial/imu/right`
+
+#### Configuration
+Add to `inertial_config.txt`:
+- `TOPIC_REGISTERS_CMD_READ` — command topic for reads
+- `TOPIC_REGISTERS_CMD_WRITE` — command topic for writes
+- `TOPIC_REGISTERS_CMD_INIT` — command topic for IMU reinitialization
+- `TOPIC_REGISTERS_CMD_SPI_SPEED` — command topic for SPI speed control
+- `TOPIC_REGISTERS_DATA_LEFT` — left IMU register data
+- `TOPIC_REGISTERS_DATA_RIGHT` — right IMU register data
+- `TOPIC_REGISTERS_MAP` — register metadata
+- `TOPIC_REGISTERS_STATUS` — IMU status updates
+- `REGISTER_DEBUG_ALLOWED_RANGES` — safety: limit writable registers (e.g., "0x1B-0x1D,0x6B")
+- `REGISTER_DEBUG_DEFAULT_READ_SPEED` — default SPI read speed in Hz (e.g., 1000000)
+- `REGISTER_DEBUG_DEFAULT_WRITE_SPEED` — default SPI write speed in Hz (e.g., 500000)
+- `REGISTER_DEBUG_MAX_SPI_SPEED` — maximum allowed SPI speed (e.g., 10000000)
+- `REGISTER_DEBUG_MIN_SPI_SPEED` — minimum allowed SPI speed (e.g., 100000)
+
+#### Safety Features
+- Read-only mode toggle (prevent accidental writes)
+- Producer validates writes against allowed ranges before executing
+- Confirmation modal for writes to critical registers (PWR_MGMT, INT_PIN_CFG)
+- Register value validation (range checks, reserved bit warnings)
+- "Reset to Default" button publishes write command with factory defaults
+
+### Use Cases
+- Experiment with sensor ranges (accel ±2g/±4g/±8g/±16g)
+- Test FIFO configuration and data rates
+- Debug I2C master settings for magnetometer communication
+- Validate interrupt pin configuration
+- Low-pass filter parameter tuning
+- Live observation of register effects on sensor readings
+- **Recover from IMU lockup or misconfiguration** — reinitialize hardware without restarting producer
+- **Debug communication issues** — try different SPI speeds to isolate timing problems
+- **Optimize performance** — use fast reads for monitoring, slower writes for reliability
+- **Test register write timing** — verify critical registers need slower SPI speeds
+
+### Benefits of MQTT Architecture
+- Producer and web UI completely decoupled
+- Can restart web server without disturbing hardware access
+- Multiple clients can monitor register changes simultaneously
+- Can add CLI consumer for scripted register manipulation
+- Command history can be logged by separate MQTT subscriber
+- Zero impact on existing producers/consumers
+
+### Integration
+- Link from main page: Add "Debug Registers" navigation link in [index.html](web/index.html)
+- No changes required to existing applications
+
+---
