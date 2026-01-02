@@ -37,8 +37,10 @@ type Quality struct {
 
 // SatellitesInView contains all visible satellites with signal strength (from GSV).
 type SatellitesInView struct {
-	Satellites []Satellite `json:"satellites"` // all visible satellites
-	Count      int         `json:"count"`      // total count
+	GPSSatellites     []Satellite `json:"gps_satellites"`     // GPS satellites (from GPGSV)
+	GLONASSSatellites []Satellite `json:"glonass_satellites"` // GLONASS satellites (from GLGSV)
+	GPSCount          int         `json:"gps_count"`          // GPS satellite count
+	GLONASSCount      int         `json:"glonass_count"`      // GLONASS satellite count
 }
 
 // Fix represents a single combined GPS fix (for backwards compatibility or full data).
@@ -68,5 +70,6 @@ type Fix struct {
 	SpeedKmh float64 `json:"speed_kmh"` // speed over ground (km/h)
 
 	// From GSV (GPS Satellites in View)
-	SatellitesInView []Satellite `json:"satellites_in_view"` // all visible satellites with signal strength
+	GPSSatellitesInView     []Satellite `json:"gps_satellites_in_view"`     // GPS satellites with signal strength
+	GLONASSSatellitesInView []Satellite `json:"glonass_satellites_in_view"` // GLONASS satellites with signal strength
 }

@@ -56,14 +56,15 @@ func RunGPSProducer() error {
 	var position gps.Position
 	var velocity gps.Velocity
 	var quality gps.Quality
-	var satellites gps.SatellitesInView
 
 	// For backwards compatibility, maintain full Fix
 	var current gps.Fix
 	lastPublishedFull := ""
 
 	// GSV messages come in multiple parts - accumulate satellites across messages
-	var satelliteBuffer []gps.Satellite
+	// Separate buffers for GPS (GPGSV) and GLONASS (GLGSV)
+	var gpsSatelliteBuffer []gps.Satellite
+	var glonassSatelliteBuffer []gps.Satellite
 
 	// Helper to publish to a topic
 	publishJSON := func(topic string, data interface{}) {
@@ -90,6 +91,9 @@ func RunGPSProducer() error {
 		if line == "" {
 			continue
 		}
+
+		// Log all raw data received
+		log.Printf("[GPS-RAW] %s", line)
 
 		// NMEA sentences usually start with '$'
 		if !strings.HasPrefix(line, "$") {
@@ -142,9 +146,10 @@ func RunGPSProducer() error {
 			payloadStr := string(payloadFull)
 			if payloadStr != lastPublishedFull {
 				publishJSON(cfg.TopicGPS, current)
+				totalSats := len(current.GPSSatellitesInView) + len(current.GLONASSSatellitesInView)
 				log.Printf("published GPS: lat=%.6f lon=%.6f alt=%.1fm sats=%d/%d fix=%s",
 					current.Latitude, current.Longitude, current.Altitude,
-					current.NumSatellites, len(current.SatellitesInView), current.FixType)
+					current.NumSatellites, totalSats, current.FixType)
 				lastPublishedFull = payloadStr
 			}
 
@@ -228,15 +233,28 @@ func RunGPSProducer() error {
 			// GSV: GPS Satellites in View - provides satellite info with signal strength
 			m := sentence.(nmea.GSV)
 
+			// Determine constellation type from the raw sentence (GPGSV vs GLGSV)
+			isGPS := strings.HasPrefix(line, "$GPGSV")
+			isGLONASS := strings.HasPrefix(line, "$GLGSV")
+
+			if !isGPS && !isGLONASS {
+				// Skip other constellations for now (GAGSV, GBGSV, etc.)
+				continue
+			}
+
 			// GSV messages can span multiple sentences (1 of 3, 2 of 3, etc.)
 			// MessageNumber and TotalMessages tell us which part we're on
 
 			// If this is the first message in the sequence, reset the buffer
 			if m.MessageNumber == 1 {
-				satelliteBuffer = make([]gps.Satellite, 0)
+				if isGPS {
+					gpsSatelliteBuffer = make([]gps.Satellite, 0)
+				} else if isGLONASS {
+					glonassSatelliteBuffer = make([]gps.Satellite, 0)
+				}
 			}
 
-			// Add satellites from this GSV message to the buffer
+			// Add satellites from this GSV message to the appropriate buffer
 			for _, sv := range m.Info {
 				sat := gps.Satellite{
 					SVNumber:  sv.SVPRNNumber,
@@ -244,17 +262,42 @@ func RunGPSProducer() error {
 					Azimuth:   sv.Azimuth,
 					SNR:       sv.SNR,
 				}
-				satelliteBuffer = append(satelliteBuffer, sat)
+				if isGPS {
+					gpsSatelliteBuffer = append(gpsSatelliteBuffer, sat)
+				} else if isGLONASS {
+					glonassSatelliteBuffer = append(glonassSatelliteBuffer, sat)
+				}
 			}
 
 			// If this is the last message in the sequence, publish satellites
 			if m.MessageNumber == m.TotalMessages {
-				satellites.Satellites = satelliteBuffer
-				satellites.Count = len(satelliteBuffer)
-				current.SatellitesInView = satelliteBuffer
+				if isGPS {
+					// Publish only GPS satellites (no GLONASS fields)
+					gpsOnly := struct {
+						Satellites []gps.Satellite `json:"satellites"`
+						Count      int             `json:"count"`
+					}{
+						Satellites: gpsSatelliteBuffer,
+						Count:      len(gpsSatelliteBuffer),
+					}
+					current.GPSSatellitesInView = gpsSatelliteBuffer
 
-				// Publish satellites
-				publishJSON(cfg.TopicGPSSatellites, satellites)
+					publishJSON(cfg.TopicGPSSatellites, gpsOnly)
+					log.Printf("[GPS-SAT] GPS satellites: %d visible", len(gpsSatelliteBuffer))
+				} else if isGLONASS {
+					// Publish only GLONASS satellites (no GPS fields)
+					glonassOnly := struct {
+						Satellites []gps.Satellite `json:"satellites"`
+						Count      int             `json:"count"`
+					}{
+						Satellites: glonassSatelliteBuffer,
+						Count:      len(glonassSatelliteBuffer),
+					}
+					current.GLONASSSatellitesInView = glonassSatelliteBuffer
+
+					publishJSON(cfg.TopicGLONASSSatellites, glonassOnly)
+					log.Printf("[GPS-SAT] GLONASS satellites: %d visible", len(glonassSatelliteBuffer))
+				}
 			}
 
 		default:

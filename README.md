@@ -77,6 +77,13 @@ The core goals are:
 - ⚠️ Apply calibration coefficients in producers
 
 **Recent Changes**:
+- **GPS/GLONASS Separation** (2025-01-02): Fixed satellite data display issue
+  - Separated GPGSV (GPS) and GLGSV (GLONASS) constellation processing
+  - Added raw NMEA logging for debugging (`[GPS-RAW]` prefix)
+  - Separate MQTT topics: `inertial/gps/satellites` and `inertial/glonass/satellites`
+  - Web UI distinguishes GPS (circles) vs GLONASS (squares) in visualizations
+  - Resolved data pollution: lack of GLONASS satellites no longer affects GPS display
+  - Topic-specific payloads prevent cross-constellation data contamination
 - **Enhanced GPS**: Full NMEA support with RMC, GGA, GSA, VTG, and GSV sentence parsing
 - **Satellite Tracking**: Real-time satellite visibility with elevation, azimuth, and signal strength (SNR)
 - **GPS Topic Split**: Separate MQTT topics for position, velocity, quality, and satellites data

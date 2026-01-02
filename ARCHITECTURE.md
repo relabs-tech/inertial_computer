@@ -98,6 +98,46 @@ Published on:
 - `inertial/imu/left`
 - `inertial/imu/right`
 
+---
+
+### 2.3 GPS Data
+
+**Position & Velocity** (from RMC/GGA/VTG sentences):
+```go
+type Fix struct {
+    Latitude   float64
+    Longitude  float64
+    Altitude   float64 // meters
+    Speed      float64 // knots
+    Course     float64 // degrees
+    // ... quality metrics ...
+}
+```
+
+**Satellite Visibility** (from GPGSV/GLGSV sentences):
+```go
+type SatellitesInView struct {
+    GPSSatellites     []Satellite
+    GLONASSSatellites []Satellite
+    GPSCount          int
+    GLONASSCount      int
+}
+
+type Satellite struct {
+    PRN       int    // Satellite ID
+    Elevation int    // degrees (0-90)
+    Azimuth   int    // degrees (0-359)
+    SNR       int    // signal-to-noise ratio (dBHz)
+}
+```
+
+**Published Topics**:
+- `inertial/gps` — position and velocity
+- `inertial/gps/satellites` — GPS constellation only (circles in UI)
+- `inertial/glonass/satellites` — GLONASS constellation only (squares in UI)
+
+**Key Design**: GPS and GLONASS satellites are processed and published separately to prevent data contamination. Each topic receives only constellation-specific data using anonymous structs, ensuring clean payloads without cross-constellation fields.
+
 **Test/debug topic** (temporary):
 - `inertial/mag/left` — magnetometer-only data with computed field magnitude
 

@@ -519,17 +519,23 @@
         gpsSpeedEl.textContent = (data.speed_knots ?? 0).toFixed(1);
         gpsCourseEl.textContent = (data.course_deg ?? 0).toFixed(1);
         gpsFixEl.textContent = data.fix_type || '--';
-        gpsSatsEl.textContent = `${data.num_satellites ?? 0}/${(data.satellites_in_view || []).length}`;
+        
+        // Combine GPS and GLONASS satellites
+        const gpsSats = data.gps_satellites_in_view || [];
+        const glonassSats = data.glonass_satellites_in_view || [];
+        const allSats = [...gpsSats, ...glonassSats];
+        
+        gpsSatsEl.textContent = `${data.num_satellites ?? 0}/${allSats.length}`;
         gpsHdopEl.textContent = (data.hdop ?? 0).toFixed(1);
         gpsStatusEl.textContent = 'GPS: live from MQTT';
 
-        // Draw satellite sky plot
-        drawSatellites(data.satellites_in_view || []);
-        satStatusEl.textContent = `Satellites: ${(data.satellites_in_view || []).length} in view`;
+        // Draw satellite sky plot with both GPS and GLONASS
+        drawSatellites(gpsSats, glonassSats);
+        satStatusEl.textContent = `Satellites: ${gpsSats.length} GPS, ${glonassSats.length} GLONASS`;
         
         // Draw satellite signal strength bar chart
-        drawSatelliteBarChart(data.satellites_in_view || []);
-        satBarStatusEl.textContent = `Signal strength: ${(data.satellites_in_view || []).length} satellites`;
+        drawSatelliteBarChart(gpsSats, glonassSats);
+        satBarStatusEl.textContent = `Signal strength: ${allSats.length} satellites (${gpsSats.length} GPS, ${glonassSats.length} GLONASS)`;
       } catch (err) {
         gpsStatusEl.textContent = 'GPS error: ' + err.message;
         satStatusEl.textContent = 'Satellites error: ' + err.message;
@@ -537,7 +543,7 @@
       }
     }
 
-    function drawSatellites(satellites) {
+    function drawSatellites(gpsSatellites, glonassSatellites) {
       const canvas = satCanvas;
       const ctx = satCtx;
       
@@ -608,43 +614,43 @@
       ctx.arc(centerX, centerY, 2, 0, 2 * Math.PI);
       ctx.fill();
 
-      // Draw satellites
-      satellites.forEach(sat => {
+      // Helper function to draw a satellite
+      const drawSat = (sat, isGPS) => {
         const elevation = sat.elevation || 0;
         const azimuth = sat.azimuth || 0;
         const snr = sat.snr || 0;
 
         // Convert elevation (0-90°) to radius (max to 0)
-        // elevation 90° = center (radius 0)
-        // elevation 0° = horizon (radius maxRadius)
         const radiusRatio = (90 - elevation) / 90;
         const radius = radiusRatio * maxRadius;
 
-        // Convert azimuth (0° = N, 90° = E) to canvas angle
-        // Canvas: 0° = East, 90° = South
-        // GPS azimuth: 0° = North, 90° = East
+        // Convert azimuth to canvas angle
         const angleRad = ((azimuth - 90) * Math.PI) / 180;
-
         const x = centerX + radius * Math.cos(angleRad);
         const y = centerY + radius * Math.sin(angleRad);
 
-        // Color based on SNR (signal strength)
+        // Color based on SNR
         let color;
         if (snr === 0) {
-          color = '#555'; // Not tracked
+          color = '#555';
         } else if (snr < 20) {
-          color = '#ff5555'; // Weak
+          color = '#ff5555';
         } else if (snr < 35) {
-          color = '#ffaa00'; // Moderate
+          color = '#ffaa00';
         } else {
-          color = '#55ff55'; // Strong
+          color = '#55ff55';
         }
 
-        // Draw satellite
         ctx.fillStyle = color;
-        ctx.beginPath();
-        ctx.arc(x, y, 6, 0, 2 * Math.PI);
-        ctx.fill();
+        if (isGPS) {
+          // GPS: circles
+          ctx.beginPath();
+          ctx.arc(x, y, 6, 0, 2 * Math.PI);
+          ctx.fill();
+        } else {
+          // GLONASS: squares
+          ctx.fillRect(x - 6, y - 6, 12, 12);
+        }
 
         // Draw satellite number
         ctx.fillStyle = '#fff';
@@ -652,13 +658,20 @@
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillText(sat.sv_number || '?', x, y);
-      });
+      };
+
+      // Draw GPS satellites (circles)
+      gpsSatellites.forEach(sat => drawSat(sat, true));
+      
+      // Draw GLONASS satellites (squares)
+      glonassSatellites.forEach(sat => drawSat(sat, false));
 
       // Draw legend
       ctx.font = '11px system-ui';
       ctx.textAlign = 'left';
-      const legendY = height - 10;
+      let legendY = height - 25;
       
+      // Signal strength legend
       ctx.fillStyle = '#55ff55';
       ctx.fillRect(10, legendY - 8, 12, 12);
       ctx.fillStyle = '#999';
@@ -673,9 +686,23 @@
       ctx.fillRect(210, legendY - 8, 12, 12);
       ctx.fillStyle = '#999';
       ctx.fillText('Weak', 225, legendY);
+      
+      // Constellation legend
+      legendY = height - 10;
+      ctx.fillStyle = '#4fc3f7';
+      ctx.beginPath();
+      ctx.arc(16, legendY - 2, 6, 0, 2 * Math.PI);
+      ctx.fill();
+      ctx.fillStyle = '#999';
+      ctx.fillText('GPS', 25, legendY);
+      
+      ctx.fillStyle = '#4fc3f7';
+      ctx.fillRect(70, legendY - 8, 12, 12);
+      ctx.fillStyle = '#999';
+      ctx.fillText('GLONASS', 85, legendY);
     }
 
-    function drawSatelliteBarChart(satellites) {
+    function drawSatelliteBarChart(gpsSatellites, glonassSatellites) {
       const canvas = satBarCanvas;
       const ctx = satBarCtx;
       
@@ -694,7 +721,12 @@
       // Clear canvas
       ctx.clearRect(0, 0, width, height);
 
-      if (satellites.length === 0) {
+      // Combine and tag satellites with constellation type
+      const taggedGPS = gpsSatellites.map(sat => ({ ...sat, constellation: 'GPS' }));
+      const taggedGLONASS = glonassSatellites.map(sat => ({ ...sat, constellation: 'GLONASS' }));
+      const allSats = [...taggedGPS, ...taggedGLONASS];
+
+      if (allSats.length === 0) {
         ctx.fillStyle = '#999';
         ctx.font = '14px system-ui';
         ctx.textAlign = 'center';
@@ -704,7 +736,7 @@
       }
 
       // Sort satellites by PRN for consistent display
-      const sortedSats = [...satellites].sort((a, b) => (a.sv_number || 0) - (b.sv_number || 0));
+      const sortedSats = allSats.sort((a, b) => (a.sv_number || 0) - (b.sv_number || 0));
 
       const barWidth = Math.max(15, Math.min(40, chartWidth / sortedSats.length - 4));
       const spacing = Math.max(2, (chartWidth - barWidth * sortedSats.length) / (sortedSats.length + 1));
@@ -748,6 +780,7 @@
       sortedSats.forEach((sat, idx) => {
         const snr = sat.snr || 0;
         const barHeight = (snr / 99) * chartHeight;
+        const isGPS = sat.constellation === 'GPS';
         const x = padding + spacing + idx * (barWidth + spacing);
         const y = height - padding - barHeight;
 
@@ -766,6 +799,19 @@
         // Draw bar
         ctx.fillStyle = color;
         ctx.fillRect(x, y, barWidth, barHeight);
+
+        // Draw constellation indicator at top of bar
+        ctx.fillStyle = isGPS ? '#4fc3f7' : '#c586c0';
+        const markerSize = 4;
+        if (isGPS) {
+          // GPS: small circle
+          ctx.beginPath();
+          ctx.arc(x + barWidth / 2, y + markerSize + 2, markerSize, 0, 2 * Math.PI);
+          ctx.fill();
+        } else {
+          // GLONASS: small square
+          ctx.fillRect(x + barWidth / 2 - markerSize, y + 2, markerSize * 2, markerSize * 2);
+        }
 
         // Draw border
         ctx.strokeStyle = '#333';

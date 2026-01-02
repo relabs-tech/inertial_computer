@@ -23,6 +23,7 @@ TOPIC_GPS_POSITION=inertial/gps/position
 TOPIC_GPS_VELOCITY=inertial/gps/velocity
 TOPIC_GPS_QUALITY=inertial/gps/quality
 TOPIC_GPS_SATELLITES=inertial/gps/satellites
+TOPIC_GLONASS_SATELLITES=inertial/glonass/satellites
 TOPIC_GPS=inertial/gps
 
 # Display Configuration

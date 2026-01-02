@@ -35,6 +35,14 @@ current state, known-good references, and all remaining work.
   - Test/debug MQTT topic `inertial/mag/left` publishing mag data with field magnitude
   - Producer logs include magnetometer readings and |B| magnitude
   - Local fork of `periph.io/x/devices` integrated via replace directive
+- **[DONE]** GPS/GLONASS constellation separation (2025-01-02)
+  - Raw NMEA logging with `[GPS-RAW]` prefix for debugging
+  - Separate processing of GPGSV (GPS) and GLGSV (GLONASS) satellite data
+  - Data structures updated: `gps.Fix` and `gps.SatellitesInView` with separate GPS/GLONASS fields
+  - Added `TOPIC_GLONASS_SATELLITES` configuration for separate MQTT publishing
+  - Web UI visualization distinguishes GPS (circles) vs GLONASS (squares)
+  - Fixed satellite data display issue: lack of GLONASS data no longer pollutes GPS display
+  - Topic-specific anonymous structs prevent cross-constellation data contamination in MQTT payloads
 
 ### Not completed
 - Real IMU (MPU9250) wiring (accel reads work, gyro/mag TODOs remain)

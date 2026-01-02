@@ -20,20 +20,21 @@ type Config struct {
 	MQTTClientIDDisplay  string
 
 	// Topics
-	TopicPoseLeft      string
-	TopicPoseRight     string
-	TopicPoseFused     string
-	TopicIMULeft       string
-	TopicIMURight      string
-	TopicMagLeft       string
-	TopicMagRight      string
-	TopicBMPLeft       string
-	TopicBMPRight      string
-	TopicGPSPosition   string
-	TopicGPSVelocity   string
-	TopicGPSQuality    string
-	TopicGPSSatellites string
-	TopicGPS           string
+	TopicPoseLeft          string
+	TopicPoseRight         string
+	TopicPoseFused         string
+	TopicIMULeft           string
+	TopicIMURight          string
+	TopicMagLeft           string
+	TopicMagRight          string
+	TopicBMPLeft           string
+	TopicBMPRight          string
+	TopicGPSPosition       string
+	TopicGPSVelocity       string
+	TopicGPSQuality        string
+	TopicGPSSatellites     string
+	TopicGLONASSSatellites string
+	TopicGPS               string
 
 	// IMU Hardware
 	IMULeftSPIDevice  string
@@ -196,6 +197,8 @@ func (c *Config) setValue(key, value string) error {
 		c.TopicGPSQuality = value
 	case "TOPIC_GPS_SATELLITES":
 		c.TopicGPSSatellites = value
+	case "TOPIC_GLONASS_SATELLITES":
+		c.TopicGLONASSSatellites = value
 	case "TOPIC_GPS":
 		c.TopicGPS = value
 
