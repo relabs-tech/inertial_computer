@@ -9,6 +9,34 @@ This guide will get your Inertial Computer system up and running in minutes.
 - GPS module connected via serial
 - MQTT broker running (Mosquitto recommended)
 
+## Step 0: Install Custom periph.io Devices Fork (Required for Magnetometer)
+
+The project uses a custom fork of `periph.io/x/devices` for enhanced MPU9250 magnetometer support. Clone it to the expected location:
+
+```bash
+# Clone the custom devices fork to the expected directory
+git clone https://github.com/relabs-tech/devices.git ~/go/src/github.com/relabs-tech/devices
+
+# Verify the clone was successful
+ls ~/go/src/github.com/relabs-tech/devices
+# Should show: go.mod, go.sum, devices/, and other directories
+```
+
+**Why is this needed?**
+The standard `periph.io/x/devices` doesn't have complete magnetometer (AK8963) support via MPU9250's internal I2C. The custom fork in `github.com/relabs-tech/devices` includes critical enhancements:
+
+**Fork Enhancements over Standard periph.io:**
+- **AK8963 Magnetometer Driver**: Direct support for reading AK8963 magnetometer via MPU9250's internal I2C master (EXT_SENS_DATA registers)
+- **MagCal Calibration**: Calibration data structure for hard-iron offset and soft-iron scale factors (not available in standard)
+- **InitMag() Method**: Initialize internal I2C master for magnetometer communication with automatic factory calibration loading
+- **ReadMag() Method**: Read calibrated magnetometer values in µT (Tesla), accessible from any IMU instance
+- **Overflow Detection**: Magnetometer overflow flag handling to detect when readings exceed sensor range
+- **SetSpiTransport() Support**: Extended SPI transport layer with configurable read/write speeds for register debugging
+- **RegisterRead/Write Methods**: Direct register access (0x00-0x7F) for all 128 MPU9250 registers via SPI (used by register debug tool)
+- **GetRotationX/Y/Z() Methods**: Extended gyroscope access functions with individual axis queries
+
+The `inertial_computer` project's `go.mod` file has a `replace` directive that points to this local fork for these critical features.
+
 ## Step 1: Clone and Build
 
 ```bash
