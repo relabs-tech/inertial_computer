@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: MIT
 // See LICENSE file for full license text
 
-
 package sensors
 
 import (

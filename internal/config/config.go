@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: MIT
 // See LICENSE file for full license text
 
-
 package config
 
 import (
@@ -94,6 +93,25 @@ type Config struct {
 	DisplayUpdateInterval int    // milliseconds
 	DisplayLeftContent    string // what to show: "imu_raw_left", "imu_raw_right", "orientation_left", "orientation_right", "gps"
 	DisplayRightContent   string // what to show: "imu_raw_left", "imu_raw_right", "orientation_left", "orientation_right", "gps"
+
+	// Register Debugging Topics
+	TopicRegistersCmdRead     string
+	TopicRegistersCmdWrite    string
+	TopicRegistersCmdInit     string
+	TopicRegistersCmdSPISpeed string
+	TopicRegistersDataLeft    string
+	TopicRegistersDataRight   string
+	TopicRegistersMap         string
+	TopicRegistersStatus      string
+
+	// Register Debugging Configuration
+	RegisterDebugAllowedRanges     string // e.g., "0x1B-0x1D,0x6B" - writable register ranges
+	RegisterDebugDefaultReadSpeed  int64  // Hz
+	RegisterDebugDefaultWriteSpeed int64  // Hz
+	RegisterDebugMaxSPISpeed       int64  // Hz
+	RegisterDebugMinSPISpeed       int64  // Hz
+	IMULeftRegisterConfigFile      string // path to register config JSON file
+	IMURightRegisterConfigFile     string // path to register config JSON file
 }
 
 // Package-level unexported variables for singleton pattern:
@@ -427,6 +445,56 @@ func (c *Config) setValue(key, value string) error {
 		c.DisplayLeftContent = value
 	case "DISPLAY_RIGHT_CONTENT":
 		c.DisplayRightContent = value
+
+	// Register Debugging Topics
+	case "TOPIC_REGISTERS_CMD_READ":
+		c.TopicRegistersCmdRead = value
+	case "TOPIC_REGISTERS_CMD_WRITE":
+		c.TopicRegistersCmdWrite = value
+	case "TOPIC_REGISTERS_CMD_INIT":
+		c.TopicRegistersCmdInit = value
+	case "TOPIC_REGISTERS_CMD_SPI_SPEED":
+		c.TopicRegistersCmdSPISpeed = value
+	case "TOPIC_REGISTERS_DATA_LEFT":
+		c.TopicRegistersDataLeft = value
+	case "TOPIC_REGISTERS_DATA_RIGHT":
+		c.TopicRegistersDataRight = value
+	case "TOPIC_REGISTERS_MAP":
+		c.TopicRegistersMap = value
+	case "TOPIC_REGISTERS_STATUS":
+		c.TopicRegistersStatus = value
+
+	// Register Debugging Configuration
+	case "REGISTER_DEBUG_ALLOWED_RANGES":
+		c.RegisterDebugAllowedRanges = value
+	case "REGISTER_DEBUG_DEFAULT_READ_SPEED":
+		speed, err := strconv.ParseInt(value, 10, 64)
+		if err != nil {
+			return fmt.Errorf("invalid REGISTER_DEBUG_DEFAULT_READ_SPEED %q: %w", value, err)
+		}
+		c.RegisterDebugDefaultReadSpeed = speed
+	case "REGISTER_DEBUG_DEFAULT_WRITE_SPEED":
+		speed, err := strconv.ParseInt(value, 10, 64)
+		if err != nil {
+			return fmt.Errorf("invalid REGISTER_DEBUG_DEFAULT_WRITE_SPEED %q: %w", value, err)
+		}
+		c.RegisterDebugDefaultWriteSpeed = speed
+	case "REGISTER_DEBUG_MAX_SPI_SPEED":
+		speed, err := strconv.ParseInt(value, 10, 64)
+		if err != nil {
+			return fmt.Errorf("invalid REGISTER_DEBUG_MAX_SPI_SPEED %q: %w", value, err)
+		}
+		c.RegisterDebugMaxSPISpeed = speed
+	case "REGISTER_DEBUG_MIN_SPI_SPEED":
+		speed, err := strconv.ParseInt(value, 10, 64)
+		if err != nil {
+			return fmt.Errorf("invalid REGISTER_DEBUG_MIN_SPI_SPEED %q: %w", value, err)
+		}
+		c.RegisterDebugMinSPISpeed = speed
+	case "IMU_LEFT_REGISTER_CONFIG_FILE":
+		c.IMULeftRegisterConfigFile = value
+	case "IMU_RIGHT_REGISTER_CONFIG_FILE":
+		c.IMURightRegisterConfigFile = value
 
 	default:
 		return fmt.Errorf("unknown config key: %q", key)
