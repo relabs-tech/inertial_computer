@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: MIT
 // See LICENSE file for full license text
 
-
 package app
 
 import (
@@ -47,6 +46,18 @@ func RunWeb() error {
 		haveEnvLeft  bool
 		lastEnvRight env.Sample
 		haveEnvRight bool
+
+		lastGPSSatellites struct {
+			Satellites []gps.Satellite `json:"satellites"`
+			Count      int             `json:"count"`
+		}
+		haveGPSSatellites bool
+
+		lastGLONASSSatellites struct {
+			Satellites []gps.Satellite `json:"satellites"`
+			Count      int             `json:"count"`
+		}
+		haveGLONASSSatellites bool
 	)
 
 	// 1) Connect to MQTT
@@ -132,6 +143,48 @@ func RunWeb() error {
 		return gpsToken.Error()
 	}
 	log.Printf("web: subscribed to MQTT topic %s", cfg.TopicGPS)
+
+	// Subscribe to GPS satellites
+	gpsSatToken := client.Subscribe(cfg.TopicGPSSatellites, 0, func(_ mqtt.Client, msg mqtt.Message) {
+		var satsData struct {
+			Satellites []gps.Satellite `json:"satellites"`
+			Count      int             `json:"count"`
+		}
+		if err := json.Unmarshal(msg.Payload(), &satsData); err != nil {
+			log.Printf("web: gps satellites unmarshal error: %v", err)
+			return
+		}
+		mu.Lock()
+		lastGPSSatellites = satsData
+		haveGPSSatellites = true
+		mu.Unlock()
+	})
+	gpsSatToken.Wait()
+	if gpsSatToken.Error() != nil {
+		return gpsSatToken.Error()
+	}
+	log.Printf("web: subscribed to MQTT topic %s", cfg.TopicGPSSatellites)
+
+	// Subscribe to GLONASS satellites
+	glonassSatToken := client.Subscribe(cfg.TopicGLONASSSatellites, 0, func(_ mqtt.Client, msg mqtt.Message) {
+		var satsData struct {
+			Satellites []gps.Satellite `json:"satellites"`
+			Count      int             `json:"count"`
+		}
+		if err := json.Unmarshal(msg.Payload(), &satsData); err != nil {
+			log.Printf("web: glonass satellites unmarshal error: %v", err)
+			return
+		}
+		mu.Lock()
+		lastGLONASSSatellites = satsData
+		haveGLONASSSatellites = true
+		mu.Unlock()
+	})
+	glonassSatToken.Wait()
+	if glonassSatToken.Error() != nil {
+		return glonassSatToken.Error()
+	}
+	log.Printf("web: subscribed to MQTT topic %s", cfg.TopicGLONASSSatellites)
 
 	// Subscribe to IMU left
 	imuLeftToken := client.Subscribe(cfg.TopicIMULeft, 0, func(_ mqtt.Client, msg mqtt.Message) {
@@ -266,6 +319,38 @@ func RunWeb() error {
 		w.Header().Set("Content-Type", "application/json")
 		if err := json.NewEncoder(w).Encode(lastFix); err != nil {
 			log.Printf("web: gps JSON encode error: %v", err)
+		}
+	})
+
+	// 6a) JSON API: GPS satellites
+	http.HandleFunc("/api/gps/satellites", func(w http.ResponseWriter, r *http.Request) {
+		mu.RLock()
+		defer mu.RUnlock()
+
+		if !haveGPSSatellites {
+			http.Error(w, "no gps satellites data yet", http.StatusServiceUnavailable)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		if err := json.NewEncoder(w).Encode(lastGPSSatellites); err != nil {
+			log.Printf("web: gps satellites JSON encode error: %v", err)
+		}
+	})
+
+	// 6a-2) JSON API: GLONASS satellites
+	http.HandleFunc("/api/glonass/satellites", func(w http.ResponseWriter, r *http.Request) {
+		mu.RLock()
+		defer mu.RUnlock()
+
+		if !haveGLONASSSatellites {
+			http.Error(w, "no glonass satellites data yet", http.StatusServiceUnavailable)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		if err := json.NewEncoder(w).Encode(lastGLONASSSatellites); err != nil {
+			log.Printf("web: glonass satellites JSON encode error: %v", err)
 		}
 	})
 
