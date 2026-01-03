@@ -549,7 +549,32 @@
       }, 50);
     }
 
-    function selectIMU(imu) {
+    async function checkProducerHealth(imu) {
+      try {
+        const response = await fetch(`/api/imu/${imu}`);
+        if (!response.ok) {
+          return false;
+        }
+        
+        const data = await response.json();
+        
+        // Check if we have recent data (within last 5 seconds)
+        if (data.timestamp) {
+          const dataAge = Date.now() - new Date(data.timestamp).getTime();
+          if (dataAge < 5000) {
+            return true;
+          }
+        }
+        
+        // If no timestamp or data is stale
+        return false;
+      } catch (error) {
+        console.error('Health check failed:', error);
+        return false;
+      }
+    }
+
+    async function selectIMU(imu) {
       selectedIMU = imu;
       
       // Update UI
@@ -557,6 +582,24 @@
         btn.classList.remove('selected');
       });
       event.target.classList.add('selected');
+      
+      // Check if IMU producer is running
+      const isHealthy = await checkProducerHealth(imu);
+      
+      if (!isHealthy) {
+        alert(
+          `⚠️ IMU Producer Not Running!\n\n` +
+          `The ${imu} IMU is not publishing data.\n\n` +
+          `Please start the IMU producer first:\n` +
+          `  sudo ./cmd/imu_producer\n\n` +
+          `Then refresh this page and try again.`
+        );
+        
+        // Reset selection
+        event.target.classList.remove('selected');
+        selectedIMU = null;
+        return;
+      }
       
       // Show calibration interface
       setTimeout(() => {
