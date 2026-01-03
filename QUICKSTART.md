@@ -23,6 +23,7 @@ go build -o gps_producer ./cmd/gps_producer/
 go build -o web ./cmd/web/
 go build -o calibration ./cmd/calibration/
 go build -o display ./cmd/display/
+go build -o register_debug ./cmd/register_debug/
 ```
 
 ## Step 2: Configure
@@ -181,6 +182,128 @@ For best accuracy, calibrate your IMU sensors:
 4. Calibration results saved to `{imu}_{timestamp}_inertial_calibration.json`
 
 See [CALIBRATION_UI.md](CALIBRATION_UI.md) for detailed calibration instructions.
+
+## Step 7: Debug IMU Registers (Advanced)
+
+For hardware debugging and configuration experimentation, use the register debug tool:
+
+### What is Register Debugging?
+
+The register debug tool provides direct access to all 128 MPU9250 registers with:
+- Real-time read/write operations
+- Bitfield manipulation with toggle switches
+- Live sensor data monitoring
+- SPI speed control
+- Configuration export/import
+
+### Starting the Register Debugger
+
+```bash
+# Build the register debug tool
+go build -o register_debug ./cmd/register_debug/
+
+# Run with sudo (required for SPI hardware access)
+sudo ./register_debug
+
+# Access in browser
+http://localhost:8081
+```
+
+**Note**: Can run concurrently with `imu_producer` - hardware access is thread-safe via IMUManager mutex.
+
+### Features
+
+#### Register Table
+- **Read All Registers**: Bulk read all 128 registers (0x00-0x7F)
+- **Individual Reads**: Click on any register to read current value
+- **Write Protection**: Read-only registers clearly marked
+- **Multiple Formats**: View values in hex, binary, and decimal
+
+#### Bitfield Manipulation
+For configuration registers (CONFIG, GYRO_CONFIG, ACCEL_CONFIG, etc.):
+- Expand register rows to see individual bitfields
+- Toggle switches for each bitfield
+- Real-time value computation and preview
+- Apply button writes computed value to hardware
+- Detailed descriptions of each bitfield function
+
+#### SPI Speed Control
+Adjust SPI bus speeds for debugging timing issues:
+- **Read Speed**: Speed for register reads (default: 1 MHz)
+- **Write Speed**: Speed for register writes (default: 500 kHz)
+- **Presets**: Fast (4MHz/1MHz), Normal (1MHz/500kHz), Slow (500kHz/250kHz)
+- Useful for troubleshooting communication problems
+
+#### Live Sensor Monitoring
+Watch real-time sensor data as you modify registers:
+- **Accelerometer**: X, Y, Z with current range setting
+- **Gyroscope**: X, Y, Z with current range setting
+- **Magnetometer**: X, Y, Z with field magnitude
+- Updates at 100ms intervals
+
+#### Configuration Management
+- **Export**: Save all register values as timestamped JSON file
+- **Factory Reset**: Restore default values for all registers
+- **Quick Presets**: Apply common configurations (high-precision, low-power, etc.)
+
+### Common Use Cases
+
+#### Experiment with Sensor Ranges
+Toggle `ACCEL_FS_SEL` bitfield in ACCEL_CONFIG register (0x1C):
+- 0 = ±2g
+- 1 = ±4g
+- 2 = ±8g (default)
+- 3 = ±16g
+
+Toggle `GYRO_FS_SEL` bitfield in GYRO_CONFIG register (0x1B):
+- 0 = ±250°/s
+- 1 = ±500°/s (default)
+- 2 = ±1000°/s
+- 3 = ±2000°/s
+
+#### Adjust Digital Low-Pass Filter
+Modify `DLPF_CFG` bitfield in CONFIG register (0x1A):
+- 0 = 250 Hz
+- 1 = 184 Hz
+- 2 = 92 Hz
+- 3 = 41 Hz (default)
+- 4 = 20 Hz
+- 5 = 10 Hz
+- 6 = 5 Hz
+
+#### Debug I2C Master Settings
+For magnetometer communication, tune I2C_MST_CTRL register (0x24):
+- Adjust `I2C_MST_CLK` bitfield to change I2C clock speed
+- Modify `WAIT_FOR_ES` to control timing behavior
+
+#### Recover from IMU Lockup
+If IMU stops responding:
+1. Click **"Reinitialize IMU"** button
+2. Resets hardware without restarting application
+3. Reapplies default configuration
+
+### Safety Features
+
+- **Read-only indicators**: Cannot write to R registers
+- **Bitfield validation**: Ensures valid bit patterns
+- **Confirmation dialogs**: For critical registers (PWR_MGMT, INT_PIN_CFG)
+- **Current value display**: Shows state before modification
+- **Revert capability**: Reload all registers to see hardware state
+- **Export/restore**: Save and restore working configurations
+
+### Integration with Main Dashboard
+
+Access register debugger from main dashboard at `http://localhost:8080`:
+- Click **"Debug Registers"** button in header
+- Opens register debug tool in new tab at `http://localhost:8081`
+
+### Navigation from Command Line
+
+```bash
+# Link from main dashboard (already implemented in web/index.html)
+# Or access directly
+firefox http://localhost:8081  # or your browser of choice
+```
 
 ## Using tmux (Recommended for Multiple Processes)
 
@@ -469,3 +592,5 @@ For issues, questions, or contributions:
 | Dashboard | Browser | http://localhost:8080 | - |
 | Calibration UI | Browser | http://localhost:8080/calibration.html | - |
 | Calibration CLI | `sudo ./calibration` | - | Alternative to web UI |
+| Register Debug | `sudo ./register_debug` | :8081 | Hardware debugging |
+| Register Debug UI | Browser | http://localhost:8081 | Direct register access |
