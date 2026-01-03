@@ -26,6 +26,8 @@ ls ~/go/src/github.com/relabs-tech/devices
 The standard `periph.io/x/devices` doesn't have complete magnetometer (AK8963) support via MPU9250's internal I2C. The custom fork in `github.com/relabs-tech/devices` includes critical enhancements:
 
 **Fork Enhancements over Standard periph.io:**
+
+**MPU9250 IMU Enhancements:**
 - **AK8963 Magnetometer Driver**: Direct support for reading AK8963 magnetometer via MPU9250's internal I2C master (EXT_SENS_DATA registers)
 - **MagCal Calibration**: Calibration data structure for hard-iron offset and soft-iron scale factors (not available in standard)
 - **InitMag() Method**: Initialize internal I2C master for magnetometer communication with automatic factory calibration loading
@@ -34,6 +36,14 @@ The standard `periph.io/x/devices` doesn't have complete magnetometer (AK8963) s
 - **SetSpiTransport() Support**: Extended SPI transport layer with configurable read/write speeds for register debugging
 - **RegisterRead/Write Methods**: Direct register access (0x00-0x7F) for all 128 MPU9250 registers via SPI (used by register debug tool)
 - **GetRotationX/Y/Z() Methods**: Extended gyroscope access functions with individual axis queries
+
+**SSD1306 OLED Display Enhancements:**
+- **Dual I2C Display Support**: Configurable I2C address parameter for supporting multiple displays at different addresses (0x3C, 0x3D, etc.)
+- **image1bit Package (VerticalLSB Format)**: Optimized 1-bit monochrome image format matching SSD1306's GDDRAM pixel layout for efficient rendering on embedded systems
+- **Direct Pixel Buffer Manipulation**: `SetBit()` and `BitAt()` methods for efficient pixel-level control without redrawing entire display
+- **Differential Updates**: Only transmit modified pixel rectangles to reduce I2C bandwidth usage (critical for 100-400kHz I2C buses)
+- **SetDisplayStartLine() Method**: Hardware register support for efficient scrolling without redrawing entire display
+- **Display Configuration Options**: Rotation, COM pin configuration, and hardware variant support for different panel layouts
 
 The `inertial_computer` project's `go.mod` file has a `replace` directive that points to this local fork for these critical features.
 
