@@ -632,23 +632,25 @@ DISPLAY_RIGHT_CONTENT=imu_raw_right
 
 **Display rendering:**
 
-- 1-bit vertical LSB image format for SSD1306
+- 1-bit vertical LSB image format for SSD1306 (`image1bit.NewVerticalLSB()`)
 - 7x13 bitmap font (golang.org/x/image/font/basicfont)
-- Direct pixel buffer manipulation for performance
+- Direct pixel buffer manipulation via `SetBit()` / `BitAt()` methods for performance
+- Differential updates: only modified pixel rectangles transmitted to display
 - Splash screens on startup
+- **Fork Features**: Dual I2C address support (0x3C, 0x3D), hardware scrolling via `SetDisplayStartLine()`, rotation and COM configuration options
 
 **Hardware requirements:**
 
 - Two SSD1306 128x64 OLED displays
 - I2C bus access (typically `/dev/i2c-1` on Raspberry Pi)
-- Different I2C addresses for each display (default: 0x3C and 0x3D)
+- Different I2C addresses for each display (default: 0x3C and 0x3D) — enabled by fork's configurable address support
 - Root privileges for I2C hardware access
 
 **Data flow:**
 
 ```
 MQTT Topics → Display Consumer → I2C Bus → SSD1306 Displays
-(JSON)         (subscribe)        (periph.io)  (pixel data)
+(JSON)         (subscribe)        (periph.io fork) (pixel data)
 ```
 
 Design principles:
@@ -656,7 +658,8 @@ Design principles:
 - **Configurable content**: Any display can show any data type
 - **Independent operation**: Runs separately from web UI
 - **Real-time updates**: Configurable refresh rate for responsiveness
-- **Hardware abstraction**: periph.io for cross-platform I2C access
+- **Hardware abstraction**: periph.io fork for cross-platform I2C access with dual-display support
+- **Efficient rendering**: Differential updates and optimized VerticalLSB format minimize I2C bandwidth usage
 
 ---
 
