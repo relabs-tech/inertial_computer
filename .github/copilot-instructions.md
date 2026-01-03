@@ -154,10 +154,10 @@ This fork includes custom MPU9250 magnetometer integration. Don't remove this re
 
 ## Key Files Reference
 
-- **Architecture deep dive**: [ARCHITECTURE.md](ARCHITECTURE.md) (983 lines) – complete system design, data flow, fusion strategy
-- **Quick start**: [QUICKSTART.md](QUICKSTART.md) – building, MQTT setup, running components
-- **Task tracking**: [TODO.md](TODO.md) – current status, known issues, next steps
-- **Calibration**: [CALIBRATION_UI.md](CALIBRATION_UI.md) – web and CLI calibration tools
+- **Architecture deep dive**: [ARCHITECTURE.md](../ARCHITECTURE.md) (983 lines) – complete system design, data flow, fusion strategy
+- **Quick start**: [QUICKSTART.md](../QUICKSTART.md) – building, MQTT setup, running components
+- **Task tracking**: [TODO.md](../TODO.md) – current status, known issues, next steps
+- **Calibration**: [CALIBRATION_UI.md](../CALIBRATION_UI.md) – web and CLI calibration tools
 - **Config**: `inertial_config.txt` – all runtime settings
 - **Hardware abstraction**: `internal/sensors/imu.go` (IMUManager), `internal/sensors/imu_source.go` (periph.io wrapper)
 - **IMU producer**: `internal/app/imu_producer.go` – main sensor loop, MQTT publishing
