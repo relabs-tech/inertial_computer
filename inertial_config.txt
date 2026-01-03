@@ -155,3 +155,30 @@ CONSOLE_LOG_INTERVAL=1000
 # Web Server Configuration
 WEB_SERVER_PORT=8080
 WEATHER_UPDATE_INTERVAL_MINUTES=5
+
+# Register Debugging Configuration
+# MQTT Topics for register debugging
+TOPIC_REGISTERS_CMD_READ=inertial/registers/cmd/read
+TOPIC_REGISTERS_CMD_WRITE=inertial/registers/cmd/write
+TOPIC_REGISTERS_CMD_INIT=inertial/registers/cmd/init
+TOPIC_REGISTERS_CMD_SPI_SPEED=inertial/registers/cmd/spi_speed
+TOPIC_REGISTERS_DATA_LEFT=inertial/registers/data/left
+TOPIC_REGISTERS_DATA_RIGHT=inertial/registers/data/right
+TOPIC_REGISTERS_MAP=inertial/registers/map
+TOPIC_REGISTERS_STATUS=inertial/registers/status
+
+# Register write safety: comma-separated hex ranges (e.g., "0x1B-0x1D,0x6B,0x1A-0x20")
+# Empty string allows all registers (dangerous)
+REGISTER_DEBUG_ALLOWED_RANGES=0x1A-0x1E,0x23-0x25,0x37-0x38,0x6A-0x6C,0x75
+
+# SPI Speed Limits (Hz)
+REGISTER_DEBUG_DEFAULT_READ_SPEED=1000000
+REGISTER_DEBUG_DEFAULT_WRITE_SPEED=500000
+REGISTER_DEBUG_MAX_SPI_SPEED=10000000
+REGISTER_DEBUG_MIN_SPI_SPEED=100000
+
+# Register Config Files (optional - leave empty to disable)
+# These JSON files contain complete register state exported from register debugging tool
+# If set, imu_producer will apply these register values at startup
+IMU_LEFT_REGISTER_CONFIG_FILE=
+IMU_RIGHT_REGISTER_CONFIG_FILE=
