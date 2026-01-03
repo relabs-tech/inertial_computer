@@ -18,6 +18,10 @@ current state, known-good references, and all remaining work.
 - Core domain models defined
 - README.md and ARCHITECTURE.md written
 - **Display consumer** ✅ Dual SSD1306 OLED support with configurable content
+  - SSD1306 driver fork enhancements: dual I2C address support, VerticalLSB image format, differential updates
+  - Efficient pixel manipulation via `image1bit` package with `SetBit()` / `BitAt()` methods
+  - Hardware-level scrolling support via `SetDisplayStartLine()` method
+  - Configuration options for rotation and display variants
 - **[DONE]** Separated raw sensor reads from pose computation (branch: `refactor/separate-raw-reads-from-pose`)
   - `IMURawReader` interface for hardware reads
   - Pure functions `AccelToPose()`, `ComputePoseFromAccel()` in orientation package
@@ -35,6 +39,7 @@ current state, known-good references, and all remaining work.
   - Test/debug MQTT topic `inertial/mag/left` publishing mag data with field magnitude
   - Producer logs include magnetometer readings and |B| magnitude
   - Local fork of `periph.io/x/devices` integrated via replace directive
+  - **Fork includes**: AK8963 magnetometer driver, MagCal calibration support, overflow detection, extended register access
 - **[DONE]** GPS/GLONASS constellation separation (2025-01-02)
   - Raw NMEA logging with `[GPS-RAW]` prefix for debugging
   - Separate processing of GPGSV (GPS) and GLGSV (GLONASS) satellite data
