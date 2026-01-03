@@ -3,6 +3,37 @@
 ## Project Overview
 Raspberry Pi-based inertial sensing platform using **MQTT message bus architecture**. Dual MPU9250 IMUs (left/right) with magnetometers, BMP sensors, and GPS publish sensor data over MQTT to multiple consumers (console, web UI, OLED displays). Go codebase targeting embedded Linux with periph.io hardware drivers.
 
+## License and Copyright
+
+**License**: MIT License (see LICENSE file)
+**Copyright**: © 2026 Daniel Alarcon Rubio / Relabs Tech
+**SPDX**: MIT
+
+All source files must include the standard license header:
+
+**Go files** (3-line header):
+```go
+// Copyright (c) 2026 Daniel Alarcon Rubio / Relabs Tech
+// SPDX-License-Identifier: MIT
+// See LICENSE file for full license text
+```
+
+**HTML files** (HTML comment):
+```html
+<!--
+  Copyright (c) 2026 Daniel Alarcon Rubio / Relabs Tech
+  SPDX-License-Identifier: MIT
+-->
+```
+
+**Shell scripts** (after shebang):
+```bash
+# Copyright (c) 2026 Daniel Alarcon Rubio / Relabs Tech
+# SPDX-License-Identifier: MIT
+```
+
+**When creating new files**, always include the appropriate copyright header at the top.
+
 ## Architecture – Critical Patterns
 
 ### Message Bus Isolation

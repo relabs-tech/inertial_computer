@@ -1,5 +1,7 @@
 # Inertial Computer
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 Developer-oriented inertial sensing platform built in Go, designed around a message-bus (MQTT) architecture. The system reads multiple hardware sensors (IMUs, magnetometers, environmental sensors, GPS), publishes all data streams via MQTT, and exposes multiple consumers such as a console viewer and a web-based UI.
 
 The core goals are:
@@ -161,5 +163,19 @@ dtoverlay=spi0-2cs,cs0_pin=8,cs1_pin=7
 - **SPI**: Enabled via `dtparam=spi=on` for additional sensor interfaces
 - **SPI6**: Configured with CS pins 18 and 27
 - **SPI0**: Configured with CS pins 8 and 7
+
+---
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+**Copyright © 2026 Daniel Alarcon Rubio / Relabs Tech**
+
+## Author
+
+**Daniel Alarcon Rubio**
+- Organization: Relabs Tech
+- GitHub: [@relabs-tech](https://github.com/relabs-tech)
 
 ---

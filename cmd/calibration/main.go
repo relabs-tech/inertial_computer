@@ -1,3 +1,8 @@
+// Copyright (c) 2026 Daniel Alarcon Rubio / Relabs Tech
+// SPDX-License-Identifier: MIT
+// See LICENSE file for full license text
+
+
 // ./cmd/calibration/main.go
 //
 // Guided calibration for MPU-9250 class IMUs in this project.

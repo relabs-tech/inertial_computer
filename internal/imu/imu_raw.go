@@ -1,3 +1,8 @@
+// Copyright (c) 2026 Daniel Alarcon Rubio / Relabs Tech
+// SPDX-License-Identifier: MIT
+// See LICENSE file for full license text
+
+
 package imu
 
 // IMURaw represents a single raw IMU+mag sample.
