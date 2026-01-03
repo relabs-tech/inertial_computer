@@ -118,6 +118,11 @@ The core goals are:
   - Configuration export/import with JSON persistence
   - Safety features: read-only indicators, bitfield validation, confirmation dialogs
   - Runs on port 8081, accessible from main dashboard
+- **Custom periph.io Fork Enhancements** (2025-01-03): Enhanced drivers for magnetometer and OLED displays
+  - **MPU9250 magnetometer (AK8963)**: Internal I2C master support with calibration data structures
+  - **SSD1306 display driver**: Dual I2C address support, optimized VerticalLSB pixel format, differential updates
+  - Enables efficient multi-sensor operation and real-time OLED rendering on embedded I2C buses
+  - See [QUICKSTART.md](QUICKSTART.md) Step 0 for fork installation and complete feature list
 
 See [TODO.md](TODO.md) for detailed task list, [ARCHITECTURE.md](ARCHITECTURE.md) for system design, [CALIBRATION_UI.md](CALIBRATION_UI.md) for calibration UI details, and [QUICKSTART.md](QUICKSTART.md) for setup instructions.
 
