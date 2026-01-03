@@ -50,6 +50,12 @@ The core goals are:
   - ✅ **Configurable content** per display (raw IMU, orientation, GPS)
   - ✅ Real-time updates at configurable intervals
   - ✅ Support for: `imu_raw_left`, `imu_raw_right`, `orientation_left`, `orientation_right`, `gps`
+- Register debugger (MPU9250 hardware debugging)
+  - ✅ **Direct register access** to all 128 MPU9250 registers
+  - ✅ **Bitfield manipulation** with toggle switches for configuration registers
+  - ✅ **Live sensor monitoring** during register modifications
+  - ✅ **SPI speed control** for debugging timing issues
+  - ✅ **Configuration export/import** with JSON persistence
 
 ---
 
@@ -104,6 +110,14 @@ The core goals are:
 - **Web Calibration UI**: Interactive 3D-guided calibration interface with real-time visualization (Three.js)
 - **CLI Calibration Tool**: Console-based alternative with step-by-step guided workflows
 - **Calibration Output**: Timestamped JSON files with bias, scale factors, and confidence metrics
+- **Register Debug Tool** (2025-01-03): WebSocket-based MPU9250 hardware debugging
+  - Comprehensive register table with read/write operations
+  - Bitfield manipulation with toggle switches and real-time preview
+  - Live sensor data monitoring during register modifications
+  - SPI speed control for debugging timing problems
+  - Configuration export/import with JSON persistence
+  - Safety features: read-only indicators, bitfield validation, confirmation dialogs
+  - Runs on port 8081, accessible from main dashboard
 
 See [TODO.md](TODO.md) for detailed task list, [ARCHITECTURE.md](ARCHITECTURE.md) for system design, [CALIBRATION_UI.md](CALIBRATION_UI.md) for calibration UI details, and [QUICKSTART.md](QUICKSTART.md) for setup instructions.
 

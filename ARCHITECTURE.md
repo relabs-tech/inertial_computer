@@ -660,6 +660,79 @@ Design principles:
 
 ---
 
+### 6.4 Register debugger (`cmd/register_debug`)
+
+Entry point: `internal/app/HandleRegisterDebugWS()`
+
+**Purpose**: Direct hardware-level debugging and configuration of MPU9250 IMU registers.
+
+Responsibilities:
+
+- initialize IMU manager singleton for hardware access
+- run WebSocket server on port 8081 for real-time bidirectional communication
+- serve register debug web UI at `http://localhost:8081`
+- provide REST API for live sensor data at `/api/imu`
+- handle register read/write operations with safety checks
+- manage SPI speed configuration for timing debugging
+- export/import register configurations as JSON
+
+**Architecture**:
+- Frontend: `web/register_debug.html` with bitfield manipulation UI
+- Backend: `internal/app/register_debug_handler.go` with WebSocket handler
+- Hardware: `internal/sensors/imu.go` (IMUManager extensions) + `internal/sensors/mpu9250_registers.go`
+- Communication: WebSocket for low-latency register operations
+
+**WebSocket message types** (client → server):
+```json
+{"action":"read","imu":"left","addr":"0x1B"}
+{"action":"read_all","imu":"left"}
+{"action":"write","imu":"left","addr":"0x1B","value":"0x10"}
+{"action":"init","imu":"left"}
+{"action":"set_spi_speed","imu":"left","read_speed":1000000,"write_speed":500000}
+{"action":"export_config","imu":"left"}
+```
+
+**WebSocket message types** (server → client):
+```json
+{"type":"register_data","imu":"left","addr":"0x1B","value":"0x10","timestamp":"..."}
+{"type":"register_data","registers":{...all 128 registers...}}
+{"type":"status","imu":"left","status":"initialized","read_speed":1000000,"write_speed":500000}
+{"type":"error","message":"..."}
+```
+
+**Features**:
+
+- **Register table**: Read/write all 128 MPU9250 registers (0x00-0x7F)
+- **Bitfield manipulation**:
+  - Expandable rows for configuration registers (CONFIG, GYRO_CONFIG, ACCEL_CONFIG, etc.)
+  - Toggle switches for individual bitfields
+  - Real-time bit value computation and preview
+  - Apply button writes computed value to hardware
+- **Live sensor monitoring**: Real-time display of accel, gyro, mag during register modifications
+- **SPI speed control**: Separate read/write speeds with presets (Fast/Normal/Slow)
+- **Configuration management**: Export all registers as timestamped JSON, factory reset, quick presets
+- **Safety features**: Read-only indicators, bitfield validation, confirmation dialogs
+
+**Hardware access**:
+- Uses existing `IMUManager` singleton for thread-safe hardware access
+- Shares SPI bus with `imu_producer` via mutex protection
+- Can run concurrently with other components
+
+**Use cases**:
+- Experiment with sensor ranges (ACCEL_FS_SEL, GYRO_FS_SEL bitfields)
+- Tune digital low-pass filter (DLPF_CFG bitfield)
+- Debug I2C master settings for magnetometer (I2C_MST_CTRL)
+- Recover from IMU lockup via reinitialize command
+- Debug SPI timing issues with speed presets
+- Export working configurations for backup
+
+**Integration**:
+- Accessible from main dashboard via "Debug Registers" button
+- Runs on separate port (8081) from main web UI (8080)
+- Zero MQTT dependency for simplified debugging architecture
+
+---
+
 ## 7. Calibration system
 
 ### 7.1 Overview

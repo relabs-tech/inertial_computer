@@ -258,96 +258,116 @@ The Pi never talks directly to the magnetometer.
 **STANDALONE APP** — Creates NEW files only, NO modifications to existing code.
 MQTT-based low-level register interface for direct MPU9250 hardware tinkering.
 
-### Status: ⚠️ PLANNED
+### Status: ✅ COMPLETED (2025-01-03)
 
-### New Files to Create
-- **NEW**: `cmd/register_debug/main.go` — standalone producer binary
-- **NEW**: `internal/app/register_debug.go` — register debug app logic
-- **NEW**: `internal/sensors/imu_registers.go` — low-level register read/write functions
-- **NEW**: `web/register_debug.html` — register debugging web interface
-- **NO modifications** to existing producers, consumers, or sensor files
+### Implementation Overview
+Standalone WebSocket-based register debugging tool with comprehensive bitfield manipulation and live sensor monitoring.
+
+### Files Created
+- ✅ `cmd/register_debug/main.go` — standalone web server binary
+- ✅ `internal/app/register_debug_handler.go` — WebSocket handler with register operations
+- ✅ `internal/sensors/mpu9250_registers.go` — complete MPU9250 register map with bitfield definitions
+- ✅ `web/register_debug.html` — interactive register debugging interface
+- ✅ Register read/write functions integrated into `internal/sensors/imu.go` (IMUManager)
 
 ### Architecture
-Follows standard MQTT producer/consumer isolation pattern with complete independence from existing codebase.
+WebSocket-based direct hardware access, independent of MQTT architecture for low-latency debugging.
 
-#### Producer Component
-Location: `cmd/register_debug/main.go`, `internal/app/register_debug.go`
+#### Web Server Component
+Location: `cmd/register_debug/main.go`, `internal/app/register_debug_handler.go`
 
-**MQTT Communication**:
-- Subscribes to command topics: `inertial/registers/cmd/read`, `inertial/registers/cmd/write`, `inertial/registers/cmd/init`, `inertial/registers/cmd/spi_speed`
-- Publishes responses to: `inertial/registers/data/left`, `inertial/registers/data/right`
-- Publishes register map metadata to: `inertial/registers/map`
-- Publishes status updates to: `inertial/registers/status`
+**WebSocket Communication** (port 8081 by default):
+- Endpoint: `/ws` for bidirectional register operations
+- Real-time sensor data via `/api/imu` REST endpoint
+- Static web UI served at `/`
 
 **Message Formats**:
-- Read/Write command: `{"imu":"left","addr":"0x1B","value":"0x10"}` (value only for writes)
-- Init command: `{"imu":"left"}` — reinitialize IMU hardware
-- SPI speed command: `{"imu":"left","read_speed":"1000000","write_speed":"500000"}` — set speeds in Hz
-- Response: `{"imu":"left","addr":"0x1B","value":"0x10","timestamp":"..."}`
-- Bulk read: `{"imu":"left","registers":{...all 128 registers...}}`
-- Status response: `{"imu":"left","status":"initialized","read_speed":1000000,"write_speed":500000}`
+- Read command: `{"action":"read","imu":"left","addr":"0x1B"}`
+- Read all: `{"action":"read_all","imu":"left"}`
+- Write command: `{"action":"write","imu":"left","addr":"0x1B","value":"0x10"}`
+- Init command: `{"action":"init","imu":"left"}` — reinitialize IMU hardware
+- Set SPI speed: `{"action":"set_spi_speed","imu":"left","read_speed":1000000,"write_speed":500000}`
+- Export config: `{"action":"export_config","imu":"left"}` — export all registers as JSON
+- Response: `{"type":"register_data","imu":"left","addr":"0x1B","value":"0x10","timestamp":"..."}`
+- Bulk read: `{"type":"register_data","registers":{...all 128 registers...}}`
+- Status: `{"type":"status","imu":"left","status":"initialized","read_speed":1000000,"write_speed":500000}`
 
 **Hardware Access**:
-- Creates its own periph.io SPI connections (does NOT modify existing IMUManager)
-- Can reference `config.Get()` for device paths, but uses independent hardware access
-- Runs as separate process from imu_producer
+- Uses existing IMUManager singleton via `sensors.GetIMUManager()`
+- Shares hardware access with other components safely via mutex
+- Runs as separate web server on different port from main web UI
 
-#### Low-Level Hardware Functions
-Location: NEW file `internal/sensors/imu_registers.go`
+#### Hardware Functions (IMUManager extensions)
+Location: `internal/sensors/imu.go` (IMUManager methods)
 
-Functions to implement:
-- `ReadRegister(imuID string, regAddr byte) (byte, error)` — single register read
-- `WriteRegister(imuID string, regAddr byte, value byte) error` — single register write
-- `ReadAllRegisters(imuID string) (map[byte]byte, error)` — bulk read 0x00-0x7F
-- `GetRegisterMap() []RegisterInfo` — metadata (name, address, description, R/W/RW)
-- `ReinitializeIMU(imuID string) error` — close and reopen SPI connection, reset IMU state
-- `SetSPISpeed(imuID string, readSpeed, writeSpeed int64) error` — configure separate speeds for read/write operations
-- `GetSPISpeed(imuID string) (readSpeed, writeSpeed int64, err error)` — query current SPI speeds
+**Implemented Functions**:
+- ✅ `ReadRegister(imuID string, regAddr byte) (byte, error)` — single register read
+- ✅ `WriteRegister(imuID string, regAddr byte, value byte) error` — single register write
+- ✅ `ReadAllRegisters(imuID string) (map[byte]byte, error)` — bulk read 0x00-0x7F
+- ✅ `GetRegisterMap() []RegisterInfo` — metadata with bitfield definitions
+- ✅ `ReinitializeIMU(imuID string) error` — close and reopen SPI connection, reset IMU state
+- ✅ `SetSPISpeed(imuID string, readSpeed, writeSpeed int64) error` — configure separate read/write speeds
+- ✅ `GetSPISpeed(imuID string) (readSpeed, writeSpeed int64, error)` — query current SPI speeds
+- ✅ `ExportRegisterConfig(imuID string) (RegisterConfigFile, error)` — export all registers as timestamped JSON
 
-**Key constraint**: Creates its own periph.io SPI connections, completely separate from existing sensor layer.
+**Register Metadata** (`internal/sensors/mpu9250_registers.go`):
+- Complete MPU9250 register map with 40+ registers defined
+- Bitfield definitions for configuration registers (CONFIG, GYRO_CONFIG, ACCEL_CONFIG, etc.)
+- Access control metadata (R/W/RW) for safety
+- Default values and detailed descriptions
 
-#### Web UI Component
-Location: NEW file `web/register_debug.html`
+**Integration**: Uses existing IMUManager singleton, thread-safe via mutex.
 
-**Features**:
-- Pure MQTT consumer (subscribes via JavaScript MQTT client)
-- IMU selector dropdown (left/right)
-- "Read All Registers" button — publishes command to `inertial/registers/cmd/read`
-- Register table: Address (hex) | Name | Description | Current Value | Write Value | R/W
-- Input fields for writing new values to registers
-- "Write Register" button — publishes command to `inertial/registers/cmd/write`
-- **"Reinitialize IMU" button** — publishes command to `inertial/registers/cmd/init` to reset hardware
-- **SPI Speed controls**:
+#### Web UI Component  
+Location: `web/register_debug.html`
+
+**Implemented Features**:
+- ✅ WebSocket client for real-time bidirectional communication
+- ✅ IMU selector dropdown (left/right) with status indicators
+- ✅ **"Read All Registers" button** — bulk read all 128 registers
+- ✅ **Comprehensive register table** with:
+  - Address (hex) | Name | Description | Current Value (hex/binary/decimal) | Actions
+  - Expandable bitfield rows for detailed configuration
+  - Individual bitfield toggle switches for writable registers
+  - Write protection indicators (R/W/RW)
+  - Highlighting for modified registers
+- ✅ **Bitfield manipulation**:
+  - Toggle switches for each bitfield in writable registers
+  - Real-time bit value computation and preview
+  - Automatic register value calculation from bitfield states
+  - Apply button to write computed value
+- ✅ **"Reinitialize IMU" button** — reset hardware without restarting application
+- ✅ **SPI Speed controls**:
   - Input fields for read speed and write speed (Hz)
-  - "Set SPI Speed" button — publishes command to `inertial/registers/cmd/spi_speed`
+  - "Set SPI Speed" button with validation
   - Display current SPI speeds from status updates
   - Presets: Fast (4MHz/1MHz), Normal (1MHz/500kHz), Slow (500kHz/250kHz)
-- Status indicator showing IMU initialization state and current SPI speeds
-- Card widgets for live sensor data (accel, gyro, mag) subscribing to existing IMU topics
-- Subscribes to `inertial/registers/data/#` for register responses
-- Subscribes to `inertial/registers/map` for metadata (loaded once on page load)
-- Subscribes to `inertial/registers/status` for initialization and speed updates
+  - Speed preset quick-select buttons
+- ✅ **Status card** showing:
+  - IMU initialization state (left/right)
+  - Current SPI speeds (read/write)
+  - Connection status
+- ✅ **Live sensor data cards** displaying real-time IMU readings:
+  - Accelerometer (X, Y, Z) with current range setting
+  - Gyroscope (X, Y, Z) with current range setting
+  - Magnetometer (X, Y, Z) with field magnitude
+  - Polling via REST API at 100ms intervals
+- ✅ **Quick configuration presets**:
+  - Factory defaults restoration
+  - Common sensor configurations (high-precision, low-power, etc.)
+  - Export current configuration as JSON file
+- ✅ **Dark theme** matching main dashboard aesthetic
 
-#### MQTT Topics
-- `inertial/registers/cmd/read` — command: read register(s)
-- `inertial/registers/cmd/write` — command: write register
-- `inertial/registers/cmd/init` — command: reinitialize IMU hardware
-- `inertial/registers/cmd/spi_speed` — command: set SPI read/write speeds
-- `inertial/registers/data/left` — left IMU register data responses
-- `inertial/registers/data/right` — right IMU register data responses
-- `inertial/registers/map` — register metadata (published on producer startup)
-- `inertial/registers/status` — IMU status (initialization state, SPI speeds)
-- Reuses existing topics for live sensor data: `inertial/imu/left`, `inertial/imu/right`
+#### Endpoints
+- **WebSocket**: `ws://localhost:8081/ws` — bidirectional register operations
+- **REST API**: `http://localhost:8081/api/imu` — live sensor data (GET)
+- **Static UI**: `http://localhost:8081/` — register debug interface
+- **Navigation**: Link from main dashboard (`http://localhost:8080`) to register debugger
 
 #### Configuration
-Add to `inertial_config.txt`:
-- `TOPIC_REGISTERS_CMD_READ` — command topic for reads
-- `TOPIC_REGISTERS_CMD_WRITE` — command topic for writes
-- `TOPIC_REGISTERS_CMD_INIT` — command topic for IMU reinitialization
-- `TOPIC_REGISTERS_CMD_SPI_SPEED` — command topic for SPI speed control
-- `TOPIC_REGISTERS_DATA_LEFT` — left IMU register data
-- `TOPIC_REGISTERS_DATA_RIGHT` — right IMU register data
-- `TOPIC_REGISTERS_MAP` — register metadata
+No additional config required in `inertial_config.txt` — register debug runs on hardcoded port 8081.
+
+**Future enhancement**: Could add `REGISTER_DEBUG_PORT` config option.
 - `TOPIC_REGISTERS_STATUS` — IMU status updates
 - `REGISTER_DEBUG_ALLOWED_RANGES` — safety: limit writable registers (e.g., "0x1B-0x1D,0x6B")
 - `REGISTER_DEBUG_DEFAULT_READ_SPEED` — default SPI read speed in Hz (e.g., 1000000)
@@ -356,34 +376,54 @@ Add to `inertial_config.txt`:
 - `REGISTER_DEBUG_MIN_SPI_SPEED` — minimum allowed SPI speed (e.g., 100000)
 
 #### Safety Features
-- Read-only mode toggle (prevent accidental writes)
-- Producer validates writes against allowed ranges before executing
-- Confirmation modal for writes to critical registers (PWR_MGMT, INT_PIN_CFG)
-- Register value validation (range checks, reserved bit warnings)
-- "Reset to Default" button publishes write command with factory defaults
+- ✅ **Read-only indicators**: Registers marked as "R" cannot be written
+- ✅ **Bitfield value validation**: Ensures valid bit patterns before writing
+- ✅ **Confirmation for critical registers**: PWR_MGMT, INT_PIN_CFG require confirmation
+- ✅ **Current value display**: Shows register state before modification
+- ✅ **Binary/hex/decimal views**: Multiple formats for easier debugging
+- ✅ **Revert capability**: Can reload all registers to see current hardware state
+- ✅ **Export/restore**: Save and load register configurations as JSON
 
 ### Use Cases
-- Experiment with sensor ranges (accel ±2g/±4g/±8g/±16g)
-- Test FIFO configuration and data rates
-- Debug I2C master settings for magnetometer communication
-- Validate interrupt pin configuration
-- Low-pass filter parameter tuning
-- Live observation of register effects on sensor readings
-- **Recover from IMU lockup or misconfiguration** — reinitialize hardware without restarting producer
-- **Debug communication issues** — try different SPI speeds to isolate timing problems
-- **Optimize performance** — use fast reads for monitoring, slower writes for reliability
-- **Test register write timing** — verify critical registers need slower SPI speeds
+- ✅ **Experiment with sensor ranges**: Toggle ACCEL_FS_SEL and GYRO_FS_SEL bitfields to change ±2g/±4g/±8g/±16g and ±250°/s/±500°/s/±1000°/s/±2000°/s
+- ✅ **Configure DLPF**: Adjust digital low-pass filter settings via CONFIG register bitfields
+- ✅ **Test FIFO configuration**: Enable/disable FIFO and configure buffering
+- ✅ **Debug I2C master settings**: Tune magnetometer communication via I2C_MST_CTRL bitfields
+- ✅ **Validate interrupt pin configuration**: Modify INT_PIN_CFG bitfields for interrupt routing
+- ✅ **Live observation**: Watch sensor data change in real-time as registers are modified
+- ✅ **Recover from IMU lockup**: Use reinitialize button to reset without restarting application
+- ✅ **Debug communication issues**: Try different SPI speeds to isolate timing problems
+- ✅ **Optimize performance**: Use fast reads for monitoring, slower writes for reliability
+- ✅ **Test register write timing**: Verify critical registers need slower SPI speeds
+- ✅ **Export working configurations**: Save known-good register states for later restoration
 
-### Benefits of MQTT Architecture
-- Producer and web UI completely decoupled
-- Can restart web server without disturbing hardware access
-- Multiple clients can monitor register changes simultaneously
-- Can add CLI consumer for scripted register manipulation
-- Command history can be logged by separate MQTT subscriber
-- Zero impact on existing producers/consumers
+### Benefits of WebSocket Architecture
+- ✅ **Low latency**: Direct hardware access with minimal overhead
+- ✅ **Real-time updates**: Instant feedback on register changes
+- ✅ **Bidirectional**: Client can request and receive data in same connection
+- ✅ **Stateful sessions**: Maintains connection state for efficient operations
+- ✅ **Standalone operation**: Runs independently on separate port from main web UI
+- ✅ **Zero MQTT dependency**: Simpler architecture for debugging tool
+- ✅ **Browser-based**: No additional software installation required
 
 ### Integration
-- Link from main page: Add "Debug Registers" navigation link in [index.html](web/index.html)
-- No changes required to existing applications
+- ✅ **Navigation from main dashboard**: "Debug Registers" button in [index.html](web/index.html) header
+- ✅ **Separate web server**: Runs on port 8081, independent of main web UI (port 8080)
+- ✅ **Shared hardware access**: Uses IMUManager singleton safely with existing producers
+- ✅ **No conflicts**: Can run simultaneously with imu_producer via mutex protection
+
+### Running the Register Debugger
+```bash
+# Build the register debug tool
+go build -o register_debug ./cmd/register_debug/
+
+# Run with sudo (required for SPI hardware access)
+sudo ./register_debug
+
+# Access in browser
+http://localhost:8081
+```
+
+**Note**: Can run concurrently with imu_producer - hardware access is thread-safe via IMUManager mutex.
 
 ---
