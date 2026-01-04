@@ -79,16 +79,23 @@
       border: 2px solid var(--error);
     }
 
-    .controls {
+    .main-panel {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      grid-template-columns: 340px 1fr;
       gap: 1rem;
+      align-items: start;
       margin-bottom: 2rem;
+    }
+
+    .side-panel {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
     }
 
     .control-group {
       background: var(--bg-card);
-      padding: 1rem;
+      padding: 0.9rem;
       border-radius: 8px;
       border: 1px solid #333;
     }
@@ -123,7 +130,7 @@
       padding: 0.8rem 1.5rem;
       background: var(--accent);
       color: #000;
-      border: none;
+      border: 1px solid #444;
       border-radius: 4px;
       font-size: 0.95rem;
       font-weight: 600;
@@ -158,10 +165,19 @@
       min-width: 120px;
     }
 
+    .action-buttons button.active {
+      background: #81d4fa;
+      color: #000;
+      box-shadow: 0 4px 8px rgba(79, 195, 247, 0.5);
+      border-color: var(--accent);
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
+    }
+
     /* Live Sensor Data Card */
     .live-sensor-card {
       max-width: 1200px;
-      margin: 0 auto 2rem;
+      margin: 0;
       background: var(--bg-card);
       border-radius: 12px;
       padding: 1.5rem;
@@ -177,7 +193,7 @@
 
     .sensor-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+      grid-template-columns: repeat(3, minmax(260px, 1fr));
       gap: 1rem;
     }
 
@@ -224,13 +240,22 @@
       color: var(--text);
     }
 
+    .axis-subvalue {
+      grid-column: 2 / 4;
+      font-size: 0.85rem;
+      color: var(--muted);
+      font-family: 'Courier New', monospace;
+    }
+
     /* Register Table */
     .table-container {
       background: var(--bg-card);
       border-radius: 12px;
       padding: 1.5rem;
       border: 1px solid #333;
-      margin-bottom: 2rem;
+      margin: 0 -2rem 2rem;
+      width: calc(100vw - 4rem);
+      max-width: none;
       overflow-x: auto;
     }
 
@@ -238,6 +263,30 @@
       margin-bottom: 1rem;
       color: var(--accent);
       font-size: 1.3rem;
+    }
+
+    /* Quick configs row under live data */
+    .quick-controls {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 0.75rem;
+      background: var(--bg-card);
+      border: 1px solid #333;
+      border-radius: 12px;
+      padding: 1rem;
+      margin: 0 0 1.5rem;
+    }
+
+    .quick-group {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .quick-label {
+      color: var(--muted);
+      font-size: 0.9rem;
+      font-weight: 600;
     }
 
     table {
@@ -407,7 +456,7 @@
     }
 
     @media (max-width: 768px) {
-      .controls {
+      .main-panel {
         grid-template-columns: 1fr;
       }
 
@@ -417,6 +466,9 @@
 
       .table-container {
         padding: 1rem;
+        margin: 0;
+        width: 100%;
+        max-width: 100%;
       }
 
       table {
@@ -458,34 +510,87 @@ cd /home/dalarub/go/src/github.com/relabs-tech/inertial_computer<br/>sudo ./regi
       </p>
     </div>
 
-    <!-- Controls -->
-    <div class="controls">
-      <div class="control-group">
-        <label for="device-select">Select Device:</label>
-        <select id="device-select" onchange="deviceChanged()">
-          <option value="left">Left IMU</option>
-          <option value="right">Right IMU</option>
-        </select>
+    <div class="main-panel">
+      <div class="side-panel">
+        <div class="control-group">
+          <label for="device-select">Select Device:</label>
+          <select id="device-select" onchange="deviceChanged()">
+            <option value="left">Left IMU</option>
+            <option value="right">Right IMU</option>
+          </select>
+        </div>
+
+        <div class="control-group">
+          <label for="register-device-select">Register Map:</label>
+          <select id="register-device-select" onchange="registerDeviceChanged()">
+            <option value="mpu9250">MPU9250</option>
+            <option value="ak8963">AK8963 (Mag)</option>
+          </select>
+        </div>
+
+        <div class="control-group">
+          <label for="averaging-select">Averaging:</label>
+          <select id="averaging-select">
+            <option value="1">No Averaging (1)</option>
+            <option value="5">5 Samples</option>
+            <option value="10">10 Samples</option>
+            <option value="20">20 Samples</option>
+          </select>
+        </div>
+
+        <div class="control-group action-buttons">
+          <button onclick="readAllRegisters()">📖 Read All Registers</button>
+          <button onclick="reinitializeIMU()">🔄 Reinitialize IMU</button>
+        </div>
+
+        <div class="control-group">
+          <label style="display:block; margin-bottom:0.5rem; color: var(--muted); font-size:0.9rem; font-weight:600;">Accelerometer Range</label>
+          <div class="action-buttons">
+            <button data-accel="2" onclick="setAccelRange(2)">±2g</button>
+            <button data-accel="4" onclick="setAccelRange(4)">±4g</button>
+            <button data-accel="8" onclick="setAccelRange(8)">±8g</button>
+            <button data-accel="16" onclick="setAccelRange(16)">±16g</button>
+          </div>
+        </div>
+
+        <div class="control-group">
+          <label style="display:block; margin-bottom:0.5rem; color: var(--muted); font-size:0.9rem; font-weight:600;">Gyroscope Range</label>
+          <div class="action-buttons">
+            <button data-gyro="250" onclick="setGyroRange(250)">±250°/s</button>
+            <button data-gyro="500" onclick="setGyroRange(500)">±500°/s</button>
+            <button data-gyro="1000" onclick="setGyroRange(1000)">±1000°/s</button>
+            <button data-gyro="2000" onclick="setGyroRange(2000)">±2000°/s</button>
+          </div>
+        </div>
+
+        <div class="control-group">
+          <label style="display:block; margin-bottom:0.5rem; color: var(--muted); font-size:0.9rem; font-weight:600;">DLPF & Sample Rate</label>
+          <div class="action-buttons">
+            <button data-dlpf="3" onclick="setDLPF(3)">DLPF 41Hz</button>
+            <button data-dlpf="2" onclick="setDLPF(2)">DLPF 92Hz</button>
+            <button data-dlpf="1" onclick="setDLPF(1)">DLPF 184Hz</button>
+            <button data-dlpf="0" onclick="setDLPF(0)">DLPF 250Hz</button>
+            <button data-dlpf="4" onclick="setDLPF(4)">DLPF 20Hz</button>
+            <button data-dlpf="5" onclick="setDLPF(5)">DLPF 10Hz</button>
+            <button data-dlpf="6" onclick="setDLPF(6)">DLPF 5Hz</button>
+            <button data-srate="100" onclick="setSampleRate(100)">SR 100Hz</button>
+            <button data-srate="200" onclick="setSampleRate(200)">SR 200Hz</button>
+            <button data-srate="500" onclick="setSampleRate(500)">SR 500Hz</button>
+            <button data-srate="1000" onclick="setSampleRate(1000)">SR 1000Hz</button>
+          </div>
+        </div>
+
+        <div class="control-group">
+          <label style="display:block; margin-bottom:0.5rem; color: var(--muted); font-size:0.9rem; font-weight:600;">Magnetometer Resolution</label>
+          <div class="action-buttons">
+            <button data-magres="14" onclick="setMagResolution(14)">Mag 14-bit</button>
+            <button data-magres="16" onclick="setMagResolution(16)">Mag 16-bit</button>
+          </div>
+        </div>
       </div>
 
-      <div class="control-group">
-        <label for="averaging-select">Averaging:</label>
-        <select id="averaging-select">
-          <option value="1">No Averaging (1)</option>
-          <option value="5">5 Samples</option>
-          <option value="10">10 Samples</option>
-          <option value="20">20 Samples</option>
-        </select>
-      </div>
-
-      <div class="control-group action-buttons">
-        <button onclick="readAllRegisters()">📖 Read All Registers</button>
-        <button onclick="reinitializeIMU()">🔄 Reinitialize IMU</button>
-      </div>
-    </div>
-
-    <!-- Live Sensor Data -->
-    <div class="live-sensor-card">
+      <!-- Live Sensor Data -->
+      <div class="live-sensor-card">
       <h2>🔴 Live Sensor Data</h2>
       <div class="sensor-grid">
         <div class="sensor-section">
@@ -493,18 +598,21 @@ cd /home/dalarub/go/src/github.com/relabs-tech/inertial_computer<br/>sudo ./regi
           <div class="sensor-axes">
             <div class="sensor-axis">
               <span class="axis-label">X</span>
-              <div>Raw ADC counts (±8g)</div>
+              <div>Raw ADC counts</div>
               <span class="axis-value" id="accel-x">---</span>
+              <div class="axis-subvalue">⇢ <span id="accel-x-g">---</span> g</div>
             </div>
             <div class="sensor-axis">
               <span class="axis-label">Y</span>
-              <div>Raw ADC counts (±8g)</div>
+              <div>Raw ADC counts</div>
               <span class="axis-value" id="accel-y">---</span>
+              <div class="axis-subvalue">⇢ <span id="accel-y-g">---</span> g</div>
             </div>
             <div class="sensor-axis">
               <span class="axis-label">Z</span>
-              <div>Raw ADC counts (±8g)</div>
+              <div>Raw ADC counts</div>
               <span class="axis-value" id="accel-z">---</span>
+              <div class="axis-subvalue">⇢ <span id="accel-z-g">---</span> g</div>
             </div>
             <div style="grid-column: 1 / -1; padding: 0.5rem; background: rgba(255,255,255,0.02); border-radius: 4px; font-size: 0.8rem; color: var(--muted);">
               <strong>Range:</strong> <span id="accel-range">±8g</span>
@@ -517,18 +625,21 @@ cd /home/dalarub/go/src/github.com/relabs-tech/inertial_computer<br/>sudo ./regi
           <div class="sensor-axes">
             <div class="sensor-axis">
               <span class="axis-label">X</span>
-              <div>Raw ADC counts (±500°/s)</div>
+              <div>Raw ADC counts</div>
               <span class="axis-value" id="gyro-x">---</span>
+              <div class="axis-subvalue">⇢ <span id="gyro-x-dps">---</span> °/s</div>
             </div>
             <div class="sensor-axis">
               <span class="axis-label">Y</span>
-              <div>Raw ADC counts (±500°/s)</div>
+              <div>Raw ADC counts</div>
               <span class="axis-value" id="gyro-y">---</span>
+              <div class="axis-subvalue">⇢ <span id="gyro-y-dps">---</span> °/s</div>
             </div>
             <div class="sensor-axis">
               <span class="axis-label">Z</span>
-              <div>Raw ADC counts (±500°/s)</div>
+              <div>Raw ADC counts</div>
               <span class="axis-value" id="gyro-z">---</span>
+              <div class="axis-subvalue">⇢ <span id="gyro-z-dps">---</span> °/s</div>
             </div>
             <div style="grid-column: 1 / -1; padding: 0.5rem; background: rgba(255,255,255,0.02); border-radius: 4px; font-size: 0.8rem; color: var(--muted);">
               <strong>Range:</strong> <span id="gyro-range">±500°/s</span>
@@ -543,16 +654,19 @@ cd /home/dalarub/go/src/github.com/relabs-tech/inertial_computer<br/>sudo ./regi
               <span class="axis-label">X</span>
               <div>µT × 10</div>
               <span class="axis-value" id="mag-x">---</span>
+              <div class="axis-subvalue">⇢ <span id="mag-x-ut">---</span> µT</div>
             </div>
             <div class="sensor-axis">
               <span class="axis-label">Y</span>
               <div>µT × 10</div>
               <span class="axis-value" id="mag-y">---</span>
+              <div class="axis-subvalue">⇢ <span id="mag-y-ut">---</span> µT</div>
             </div>
             <div class="sensor-axis">
               <span class="axis-label">Z</span>
               <div>µT × 10</div>
               <span class="axis-value" id="mag-z">---</span>
+              <div class="axis-subvalue">⇢ <span id="mag-z-ut">---</span> µT</div>
             </div>
             <div style="grid-column: 1 / -1; padding: 0.5rem; background: rgba(255,255,255,0.02); border-radius: 4px; font-size: 0.8rem; color: var(--muted);">
               <strong>|B|:</strong> <span id="mag-magnitude">---</span> µT
@@ -562,9 +676,57 @@ cd /home/dalarub/go/src/github.com/relabs-tech/inertial_computer<br/>sudo ./regi
       </div>
     </div>
 
+    <!-- Quick Configs under live data to shorten side stack -->
+    <div class="quick-controls">
+      <div class="quick-group">
+        <label class="quick-label">Accelerometer Range</label>
+        <div class="action-buttons">
+          <button data-accel="2" onclick="setAccelRange(2)">±2g</button>
+          <button data-accel="4" onclick="setAccelRange(4)">±4g</button>
+          <button data-accel="8" onclick="setAccelRange(8)">±8g</button>
+          <button data-accel="16" onclick="setAccelRange(16)">±16g</button>
+        </div>
+      </div>
+
+      <div class="quick-group">
+        <label class="quick-label">Gyroscope Range</label>
+        <div class="action-buttons">
+          <button data-gyro="250" onclick="setGyroRange(250)">±250°/s</button>
+          <button data-gyro="500" onclick="setGyroRange(500)">±500°/s</button>
+          <button data-gyro="1000" onclick="setGyroRange(1000)">±1000°/s</button>
+          <button data-gyro="2000" onclick="setGyroRange(2000)">±2000°/s</button>
+        </div>
+      </div>
+
+      <div class="quick-group">
+        <label class="quick-label">DLPF & Sample Rate</label>
+        <div class="action-buttons">
+          <button data-dlpf="3" onclick="setDLPF(3)">DLPF 41Hz</button>
+          <button data-dlpf="2" onclick="setDLPF(2)">DLPF 92Hz</button>
+          <button data-dlpf="1" onclick="setDLPF(1)">DLPF 184Hz</button>
+          <button data-dlpf="0" onclick="setDLPF(0)">DLPF 250Hz</button>
+          <button data-dlpf="4" onclick="setDLPF(4)">DLPF 20Hz</button>
+          <button data-dlpf="5" onclick="setDLPF(5)">DLPF 10Hz</button>
+          <button data-dlpf="6" onclick="setDLPF(6)">DLPF 5Hz</button>
+          <button data-srate="100" onclick="setSampleRate(100)">SR 100Hz</button>
+          <button data-srate="200" onclick="setSampleRate(200)">SR 200Hz</button>
+          <button data-srate="500" onclick="setSampleRate(500)">SR 500Hz</button>
+          <button data-srate="1000" onclick="setSampleRate(1000)">SR 1000Hz</button>
+        </div>
+      </div>
+
+      <div class="quick-group">
+        <label class="quick-label">Magnetometer Resolution</label>
+        <div class="action-buttons">
+          <button data-magres="14" onclick="setMagResolution(14)">Mag 14-bit</button>
+          <button data-magres="16" onclick="setMagResolution(16)">Mag 16-bit</button>
+        </div>
+      </div>
+    </div>
+
     <!-- Register Table -->
     <div class="table-container">
-      <h2>📋 MPU9250 Registers (0x00-0x7F)</h2>
+      <h2>📋 <span id="register-heading">MPU9250 Registers (0x00-0x7F)</span></h2>
       <table>
         <thead>
           <tr>
@@ -589,12 +751,17 @@ cd /home/dalarub/go/src/github.com/relabs-tech/inertial_computer<br/>sudo ./regi
   <script>
     let ws = null;
     let currentDevice = 'left';
+    let currentRegisterDevice = 'mpu9250';
     let registerMap = [];
-    let registerValues = {};
+    const registerValuesByDevice = { mpu9250: {}, ak8963: {} };
     let reconnectAttempts = 0;
     const MAX_RECONNECT_ATTEMPTS = 5;
     let liveDataTimer = null;
     const LIVE_POLL_MS = 500;
+    const accelSensitivity = { 2: 16384, 4: 8192, 8: 4096, 16: 2048 };
+    const gyroSensitivity = { 250: 131, 500: 65.5, 1000: 32.8, 2000: 16.4 };
+    let currentAccelRangeG = 8;
+    let currentGyroRangeDps = 500;
 
     function connectWebSocket() {
       const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -619,7 +786,7 @@ cd /home/dalarub/go/src/github.com/relabs-tech/inertial_computer<br/>sudo ./regi
         console.log('WebSocket connected successfully');
         reconnectAttempts = 0;
         // Request register map explicitly in case the initial push was missed
-        sendWebSocketMessage({ action: 'get_map', device: 'mpu9250' });
+        sendWebSocketMessage({ action: 'get_map', device: currentRegisterDevice });
         // Populate values on connect
         readAllRegisters();
       };
@@ -655,14 +822,16 @@ cd /home/dalarub/go/src/github.com/relabs-tech/inertial_computer<br/>sudo ./regi
 
     function handleWebSocketMessage(msg) {
       if (msg.type === 'register_data') {
+        const device = (msg.device === 'mpu9250' || msg.device === 'ak8963') ? msg.device : currentRegisterDevice;
         if (msg.registers) {
           // Bulk read response
-          registerValues = normalizeRegisterValues(msg.registers);
+          registerValuesByDevice[device] = normalizeRegisterValues(msg.registers);
+          syncQuickConfigFromRegisters(device);
           renderRegisterTable();
         } else if (msg.addr && msg.value !== undefined) {
           // Single register update
-          registerValues[msg.addr] = parseInt(msg.value, 16);
-          updateRegisterRow(msg.addr, msg.value);
+          updateRegisterRow(msg.addr, msg.value, device);
+          syncQuickConfigFromRegisters(device);
         }
       } else if (msg.type === 'register_map') {
         registerMap = msg.register_map || [];
@@ -699,13 +868,25 @@ cd /home/dalarub/go/src/github.com/relabs-tech/inertial_computer<br/>sudo ./regi
       document.getElementById('accel-y').textContent = formatAxis(accel.y);
       document.getElementById('accel-z').textContent = formatAxis(accel.z);
 
+      document.getElementById('accel-x-g').textContent = formatAxis(toG(accel.x));
+      document.getElementById('accel-y-g').textContent = formatAxis(toG(accel.y));
+      document.getElementById('accel-z-g').textContent = formatAxis(toG(accel.z));
+
       document.getElementById('gyro-x').textContent = formatAxis(gyro.x);
       document.getElementById('gyro-y').textContent = formatAxis(gyro.y);
       document.getElementById('gyro-z').textContent = formatAxis(gyro.z);
 
+      document.getElementById('gyro-x-dps').textContent = formatAxis(toDps(gyro.x));
+      document.getElementById('gyro-y-dps').textContent = formatAxis(toDps(gyro.y));
+      document.getElementById('gyro-z-dps').textContent = formatAxis(toDps(gyro.z));
+
       document.getElementById('mag-x').textContent = formatAxis(mag.x);
       document.getElementById('mag-y').textContent = formatAxis(mag.y);
       document.getElementById('mag-z').textContent = formatAxis(mag.z);
+
+      document.getElementById('mag-x-ut').textContent = formatAxis(toMicroTesla(mag.x));
+      document.getElementById('mag-y-ut').textContent = formatAxis(toMicroTesla(mag.y));
+      document.getElementById('mag-z-ut').textContent = formatAxis(toMicroTesla(mag.z));
 
       const magMagnitude = computeMagnitude(mag.x, mag.y, mag.z);
       document.getElementById('mag-magnitude').textContent = magMagnitude ?? '---';
@@ -728,6 +909,23 @@ cd /home/dalarub/go/src/github.com/relabs-tech/inertial_computer<br/>sudo ./regi
       return Math.sqrt(fx * fx + fy * fy + fz * fz).toFixed(1);
     }
 
+    function toG(raw) {
+      if (raw === undefined || raw === null) return null;
+      const sens = accelSensitivity[currentAccelRangeG] || 4096;
+      return (Number(raw) / sens).toFixed(3);
+    }
+
+    function toDps(raw) {
+      if (raw === undefined || raw === null) return null;
+      const sens = gyroSensitivity[currentGyroRangeDps] || 65.5;
+      return (Number(raw) / sens).toFixed(3);
+    }
+
+    function toMicroTesla(raw) {
+      if (raw === undefined || raw === null) return null;
+      return (Number(raw) / 10).toFixed(1);
+    }
+
     function sendWebSocketMessage(msg) {
       if (!ws || ws.readyState !== WebSocket.OPEN) {
         alert('WebSocket not connected');
@@ -738,7 +936,7 @@ cd /home/dalarub/go/src/github.com/relabs-tech/inertial_computer<br/>sudo ./regi
     }
 
     function readAllRegisters() {
-      sendWebSocketMessage({ action: 'read_all' });
+      sendWebSocketMessage({ action: 'read_all', device: currentRegisterDevice });
     }
 
     function reinitializeIMU() {
@@ -749,9 +947,19 @@ cd /home/dalarub/go/src/github.com/relabs-tech/inertial_computer<br/>sudo ./regi
 
     function deviceChanged() {
       currentDevice = document.getElementById('device-select').value;
-      registerValues = {};
+      registerValuesByDevice.mpu9250 = {};
+      registerValuesByDevice.ak8963 = {};
       document.getElementById('register-table').innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 2rem;"><span style="color: var(--muted);">Click "Read All Registers" to populate table</span></td></tr>';
       startLiveDataPolling();
+    }
+
+    function registerDeviceChanged() {
+      currentRegisterDevice = document.getElementById('register-device-select').value;
+      registerValuesByDevice[currentRegisterDevice] = registerValuesByDevice[currentRegisterDevice] || {};
+      document.getElementById('register-table').innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 2rem;"><span style="color: var(--muted);">Click "Read All Registers" to populate table</span></td></tr>';
+      updateRegisterHeading();
+      sendWebSocketMessage({ action: 'get_map', device: currentRegisterDevice });
+      readAllRegisters();
     }
 
     function renderRegisterTable() {
@@ -762,6 +970,8 @@ cd /home/dalarub/go/src/github.com/relabs-tech/inertial_computer<br/>sudo ./regi
         tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 2rem;"><span style="color: var(--muted);">No register map available</span></td></tr>';
         return;
       }
+
+      const registerValues = registerValuesByDevice[currentRegisterDevice] || {};
 
       registerMap.forEach((reg) => {
         const addr = typeof reg.address === 'string' ? reg.address : '0x' + reg.address.toString(16).toUpperCase().padStart(2, '0');
@@ -806,6 +1016,15 @@ cd /home/dalarub/go/src/github.com/relabs-tech/inertial_computer<br/>sudo ./regi
       });
     }
 
+    function updateRegisterRow(addr, value, device) {
+      // Simple refresh path: update cache and re-render row set for consistency
+      const parsed = typeof value === 'string' ? parseInt(value, 16) : Number(value) || 0;
+      const dev = (device === 'mpu9250' || device === 'ak8963') ? device : currentRegisterDevice;
+      registerValuesByDevice[dev] = registerValuesByDevice[dev] || {};
+      registerValuesByDevice[dev][addr.startsWith('0x') ? addr.toUpperCase() : addr] = parsed;
+      renderRegisterTable();
+    }
+
     function normalizeRegisterValues(rawMap) {
       const normalized = {};
       Object.entries(rawMap || {}).forEach(([addr, value]) => {
@@ -815,6 +1034,99 @@ cd /home/dalarub/go/src/github.com/relabs-tech/inertial_computer<br/>sudo ./regi
         normalized[parseInt(addrKey, 16)] = parsedValue;
       });
       return normalized;
+    }
+
+    function markActive(group, targetValue) {
+      document.querySelectorAll(`[data-${group}]`).forEach((btn) => {
+        const val = btn.getAttribute(`data-${group}`);
+        btn.classList.toggle('active', Number(val) === Number(targetValue));
+      });
+    }
+
+    function syncQuickConfigFromRegisters(device) {
+      if (device === 'mpu9250') {
+        const regs = registerValuesByDevice.mpu9250 || {};
+        const accelCfg = regs['0x1C'];
+        if (accelCfg !== undefined) {
+          const shift = (accelCfg >> 3) & 0x03;
+          const range = { 0: 2, 1: 4, 2: 8, 3: 16 }[shift] || currentAccelRangeG;
+          currentAccelRangeG = range;
+          document.getElementById('accel-range').textContent = `±${range}g`;
+          markActive('accel', range);
+        }
+
+        const gyroCfg = regs['0x1B'];
+        if (gyroCfg !== undefined) {
+          const shift = (gyroCfg >> 3) & 0x03;
+          const range = { 0: 250, 1: 500, 2: 1000, 3: 2000 }[shift] || currentGyroRangeDps;
+          currentGyroRangeDps = range;
+          document.getElementById('gyro-range').textContent = `±${range}°/s`;
+          markActive('gyro', range);
+        }
+
+        const dlpfCfg = regs['0x1A'];
+        if (dlpfCfg !== undefined) {
+          const cfg = dlpfCfg & 0x07;
+          markActive('dlpf', cfg);
+        }
+
+        const smplrt = regs['0x19'];
+        if (smplrt !== undefined) {
+          const base = 1000; // with DLPF enabled
+          const rate = Math.round(base / (1 + smplrt));
+          markActive('srate', rate);
+        }
+      } else if (device === 'ak8963') {
+        const regs = registerValuesByDevice.ak8963 || {};
+        const cntl1 = regs['0x0A'];
+        if (cntl1 !== undefined) {
+          const bits = (cntl1 & 0x10) ? 16 : 14;
+          markActive('magres', bits);
+        }
+      }
+    }
+
+    function setAccelRange(rangeG) {
+      currentAccelRangeG = rangeG;
+      document.getElementById('accel-range').textContent = `±${rangeG}g`;
+      markActive('accel', rangeG);
+      // ACCEL_CONFIG (0x1C): bits[4:3] set range
+      const shift = { 2: 0, 4: 1, 8: 2, 16: 3 }[rangeG] ?? 2;
+      const value = (shift << 3) & 0x18;
+      sendWebSocketMessage({ action: 'write', device: 'mpu9250', addr: '0x1C', value: `0x${value.toString(16).toUpperCase().padStart(2, '0')}` });
+    }
+
+    function setGyroRange(rangeDps) {
+      currentGyroRangeDps = rangeDps;
+      document.getElementById('gyro-range').textContent = `±${rangeDps}°/s`;
+      markActive('gyro', rangeDps);
+      // GYRO_CONFIG (0x1B): bits[4:3]
+      const shift = { 250: 0, 500: 1, 1000: 2, 2000: 3 }[rangeDps] ?? 1;
+      const value = (shift << 3) & 0x18;
+      sendWebSocketMessage({ action: 'write', device: 'mpu9250', addr: '0x1B', value: `0x${value.toString(16).toUpperCase().padStart(2, '0')}` });
+    }
+
+    function setDLPF(cfg) {
+      // CONFIG (0x1A): bits[2:0] DLPF_CFG
+      const value = cfg & 0x07;
+      markActive('dlpf', cfg);
+      sendWebSocketMessage({ action: 'write', device: 'mpu9250', addr: '0x1A', value: `0x${value.toString(16).toUpperCase().padStart(2, '0')}` });
+    }
+
+    function setSampleRate(targetHz) {
+      // SMPLRT_DIV (0x19): sample_rate = gyro_output_rate / (1 + div), gyro_output_rate=1kHz when DLPF on
+      const base = 1000;
+      const divider = Math.max(0, Math.round((base / targetHz) - 1));
+      const clamped = Math.min(255, divider);
+      markActive('srate', Math.round(base / (clamped + 1)));
+      sendWebSocketMessage({ action: 'write', device: 'mpu9250', addr: '0x19', value: `0x${clamped.toString(16).toUpperCase().padStart(2, '0')}` });
+    }
+
+    function setMagResolution(bits) {
+      // AK8963 CNTL1 (0x0A): 0x12 = 14-bit continuous mode 2 (100Hz), 0x16 = 16-bit continuous mode 2 (100Hz)
+      const value = bits === 14 ? 0x12 : 0x16;
+      markActive('magres', bits === 14 ? 14 : 16);
+      sendWebSocketMessage({ action: 'write', device: 'ak8963', addr: '0x0A', value: `0x${value.toString(16).toUpperCase().padStart(2, '0')}` });
     }
 
     function fetchLiveData() {
@@ -841,7 +1153,15 @@ cd /home/dalarub/go/src/github.com/relabs-tech/inertial_computer<br/>sudo ./regi
     window.addEventListener('load', () => {
       connectWebSocket();
       startLiveDataPolling();
+      updateRegisterHeading();
     });
+
+    function updateRegisterHeading() {
+      const heading = document.getElementById('register-heading');
+      heading.textContent = currentRegisterDevice === 'ak8963'
+        ? 'AK8963 Registers (0x00-0x0F)'
+        : 'MPU9250 Registers (0x00-0x7F)';
+    }
   </script>
 </body>
 </html>
