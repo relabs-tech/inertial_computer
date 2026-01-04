@@ -13,6 +13,7 @@ import (
 
 	"github.com/gorilla/websocket"
 	"github.com/relabs-tech/inertial_computer/internal/config"
+	"github.com/relabs-tech/inertial_computer/internal/imu"
 	"github.com/relabs-tech/inertial_computer/internal/sensors"
 )
 
@@ -455,6 +456,26 @@ func (s *RegisterDebugSession) sendError(message string) {
 	s.Conn.WriteJSON(resp)
 }
 
+// IMUDataResponse wraps IMU sensor data with properly formatted fields
+type IMUDataResponse struct {
+	Accel struct {
+		X int16 `json:"x"`
+		Y int16 `json:"y"`
+		Z int16 `json:"z"`
+	} `json:"accel"`
+	Gyro struct {
+		X int16 `json:"x"`
+		Y int16 `json:"y"`
+		Z int16 `json:"z"`
+	} `json:"gyro"`
+	Mag struct {
+		X int16 `json:"x"`
+		Y int16 `json:"y"`
+		Z int16 `json:"z"`
+	} `json:"mag"`
+	Timestamp string `json:"timestamp"`
+}
+
 // HandleIMUData serves live IMU data via REST API
 // Query parameter: ?imu=left or ?imu=right (defaults to left)
 func HandleIMUData(w http.ResponseWriter, r *http.Request) {
@@ -468,13 +489,13 @@ func HandleIMUData(w http.ResponseWriter, r *http.Request) {
 
 	mgr := sensors.GetIMUManager()
 
-	var raw interface{}
+	var imuRaw imu.IMURaw
 	var err error
 
 	if imuID == "left" {
-		raw, err = mgr.ReadLeftIMU()
+		imuRaw, err = mgr.ReadLeftIMU()
 	} else if imuID == "right" {
-		raw, err = mgr.ReadRightIMU()
+		imuRaw, err = mgr.ReadRightIMU()
 	} else {
 		http.Error(w, `{"error": "invalid imu parameter, use 'left' or 'right'"}`, http.StatusBadRequest)
 		return
@@ -485,7 +506,25 @@ func HandleIMUData(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	json.NewEncoder(w).Encode(raw)
+	// Build response
+	resp := IMUDataResponse{
+		Timestamp: time.Now().Format(time.RFC3339),
+	}
+	resp.Accel.X = imuRaw.Ax
+	resp.Accel.Y = imuRaw.Ay
+	resp.Accel.Z = imuRaw.Az
+	resp.Gyro.X = imuRaw.Gx
+	resp.Gyro.Y = imuRaw.Gy
+	resp.Gyro.Z = imuRaw.Gz
+	resp.Mag.X = imuRaw.Mx
+	resp.Mag.Y = imuRaw.My
+	resp.Mag.Z = imuRaw.Mz
+
+	log.Printf("[IMU-API] %s: Ax=%d Ay=%d Az=%d | Gx=%d Gy=%d Gz=%d | Mx=%d My=%d Mz=%d",
+		imuID, imuRaw.Ax, imuRaw.Ay, imuRaw.Az, imuRaw.Gx, imuRaw.Gy, imuRaw.Gz, imuRaw.Mx, imuRaw.My, imuRaw.Mz)
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(resp)
 }
 
 // isRegisterWritable checks if a register address is in the allowed write ranges
