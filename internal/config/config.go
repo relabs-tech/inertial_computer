@@ -57,6 +57,12 @@ type Config struct {
 	IMUSampleRateDiv byte // Sample rate divider (output rate = internal rate / (1 + div))
 	IMUAccelDLPF     byte // Accelerometer DLPF configuration (0-7)
 
+	// Magnetometer Configuration
+	// Resolution: 14 or 16 bits (sets AK8963 CNTL bit 4)
+	MagBitResolution int
+	// Output rate (Hz): 8 or 100 (sets AK8963 mode bits [3:0])
+	MagOutputRateHz int
+
 	// BMP Hardware
 	BMPLeftSPIDevice  string
 	BMPRightSPIDevice string
@@ -283,6 +289,26 @@ func (c *Config) setValue(key, value string) error {
 			return fmt.Errorf("IMU_ACCEL_DLPF must be 0-7, got %d", val)
 		}
 		c.IMUAccelDLPF = byte(val)
+
+	// Magnetometer Configuration
+	case "MAG_BIT_RESOLUTION":
+		val, err := strconv.Atoi(value)
+		if err != nil {
+			return fmt.Errorf("invalid MAG_BIT_RESOLUTION %q: %w", value, err)
+		}
+		if val != 14 && val != 16 {
+			return fmt.Errorf("MAG_BIT_RESOLUTION must be 14 or 16, got %d", val)
+		}
+		c.MagBitResolution = val
+	case "MAG_OUTPUT_RATE_HZ":
+		val, err := strconv.Atoi(value)
+		if err != nil {
+			return fmt.Errorf("invalid MAG_OUTPUT_RATE_HZ %q: %w", value, err)
+		}
+		if val != 8 && val != 100 {
+			return fmt.Errorf("MAG_OUTPUT_RATE_HZ must be 8 or 100, got %d", val)
+		}
+		c.MagOutputRateHz = val
 
 	// BMP Hardware
 	case "BMP_LEFT_SPI_DEVICE":

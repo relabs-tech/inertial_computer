@@ -51,6 +51,12 @@ IMU_ACCEL_RANGE=2
 # Gyroscope: 0=±250°/s, 1=±500°/s, 2=±1000°/s, 3=±2000°/s
 IMU_GYRO_RANGE=1
 
+# Magnetometer resolution/rate (AK8963)
+# Resolution: 14 or 16 bits (bit 4 of CNTL)
+MAG_BIT_RESOLUTION=16
+# Output data rate (Hz): 8 or 100 (bits [3:0] of CNTL)
+MAG_OUTPUT_RATE_HZ=100
+
 # IMU Sample Rate Configuration
 # DLPF (Digital Low Pass Filter): 0-6 sets bandwidth and internal sample rate
 # 0=260Hz/256Hz, 1=184Hz, 2=94Hz, 3=44Hz, 4=21Hz, 5=10Hz, 6=5Hz

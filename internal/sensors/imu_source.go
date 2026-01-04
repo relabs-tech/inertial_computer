@@ -129,12 +129,94 @@ func newIMUSource(name, spiDev, csPin string) (IMURawReader, error) {
 	}
 
 	log.Printf("%s IMU: magnetometer initialized successfully", name)
+
+	// Apply magnetometer resolution/rate from config (defaults: 16-bit, 100 Hz)
+	if err := configureMagSettings(imu, cfg); err != nil {
+		log.Printf("%s IMU: magnetometer config warning: %v", name, err)
+	}
 	return &imuSource{
 		name:     name,
 		imu:      imu,
 		magCal:   magCal,
 		magReady: true,
 	}, nil
+}
+
+const (
+	ak8963Cntl       = 0x0A
+	defaultMagRateHz = 100
+	defaultMagBits   = 16
+)
+
+func configureMagSettings(imu *mpu9250.MPU9250, cfg *config.Config) error {
+	// Fallback defaults for backward compatibility
+	resBits := cfg.MagBitResolution
+	if resBits == 0 {
+		resBits = defaultMagBits
+	}
+	rateHz := cfg.MagOutputRateHz
+	if rateHz == 0 {
+		rateHz = defaultMagRateHz
+	}
+
+	var resMask byte
+	switch resBits {
+	case 14:
+		resMask = 0x00
+	case 16:
+		resMask = 0x10
+	default:
+		return fmt.Errorf("invalid magnetometer resolution %d (expected 14 or 16)", resBits)
+	}
+
+	var modeMask byte
+	switch rateHz {
+	case 8:
+		modeMask = 0x02
+	case 100:
+		modeMask = 0x06
+	default:
+		return fmt.Errorf("invalid magnetometer rate %d Hz (expected 8 or 100)", rateHz)
+	}
+
+	// Power down then apply new mode
+	if err := writeAK8963Register(imu, ak8963Cntl, 0x00); err != nil {
+		return fmt.Errorf("power-down failed: %w", err)
+	}
+	time.Sleep(10 * time.Millisecond)
+
+	value := resMask | modeMask
+	if err := writeAK8963Register(imu, ak8963Cntl, value); err != nil {
+		return fmt.Errorf("set CNTL failed: %w", err)
+	}
+	time.Sleep(10 * time.Millisecond)
+
+	log.Printf("IMU: magnetometer set to %d-bit @ %d Hz (CNTL=0x%02X)", resBits, rateHz, value)
+	return nil
+}
+
+// writeAK8963Register mirrors the helper in imuSource but scoped for config-time setup.
+func writeAK8963Register(m *mpu9250.MPU9250, regAddr byte, value byte) error {
+	const ak8963Addr = 0x0C
+	const i2cSlv0Addr = 0x25
+	const i2cSlv0Reg = 0x26
+	const i2cSlv0DO = 0x28
+	const i2cSlv0Ctrl = 0x27
+
+	// Configure I2C slave 0 for writing to AK8963
+	if err := m.WriteRegister(i2cSlv0Addr, ak8963Addr); err != nil {
+		return fmt.Errorf("set slave addr: %w", err)
+	}
+	if err := m.WriteRegister(i2cSlv0Reg, regAddr); err != nil {
+		return fmt.Errorf("set reg addr: %w", err)
+	}
+	if err := m.WriteRegister(i2cSlv0DO, value); err != nil {
+		return fmt.Errorf("set write data: %w", err)
+	}
+	if err := m.WriteRegister(i2cSlv0Ctrl, 0x81); err != nil { // enable, 1 byte
+		return fmt.Errorf("enable write: %w", err)
+	}
+	return nil
 }
 
 // ReadRaw reads accelerometer, gyroscope, and magnetometer data from this IMU.
