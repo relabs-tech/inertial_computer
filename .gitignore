@@ -4,6 +4,8 @@
 /imu_producer
 /gps_producer
 /web
+!/web/
+!/web/register_debug.html
 /calibration
 /display
 
