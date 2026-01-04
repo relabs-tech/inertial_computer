@@ -8,6 +8,7 @@
 !/web/register_debug.html
 /calibration
 /display
+/web/inertial_computer.code-workspace
 
 # Go build artifacts
 *.test

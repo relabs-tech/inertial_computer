@@ -80,17 +80,18 @@
     }
 
     .main-panel {
-      display: grid;
-      grid-template-columns: 340px 1fr;
+      display: flex;
+      flex-direction: column;
       gap: 1rem;
-      align-items: start;
+      align-items: stretch;
       margin-bottom: 2rem;
     }
 
-    .side-panel {
-      display: flex;
-      flex-direction: column;
+    .control-rail {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
       gap: 0.75rem;
+      align-items: stretch;
     }
 
     .control-group {
@@ -253,9 +254,9 @@
       border-radius: 12px;
       padding: 1.5rem;
       border: 1px solid #333;
-      margin: 0 -2rem 2rem;
-      width: calc(100vw - 4rem);
-      max-width: none;
+      margin: 0 0 2rem;
+      width: 100%;
+      max-width: 100%;
       overflow-x: auto;
     }
 
@@ -456,10 +457,6 @@
     }
 
     @media (max-width: 768px) {
-      .main-panel {
-        grid-template-columns: 1fr;
-      }
-
       .sensor-grid {
         grid-template-columns: 1fr;
       }
@@ -511,7 +508,7 @@ cd /home/dalarub/go/src/github.com/relabs-tech/inertial_computer<br/>sudo ./regi
     </div>
 
     <div class="main-panel">
-      <div class="side-panel">
+      <div class="control-rail">
         <div class="control-group">
           <label for="device-select">Select Device:</label>
           <select id="device-select" onchange="deviceChanged()">
@@ -541,51 +538,6 @@ cd /home/dalarub/go/src/github.com/relabs-tech/inertial_computer<br/>sudo ./regi
         <div class="control-group action-buttons">
           <button onclick="readAllRegisters()">📖 Read All Registers</button>
           <button onclick="reinitializeIMU()">🔄 Reinitialize IMU</button>
-        </div>
-
-        <div class="control-group">
-          <label style="display:block; margin-bottom:0.5rem; color: var(--muted); font-size:0.9rem; font-weight:600;">Accelerometer Range</label>
-          <div class="action-buttons">
-            <button data-accel="2" onclick="setAccelRange(2)">±2g</button>
-            <button data-accel="4" onclick="setAccelRange(4)">±4g</button>
-            <button data-accel="8" onclick="setAccelRange(8)">±8g</button>
-            <button data-accel="16" onclick="setAccelRange(16)">±16g</button>
-          </div>
-        </div>
-
-        <div class="control-group">
-          <label style="display:block; margin-bottom:0.5rem; color: var(--muted); font-size:0.9rem; font-weight:600;">Gyroscope Range</label>
-          <div class="action-buttons">
-            <button data-gyro="250" onclick="setGyroRange(250)">±250°/s</button>
-            <button data-gyro="500" onclick="setGyroRange(500)">±500°/s</button>
-            <button data-gyro="1000" onclick="setGyroRange(1000)">±1000°/s</button>
-            <button data-gyro="2000" onclick="setGyroRange(2000)">±2000°/s</button>
-          </div>
-        </div>
-
-        <div class="control-group">
-          <label style="display:block; margin-bottom:0.5rem; color: var(--muted); font-size:0.9rem; font-weight:600;">DLPF & Sample Rate</label>
-          <div class="action-buttons">
-            <button data-dlpf="3" onclick="setDLPF(3)">DLPF 41Hz</button>
-            <button data-dlpf="2" onclick="setDLPF(2)">DLPF 92Hz</button>
-            <button data-dlpf="1" onclick="setDLPF(1)">DLPF 184Hz</button>
-            <button data-dlpf="0" onclick="setDLPF(0)">DLPF 250Hz</button>
-            <button data-dlpf="4" onclick="setDLPF(4)">DLPF 20Hz</button>
-            <button data-dlpf="5" onclick="setDLPF(5)">DLPF 10Hz</button>
-            <button data-dlpf="6" onclick="setDLPF(6)">DLPF 5Hz</button>
-            <button data-srate="100" onclick="setSampleRate(100)">SR 100Hz</button>
-            <button data-srate="200" onclick="setSampleRate(200)">SR 200Hz</button>
-            <button data-srate="500" onclick="setSampleRate(500)">SR 500Hz</button>
-            <button data-srate="1000" onclick="setSampleRate(1000)">SR 1000Hz</button>
-          </div>
-        </div>
-
-        <div class="control-group">
-          <label style="display:block; margin-bottom:0.5rem; color: var(--muted); font-size:0.9rem; font-weight:600;">Magnetometer Resolution</label>
-          <div class="action-buttons">
-            <button data-magres="14" onclick="setMagResolution(14)">Mag 14-bit</button>
-            <button data-magres="16" onclick="setMagResolution(16)">Mag 16-bit</button>
-          </div>
         </div>
       </div>
 
@@ -674,77 +626,77 @@ cd /home/dalarub/go/src/github.com/relabs-tech/inertial_computer<br/>sudo ./regi
           </div>
         </div>
       </div>
-    </div>
 
-    <!-- Quick Configs under live data to shorten side stack -->
-    <div class="quick-controls">
-      <div class="quick-group">
-        <label class="quick-label">Accelerometer Range</label>
-        <div class="action-buttons">
-          <button data-accel="2" onclick="setAccelRange(2)">±2g</button>
-          <button data-accel="4" onclick="setAccelRange(4)">±4g</button>
-          <button data-accel="8" onclick="setAccelRange(8)">±8g</button>
-          <button data-accel="16" onclick="setAccelRange(16)">±16g</button>
+      <!-- Quick Configs under live data to shorten side stack -->
+      <div class="quick-controls">
+        <div class="quick-group">
+          <label class="quick-label">Accelerometer Range</label>
+          <div class="action-buttons">
+            <button data-accel="2" onclick="setAccelRange(2)">±2g</button>
+            <button data-accel="4" onclick="setAccelRange(4)">±4g</button>
+            <button data-accel="8" onclick="setAccelRange(8)">±8g</button>
+            <button data-accel="16" onclick="setAccelRange(16)">±16g</button>
+          </div>
+        </div>
+
+        <div class="quick-group">
+          <label class="quick-label">Gyroscope Range</label>
+          <div class="action-buttons">
+            <button data-gyro="250" onclick="setGyroRange(250)">±250°/s</button>
+            <button data-gyro="500" onclick="setGyroRange(500)">±500°/s</button>
+            <button data-gyro="1000" onclick="setGyroRange(1000)">±1000°/s</button>
+            <button data-gyro="2000" onclick="setGyroRange(2000)">±2000°/s</button>
+          </div>
+        </div>
+
+        <div class="quick-group">
+          <label class="quick-label">DLPF & Sample Rate</label>
+          <div class="action-buttons">
+            <button data-dlpf="3" onclick="setDLPF(3)">DLPF 41Hz</button>
+            <button data-dlpf="2" onclick="setDLPF(2)">DLPF 92Hz</button>
+            <button data-dlpf="1" onclick="setDLPF(1)">DLPF 184Hz</button>
+            <button data-dlpf="0" onclick="setDLPF(0)">DLPF 250Hz</button>
+            <button data-dlpf="4" onclick="setDLPF(4)">DLPF 20Hz</button>
+            <button data-dlpf="5" onclick="setDLPF(5)">DLPF 10Hz</button>
+            <button data-dlpf="6" onclick="setDLPF(6)">DLPF 5Hz</button>
+            <button data-srate="100" onclick="setSampleRate(100)">SR 100Hz</button>
+            <button data-srate="200" onclick="setSampleRate(200)">SR 200Hz</button>
+            <button data-srate="500" onclick="setSampleRate(500)">SR 500Hz</button>
+            <button data-srate="1000" onclick="setSampleRate(1000)">SR 1000Hz</button>
+          </div>
+        </div>
+
+        <div class="quick-group">
+          <label class="quick-label">Magnetometer Resolution</label>
+          <div class="action-buttons">
+            <button data-magres="14" onclick="setMagResolution(14)">Mag 14-bit</button>
+            <button data-magres="16" onclick="setMagResolution(16)">Mag 16-bit</button>
+          </div>
         </div>
       </div>
 
-      <div class="quick-group">
-        <label class="quick-label">Gyroscope Range</label>
-        <div class="action-buttons">
-          <button data-gyro="250" onclick="setGyroRange(250)">±250°/s</button>
-          <button data-gyro="500" onclick="setGyroRange(500)">±500°/s</button>
-          <button data-gyro="1000" onclick="setGyroRange(1000)">±1000°/s</button>
-          <button data-gyro="2000" onclick="setGyroRange(2000)">±2000°/s</button>
-        </div>
+      <!-- Register Table -->
+      <div class="table-container">
+        <h2>📋 <span id="register-heading">MPU9250 Registers (0x00-0x7F)</span></h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Address</th>
+              <th>Register</th>
+              <th>Description</th>
+              <th>Value (hex)</th>
+              <th>Access</th>
+            </tr>
+          </thead>
+          <tbody id="register-table">
+            <tr>
+              <td colspan="5" style="text-align: center; padding: 2rem;">
+                <span style="color: var(--muted);">Click "Read All Registers" to populate table</span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
       </div>
-
-      <div class="quick-group">
-        <label class="quick-label">DLPF & Sample Rate</label>
-        <div class="action-buttons">
-          <button data-dlpf="3" onclick="setDLPF(3)">DLPF 41Hz</button>
-          <button data-dlpf="2" onclick="setDLPF(2)">DLPF 92Hz</button>
-          <button data-dlpf="1" onclick="setDLPF(1)">DLPF 184Hz</button>
-          <button data-dlpf="0" onclick="setDLPF(0)">DLPF 250Hz</button>
-          <button data-dlpf="4" onclick="setDLPF(4)">DLPF 20Hz</button>
-          <button data-dlpf="5" onclick="setDLPF(5)">DLPF 10Hz</button>
-          <button data-dlpf="6" onclick="setDLPF(6)">DLPF 5Hz</button>
-          <button data-srate="100" onclick="setSampleRate(100)">SR 100Hz</button>
-          <button data-srate="200" onclick="setSampleRate(200)">SR 200Hz</button>
-          <button data-srate="500" onclick="setSampleRate(500)">SR 500Hz</button>
-          <button data-srate="1000" onclick="setSampleRate(1000)">SR 1000Hz</button>
-        </div>
-      </div>
-
-      <div class="quick-group">
-        <label class="quick-label">Magnetometer Resolution</label>
-        <div class="action-buttons">
-          <button data-magres="14" onclick="setMagResolution(14)">Mag 14-bit</button>
-          <button data-magres="16" onclick="setMagResolution(16)">Mag 16-bit</button>
-        </div>
-      </div>
-    </div>
-
-    <!-- Register Table -->
-    <div class="table-container">
-      <h2>📋 <span id="register-heading">MPU9250 Registers (0x00-0x7F)</span></h2>
-      <table>
-        <thead>
-          <tr>
-            <th>Address</th>
-            <th>Register</th>
-            <th>Description</th>
-            <th>Value (hex)</th>
-            <th>Access</th>
-          </tr>
-        </thead>
-        <tbody id="register-table">
-          <tr>
-            <td colspan="5" style="text-align: center; padding: 2rem;">
-              <span style="color: var(--muted);">Click "Read All Registers" to populate table</span>
-            </td>
-          </tr>
-        </tbody>
-      </table>
     </div>
   </div>
 
