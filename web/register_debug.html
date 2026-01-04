@@ -593,6 +593,8 @@ cd /home/dalarub/go/src/github.com/relabs-tech/inertial_computer<br/>sudo ./regi
     let registerValues = {};
     let reconnectAttempts = 0;
     const MAX_RECONNECT_ATTEMPTS = 5;
+    let liveDataTimer = null;
+    const LIVE_POLL_MS = 500;
 
     function connectWebSocket() {
       const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -616,6 +618,10 @@ cd /home/dalarub/go/src/github.com/relabs-tech/inertial_computer<br/>sudo ./regi
         updateStatus('Connected', true);
         console.log('WebSocket connected successfully');
         reconnectAttempts = 0;
+        // Request register map explicitly in case the initial push was missed
+        sendWebSocketMessage({ action: 'get_map', device: 'mpu9250' });
+        // Populate values on connect
+        readAllRegisters();
       };
 
       ws.onmessage = (event) => {
@@ -651,13 +657,16 @@ cd /home/dalarub/go/src/github.com/relabs-tech/inertial_computer<br/>sudo ./regi
       if (msg.type === 'register_data') {
         if (msg.registers) {
           // Bulk read response
-          registerValues = msg.registers;
+          registerValues = normalizeRegisterValues(msg.registers);
           renderRegisterTable();
         } else if (msg.addr && msg.value !== undefined) {
           // Single register update
-          registerValues[msg.addr] = msg.value;
+          registerValues[msg.addr] = parseInt(msg.value, 16);
           updateRegisterRow(msg.addr, msg.value);
         }
+      } else if (msg.type === 'register_map') {
+        registerMap = msg.register_map || [];
+        renderRegisterTable();
       } else if (msg.type === 'sensor_data') {
         updateLiveSensorData(msg);
       } else if (msg.type === 'status') {
@@ -682,22 +691,41 @@ cd /home/dalarub/go/src/github.com/relabs-tech/inertial_computer<br/>sudo ./regi
     }
 
     function updateLiveSensorData(msg) {
-      if (msg.accel) {
-        document.getElementById('accel-x').textContent = msg.accel.x || '---';
-        document.getElementById('accel-y').textContent = msg.accel.y || '---';
-        document.getElementById('accel-z').textContent = msg.accel.z || '---';
+      const accel = msg.accel || { x: msg.ax, y: msg.ay, z: msg.az };
+      const gyro = msg.gyro || { x: msg.gx, y: msg.gy, z: msg.gz };
+      const mag = msg.mag || { x: msg.mx, y: msg.my, z: msg.mz };
+
+      document.getElementById('accel-x').textContent = formatAxis(accel.x);
+      document.getElementById('accel-y').textContent = formatAxis(accel.y);
+      document.getElementById('accel-z').textContent = formatAxis(accel.z);
+
+      document.getElementById('gyro-x').textContent = formatAxis(gyro.x);
+      document.getElementById('gyro-y').textContent = formatAxis(gyro.y);
+      document.getElementById('gyro-z').textContent = formatAxis(gyro.z);
+
+      document.getElementById('mag-x').textContent = formatAxis(mag.x);
+      document.getElementById('mag-y').textContent = formatAxis(mag.y);
+      document.getElementById('mag-z').textContent = formatAxis(mag.z);
+
+      const magMagnitude = computeMagnitude(mag.x, mag.y, mag.z);
+      document.getElementById('mag-magnitude').textContent = magMagnitude ?? '---';
+    }
+
+    function formatAxis(value) {
+      return value === undefined || value === null ? '---' : value;
+    }
+
+    function computeMagnitude(x, y, z) {
+      if ([x, y, z].some((v) => v === undefined || v === null)) {
+        return null;
       }
-      if (msg.gyro) {
-        document.getElementById('gyro-x').textContent = msg.gyro.x || '---';
-        document.getElementById('gyro-y').textContent = msg.gyro.y || '---';
-        document.getElementById('gyro-z').textContent = msg.gyro.z || '---';
+      const fx = Number(x);
+      const fy = Number(y);
+      const fz = Number(z);
+      if ([fx, fy, fz].some((v) => Number.isNaN(v))) {
+        return null;
       }
-      if (msg.mag) {
-        document.getElementById('mag-x').textContent = msg.mag.x || '---';
-        document.getElementById('mag-y').textContent = msg.mag.y || '---';
-        document.getElementById('mag-z').textContent = msg.mag.z || '---';
-        document.getElementById('mag-magnitude').textContent = msg.mag.magnitude || '---';
-      }
+      return Math.sqrt(fx * fx + fy * fy + fz * fz).toFixed(1);
     }
 
     function sendWebSocketMessage(msg) {
@@ -723,6 +751,7 @@ cd /home/dalarub/go/src/github.com/relabs-tech/inertial_computer<br/>sudo ./regi
       currentDevice = document.getElementById('device-select').value;
       registerValues = {};
       document.getElementById('register-table').innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 2rem;"><span style="color: var(--muted);">Click "Read All Registers" to populate table</span></td></tr>';
+      startLiveDataPolling();
     }
 
     function renderRegisterTable() {
@@ -736,7 +765,7 @@ cd /home/dalarub/go/src/github.com/relabs-tech/inertial_computer<br/>sudo ./regi
 
       registerMap.forEach((reg) => {
         const addr = typeof reg.address === 'string' ? reg.address : '0x' + reg.address.toString(16).toUpperCase().padStart(2, '0');
-        const value = registerValues[addr] || registerValues[parseInt(addr, 16)] || 0;
+        const value = registerValues[addr] ?? registerValues[parseInt(addr, 16)] ?? 0;
         const hexValue = '0x' + (value & 0xFF).toString(16).toUpperCase().padStart(2, '0');
         const writable = reg.access && reg.access.includes('W');
 
@@ -777,9 +806,41 @@ cd /home/dalarub/go/src/github.com/relabs-tech/inertial_computer<br/>sudo ./regi
       });
     }
 
+    function normalizeRegisterValues(rawMap) {
+      const normalized = {};
+      Object.entries(rawMap || {}).forEach(([addr, value]) => {
+        const addrKey = addr.startsWith('0x') ? addr.toUpperCase() : '0x' + Number(addr).toString(16).toUpperCase().padStart(2, '0');
+        const parsedValue = typeof value === 'string' ? parseInt(value, 16) : Number(value) || 0;
+        normalized[addrKey] = parsedValue;
+        normalized[parseInt(addrKey, 16)] = parsedValue;
+      });
+      return normalized;
+    }
+
+    function fetchLiveData() {
+      fetch(`/api/imu?imu=${currentDevice}`)
+        .then((resp) => {
+          if (!resp.ok) {
+            throw new Error(`HTTP ${resp.status}`);
+          }
+          return resp.json();
+        })
+        .then((data) => updateLiveSensorData(data))
+        .catch((err) => console.warn('Live data fetch failed:', err));
+    }
+
+    function startLiveDataPolling() {
+      if (liveDataTimer) {
+        clearInterval(liveDataTimer);
+      }
+      fetchLiveData();
+      liveDataTimer = setInterval(fetchLiveData, LIVE_POLL_MS);
+    }
+
     // Initialize WebSocket connection on page load
     window.addEventListener('load', () => {
       connectWebSocket();
+      startLiveDataPolling();
     });
   </script>
 </body>
