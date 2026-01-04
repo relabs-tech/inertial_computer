@@ -195,3 +195,26 @@ func (s *imuSource) ReadRaw() (imu_raw.IMURaw, error) {
 		Mz:     mz,
 	}, nil
 }
+
+// ReadRegister reads a single register from this IMU.
+func (s *imuSource) ReadRegister(regAddr byte) (byte, error) {
+	return s.imu.ReadRegister(regAddr)
+}
+
+// WriteRegister writes a single register to this IMU.
+func (s *imuSource) WriteRegister(regAddr byte, value byte) error {
+	return s.imu.WriteRegister(regAddr, value)
+}
+
+// ReadAllRegisters reads all MPU9250 registers (0x00-0x7F) from this IMU.
+func (s *imuSource) ReadAllRegisters() (map[byte]byte, error) {
+	registers := make(map[byte]byte)
+	for addr := byte(0x00); addr <= 0x7F; addr++ {
+		value, err := s.imu.ReadRegister(addr)
+		if err != nil {
+			return nil, fmt.Errorf("error reading register 0x%02X: %w", addr, err)
+		}
+		registers[addr] = value
+	}
+	return registers, nil
+}

@@ -125,23 +125,20 @@ func (m *IMUManager) ReadRegister(imuID string, regAddr byte) (byte, error) {
 		return 0, fmt.Errorf("IMU manager not initialized")
 	}
 
-	var imuSrc *imuSource
 	switch imuID {
 	case "left":
 		if m.leftIMU == nil {
 			return 0, fmt.Errorf("left IMU not available")
 		}
-		imuSrc = m.leftIMU.(*imuSource)
+		return m.leftIMU.(*imuSource).ReadRegister(regAddr)
 	case "right":
 		if m.rightIMU == nil {
 			return 0, fmt.Errorf("right IMU not available")
 		}
-		imuSrc = m.rightIMU.(*imuSource)
+		return m.rightIMU.(*imuSource).ReadRegister(regAddr)
 	default:
 		return 0, fmt.Errorf("invalid IMU ID: %s (must be 'left' or 'right')", imuID)
 	}
-
-	return imuSrc.imu.ReadRegister(regAddr)
 }
 
 // WriteRegister writes a single register to the specified IMU.
@@ -154,23 +151,20 @@ func (m *IMUManager) WriteRegister(imuID string, regAddr byte, value byte) error
 		return fmt.Errorf("IMU manager not initialized")
 	}
 
-	var imuSrc *imuSource
 	switch imuID {
 	case "left":
 		if m.leftIMU == nil {
 			return fmt.Errorf("left IMU not available")
 		}
-		imuSrc = m.leftIMU.(*imuSource)
+		return m.leftIMU.(*imuSource).WriteRegister(regAddr, value)
 	case "right":
 		if m.rightIMU == nil {
 			return fmt.Errorf("right IMU not available")
 		}
-		imuSrc = m.rightIMU.(*imuSource)
+		return m.rightIMU.(*imuSource).WriteRegister(regAddr, value)
 	default:
 		return fmt.Errorf("invalid IMU ID: %s (must be 'left' or 'right')", imuID)
 	}
-
-	return imuSrc.imu.WriteRegister(regAddr, value)
 }
 
 // ReadAllRegisters reads all MPU9250 registers (0x00-0x7F) from the specified IMU.
@@ -182,32 +176,20 @@ func (m *IMUManager) ReadAllRegisters(imuID string) (map[byte]byte, error) {
 		return nil, fmt.Errorf("IMU manager not initialized")
 	}
 
-	var imuSrc *imuSource
 	switch imuID {
 	case "left":
 		if m.leftIMU == nil {
 			return nil, fmt.Errorf("left IMU not available")
 		}
-		imuSrc = m.leftIMU.(*imuSource)
+		return m.leftIMU.(*imuSource).ReadAllRegisters()
 	case "right":
 		if m.rightIMU == nil {
 			return nil, fmt.Errorf("right IMU not available")
 		}
-		imuSrc = m.rightIMU.(*imuSource)
+		return m.rightIMU.(*imuSource).ReadAllRegisters()
 	default:
 		return nil, fmt.Errorf("invalid IMU ID: %s (must be 'left' or 'right')", imuID)
 	}
-
-	registers := make(map[byte]byte)
-	for addr := byte(0x00); addr <= 0x7F; addr++ {
-		value, err := imuSrc.imu.ReadRegister(addr)
-		if err != nil {
-			return nil, fmt.Errorf("error reading register 0x%02X: %w", addr, err)
-		}
-		registers[addr] = value
-	}
-
-	return registers, nil
 }
 
 // SetSPISpeed sets the SPI read and write speeds for the specified IMU.
