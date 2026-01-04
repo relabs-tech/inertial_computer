@@ -7,6 +7,7 @@ package sensors
 import (
 	"fmt"
 	"log"
+	"time"
 
 	"github.com/relabs-tech/inertial_computer/internal/config"
 	imu_raw "github.com/relabs-tech/inertial_computer/internal/imu"
@@ -194,6 +195,94 @@ func (s *imuSource) ReadRaw() (imu_raw.IMURaw, error) {
 		My:     my,
 		Mz:     mz,
 	}, nil
+}
+
+// ReadAK8963Register reads a single register from the AK8963 magnetometer via I2C master.
+// The AK8963 is accessed through MPU9250's internal I2C master using EXT_SENS_DATA.
+func (s *imuSource) ReadAK8963Register(regAddr byte) (byte, error) {
+	const AK8963_ADDR = 0x0C
+	const I2C_SLV0_ADDR = 0x25
+	const I2C_SLV0_REG = 0x26
+	const I2C_SLV0_CTRL = 0x27
+	const EXT_SENS_DATA_00 = 0x49
+
+	// Configure I2C slave 0 for reading from AK8963
+	// Set slave address with read bit (0x80)
+	if err := s.imu.WriteRegister(I2C_SLV0_ADDR, AK8963_ADDR|0x80); err != nil {
+		return 0, fmt.Errorf("failed to set AK8963 slave address: %w", err)
+	}
+
+	// Set register address to read from
+	if err := s.imu.WriteRegister(I2C_SLV0_REG, regAddr); err != nil {
+		return 0, fmt.Errorf("failed to set AK8963 register address: %w", err)
+	}
+
+	// Enable slave 0, read 1 byte
+	if err := s.imu.WriteRegister(I2C_SLV0_CTRL, 0x81); err != nil {
+		return 0, fmt.Errorf("failed to enable AK8963 read: %w", err)
+	}
+
+	// Wait for I2C transaction to complete
+	time.Sleep(2 * time.Millisecond)
+
+	// Read result from EXT_SENS_DATA_00
+	value, err := s.imu.ReadRegister(EXT_SENS_DATA_00)
+	if err != nil {
+		return 0, fmt.Errorf("failed to read EXT_SENS_DATA_00: %w", err)
+	}
+
+	return value, nil
+}
+
+// WriteAK8963Register writes a single register to the AK8963 magnetometer via I2C master.
+func (s *imuSource) WriteAK8963Register(regAddr byte, value byte) error {
+	const AK8963_ADDR = 0x0C
+	const I2C_SLV0_ADDR = 0x25
+	const I2C_SLV0_REG = 0x26
+	const I2C_SLV0_DO = 0x28
+	const I2C_SLV0_CTRL = 0x27
+
+	// Configure I2C slave 0 for writing to AK8963
+	// Set slave address without read bit (0x00 for write)
+	if err := s.imu.WriteRegister(I2C_SLV0_ADDR, AK8963_ADDR); err != nil {
+		return fmt.Errorf("failed to set AK8963 slave address: %w", err)
+	}
+
+	// Set register address to write to
+	if err := s.imu.WriteRegister(I2C_SLV0_REG, regAddr); err != nil {
+		return fmt.Errorf("failed to set AK8963 register address: %w", err)
+	}
+
+	// Set data to write
+	if err := s.imu.WriteRegister(I2C_SLV0_DO, value); err != nil {
+		return fmt.Errorf("failed to set AK8963 write data: %w", err)
+	}
+
+	// Enable slave 0, write 1 byte
+	if err := s.imu.WriteRegister(I2C_SLV0_CTRL, 0x81); err != nil {
+		return fmt.Errorf("failed to enable AK8963 write: %w", err)
+	}
+
+	// Wait for I2C transaction to complete
+	time.Sleep(2 * time.Millisecond)
+
+	return nil
+}
+
+// ReadAllAK8963Registers reads all AK8963 registers (0x00-0x12).
+func (s *imuSource) ReadAllAK8963Registers() (map[byte]byte, error) {
+	registers := make(map[byte]byte)
+
+	// Read accessible AK8963 registers
+	for _, addr := range []byte{0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x10, 0x11, 0x12} {
+		value, err := s.ReadAK8963Register(addr)
+		if err != nil {
+			return nil, fmt.Errorf("error reading AK8963 register 0x%02X: %w", addr, err)
+		}
+		registers[addr] = value
+	}
+
+	return registers, nil
 }
 
 // ReadRegister reads a single register from this IMU.

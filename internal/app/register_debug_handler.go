@@ -54,7 +54,8 @@ type RegisterExportCmd struct {
 
 // Response types
 type RegisterResponse struct {
-	Type        string            `json:"type"` // "register_data", "register_map", "status", "error"
+	Type        string            `json:"type"`             // "register_data", "register_map", "status", "error"
+	Device      string            `json:"device,omitempty"` // "mpu9250" or "ak8963"
 	IMU         string            `json:"imu,omitempty"`
 	Address     string            `json:"addr,omitempty"`
 	Value       string            `json:"value,omitempty"`
@@ -95,8 +96,8 @@ func HandleRegisterDebugWS(w http.ResponseWriter, r *http.Request) {
 
 	session := &RegisterDebugSession{Conn: conn}
 
-	// Send register map on connection
-	if err := session.sendRegisterMap(); err != nil {
+	// Send register map on connection (MPU9250 by default)
+	if err := session.sendRegisterMap("mpu9250"); err != nil {
 		log.Printf("register_debug: error sending register map: %v", err)
 		return
 	}
@@ -121,7 +122,11 @@ func HandleRegisterDebugWS(w http.ResponseWriter, r *http.Request) {
 		// Route based on action
 		switch action {
 		case "get_map":
-			session.sendRegisterMap()
+			device, _ := rawMsg["device"].(string)
+			if device == "" {
+				device = "mpu9250" // default
+			}
+			session.sendRegisterMap(device)
 		case "read":
 			session.handleRead(rawMsg)
 		case "read_all":
@@ -142,11 +147,17 @@ func HandleRegisterDebugWS(w http.ResponseWriter, r *http.Request) {
 
 func (s *RegisterDebugSession) handleRead(rawMsg map[string]interface{}) {
 	imu, _ := rawMsg["imu"].(string)
+	device, _ := rawMsg["device"].(string)
 	addr, _ := rawMsg["addr"].(string)
 
 	if imu == "" || addr == "" {
 		s.sendError("missing imu or addr field")
 		return
+	}
+
+	// Default to mpu9250 if not specified
+	if device == "" {
+		device = "mpu9250"
 	}
 
 	// Parse hex address
@@ -156,9 +167,17 @@ func (s *RegisterDebugSession) handleRead(rawMsg map[string]interface{}) {
 		return
 	}
 
-	// Read register via IMU manager
+	// Read register via IMU manager based on device type
 	mgr := sensors.GetIMUManager()
-	value, err := mgr.ReadRegister(imu, addrByte)
+	var value byte
+	var err error
+
+	if device == "ak8963" {
+		value, err = mgr.ReadAK8963Register(imu, addrByte)
+	} else {
+		value, err = mgr.ReadRegister(imu, addrByte)
+	}
+
 	if err != nil {
 		s.sendError(fmt.Sprintf("read error: %v", err))
 		return
@@ -167,6 +186,7 @@ func (s *RegisterDebugSession) handleRead(rawMsg map[string]interface{}) {
 	// Send response
 	resp := RegisterResponse{
 		Type:      "register_data",
+		Device:    device,
 		IMU:       imu,
 		Address:   addr,
 		Value:     fmt.Sprintf("0x%02X", value),
@@ -177,14 +197,28 @@ func (s *RegisterDebugSession) handleRead(rawMsg map[string]interface{}) {
 
 func (s *RegisterDebugSession) handleReadAll(rawMsg map[string]interface{}) {
 	imu, _ := rawMsg["imu"].(string)
+	device, _ := rawMsg["device"].(string)
 	if imu == "" {
 		s.sendError("missing imu field")
 		return
 	}
 
-	// Read all registers via IMU manager
+	// Default to mpu9250 if not specified
+	if device == "" {
+		device = "mpu9250"
+	}
+
+	// Read all registers via IMU manager based on device type
 	mgr := sensors.GetIMUManager()
-	registers, err := mgr.ReadAllRegisters(imu)
+	var registers map[byte]byte
+	var err error
+
+	if device == "ak8963" {
+		registers, err = mgr.ReadAllAK8963Registers(imu)
+	} else {
+		registers, err = mgr.ReadAllRegisters(imu)
+	}
+
 	if err != nil {
 		s.sendError(fmt.Sprintf("read all error: %v", err))
 		return
@@ -199,6 +233,7 @@ func (s *RegisterDebugSession) handleReadAll(rawMsg map[string]interface{}) {
 	// Send response
 	resp := RegisterResponse{
 		Type:      "register_data",
+		Device:    device,
 		IMU:       imu,
 		Registers: regMap,
 		Timestamp: time.Now().Format(time.RFC3339),
@@ -208,12 +243,17 @@ func (s *RegisterDebugSession) handleReadAll(rawMsg map[string]interface{}) {
 
 func (s *RegisterDebugSession) handleWrite(rawMsg map[string]interface{}) {
 	imu, _ := rawMsg["imu"].(string)
+	device, _ := rawMsg["device"].(string)
 	addr, _ := rawMsg["addr"].(string)
 	valueStr, _ := rawMsg["value"].(string)
 
 	if imu == "" || addr == "" || valueStr == "" {
 		s.sendError("missing imu, addr, or value field")
 		return
+	}
+
+	if device == "" {
+		device = "mpu9250" // default device
 	}
 
 	// Parse hex address and value
@@ -227,16 +267,21 @@ func (s *RegisterDebugSession) handleWrite(rawMsg map[string]interface{}) {
 		return
 	}
 
-	// Validate write range
-	cfg := config.Get()
-	if !isRegisterWritable(addrByte, cfg.RegisterDebugAllowedRanges) {
-		s.sendError(fmt.Sprintf("register 0x%02X not in allowed write ranges", addrByte))
-		return
-	}
-
-	// Write register via IMU manager
+	// Write register via IMU manager (device-specific routing)
 	mgr := sensors.GetIMUManager()
-	if err := mgr.WriteRegister(imu, addrByte, valueByte); err != nil {
+	var err error
+	if device == "ak8963" {
+		err = mgr.WriteAK8963Register(imu, addrByte, valueByte)
+	} else {
+		// Validate write range for MPU9250
+		cfg := config.Get()
+		if !isRegisterWritable(addrByte, cfg.RegisterDebugAllowedRanges) {
+			s.sendError(fmt.Sprintf("register 0x%02X not in allowed write ranges", addrByte))
+			return
+		}
+		err = mgr.WriteRegister(imu, addrByte, valueByte)
+	}
+	if err != nil {
 		s.sendError(fmt.Sprintf("write error: %v", err))
 		return
 	}
@@ -368,9 +413,18 @@ func (s *RegisterDebugSession) handleExportConfig(rawMsg map[string]interface{})
 	s.Conn.WriteJSON(rawResp)
 }
 
-func (s *RegisterDebugSession) sendRegisterMap() error {
+func (s *RegisterDebugSession) sendRegisterMap(deviceType string) error {
 	mgr := sensors.GetIMUManager()
-	regMap := mgr.GetRegisterMap()
+	var regMap []sensors.RegisterInfo
+
+	// Select register map based on device type
+	switch deviceType {
+	case "ak8963":
+		regMap = mgr.GetAK8963RegisterMap()
+	default:
+		// Default to MPU9250
+		regMap = mgr.GetRegisterMap()
+	}
 
 	// Convert sensors.RegisterInfo to RegisterInfo
 	mappedRegs := make([]RegisterInfo, len(regMap))
@@ -387,6 +441,7 @@ func (s *RegisterDebugSession) sendRegisterMap() error {
 
 	resp := RegisterResponse{
 		Type:        "register_map",
+		Device:      deviceType,
 		RegisterMap: mappedRegs,
 	}
 	return s.Conn.WriteJSON(resp)

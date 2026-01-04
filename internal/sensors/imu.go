@@ -251,6 +251,11 @@ func (m *IMUManager) GetRegisterMap() []RegisterInfo {
 	return getMPU9250RegisterMap()
 }
 
+// GetAK8963RegisterMap returns metadata for all AK8963 magnetometer registers.
+func (m *IMUManager) GetAK8963RegisterMap() []RegisterInfo {
+	return getAK8963RegisterMap()
+}
+
 // ReinitializeIMU closes and reopens the SPI connection for the specified IMU.
 func (m *IMUManager) ReinitializeIMU(imuID string) error {
 	m.mu.Lock()
@@ -328,6 +333,83 @@ func (m *IMUManager) ApplyRegisterConfig(imuID, configFile string) error {
 // This is an alias for ReadAllRegisters used by the export functionality.
 func (m *IMUManager) ExportRegisterConfig(imuID string) (map[byte]byte, error) {
 	return m.ReadAllRegisters(imuID)
+}
+
+// ReadAK8963Register reads a single AK8963 magnetometer register from the specified IMU.
+// imuID should be "left" or "right".
+func (m *IMUManager) ReadAK8963Register(imuID string, regAddr byte) (byte, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	if !m.initialized {
+		return 0, fmt.Errorf("IMU manager not initialized")
+	}
+
+	switch imuID {
+	case "left":
+		if m.leftIMU == nil {
+			return 0, fmt.Errorf("left IMU not available")
+		}
+		return m.leftIMU.(*imuSource).ReadAK8963Register(regAddr)
+	case "right":
+		if m.rightIMU == nil {
+			return 0, fmt.Errorf("right IMU not available")
+		}
+		return m.rightIMU.(*imuSource).ReadAK8963Register(regAddr)
+	default:
+		return 0, fmt.Errorf("invalid IMU ID: %s (must be 'left' or 'right')", imuID)
+	}
+}
+
+// WriteAK8963Register writes a single AK8963 magnetometer register to the specified IMU.
+// imuID should be "left" or "right".
+func (m *IMUManager) WriteAK8963Register(imuID string, regAddr byte, value byte) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	if !m.initialized {
+		return fmt.Errorf("IMU manager not initialized")
+	}
+
+	switch imuID {
+	case "left":
+		if m.leftIMU == nil {
+			return fmt.Errorf("left IMU not available")
+		}
+		return m.leftIMU.(*imuSource).WriteAK8963Register(regAddr, value)
+	case "right":
+		if m.rightIMU == nil {
+			return fmt.Errorf("right IMU not available")
+		}
+		return m.rightIMU.(*imuSource).WriteAK8963Register(regAddr, value)
+	default:
+		return fmt.Errorf("invalid IMU ID: %s (must be 'left' or 'right')", imuID)
+	}
+}
+
+// ReadAllAK8963Registers reads all AK8963 magnetometer registers from the specified IMU.
+func (m *IMUManager) ReadAllAK8963Registers(imuID string) (map[byte]byte, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	if !m.initialized {
+		return nil, fmt.Errorf("IMU manager not initialized")
+	}
+
+	switch imuID {
+	case "left":
+		if m.leftIMU == nil {
+			return nil, fmt.Errorf("left IMU not available")
+		}
+		return m.leftIMU.(*imuSource).ReadAllAK8963Registers()
+	case "right":
+		if m.rightIMU == nil {
+			return nil, fmt.Errorf("right IMU not available")
+		}
+		return m.rightIMU.(*imuSource).ReadAllAK8963Registers()
+	default:
+		return nil, fmt.Errorf("invalid IMU ID: %s (must be 'left' or 'right')", imuID)
+	}
 }
 
 // RegisterInfo holds metadata about a single MPU9250 register.

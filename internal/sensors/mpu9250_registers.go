@@ -161,3 +161,90 @@ func getMPU9250RegisterMap() []RegisterInfo {
 		{Address: "0x7E", Name: "ZA_OFFSET_L", Description: "Accelerometer Z-Axis Offset Low Byte", Access: "RW"},
 	}
 }
+
+// getAK8963RegisterMap returns metadata for all AK8963 magnetometer registers.
+// The AK8963 is accessed via MPU9250's internal I2C master using EXT_SENS_DATA registers.
+// Accessed via I2C slave address 0x0C.
+func getAK8963RegisterMap() []RegisterInfo {
+	return []RegisterInfo{
+		// Identification and Status
+		{Address: "0x00", Name: "WIA", Description: "WHO_AM_I - Device identification (should be 0x48)", Access: "R", Default: "0x48",
+			BitFields: []BitField{
+				{Bits: "7:0", Name: "WIA", Description: "Device ID", Values: "0x48=AK8963"},
+			}},
+		{Address: "0x01", Name: "INFO", Description: "INFO - Information about device", Access: "R", Default: "0x00",
+			BitFields: []BitField{
+				{Bits: "7:0", Name: "INFO", Description: "Information register", Values: "Varies by device"},
+			}},
+
+		// Data Status and Readings
+		{Address: "0x02", Name: "ST1", Description: "STATUS 1 - Data ready and overrun status", Access: "R", Default: "0x00",
+			BitFields: []BitField{
+				{Bits: "0", Name: "DRDY", Description: "Data Ready", Values: "0=Not ready, 1=Data ready"},
+				{Bits: "1", Name: "DOR", Description: "Data Overrun", Values: "0=No overrun, 1=Data overrun"},
+				{Bits: "7:2", Name: "RESERVED", Description: "Reserved", Values: "Always 0"},
+			}},
+		{Address: "0x03", Name: "HXL", Description: "X-AXIS DATA LOW - Magnetometer X low byte", Access: "R", Default: "0x00",
+			BitFields: []BitField{
+				{Bits: "7:0", Name: "HX[7:0]", Description: "X-axis data low byte", Values: "0-255"},
+			}},
+		{Address: "0x04", Name: "HXH", Description: "X-AXIS DATA HIGH - Magnetometer X high byte", Access: "R", Default: "0x00",
+			BitFields: []BitField{
+				{Bits: "7:0", Name: "HX[15:8]", Description: "X-axis data high byte", Values: "0-255"},
+			}},
+		{Address: "0x05", Name: "HYL", Description: "Y-AXIS DATA LOW - Magnetometer Y low byte", Access: "R", Default: "0x00",
+			BitFields: []BitField{
+				{Bits: "7:0", Name: "HY[7:0]", Description: "Y-axis data low byte", Values: "0-255"},
+			}},
+		{Address: "0x06", Name: "HYH", Description: "Y-AXIS DATA HIGH - Magnetometer Y high byte", Access: "R", Default: "0x00",
+			BitFields: []BitField{
+				{Bits: "7:0", Name: "HY[15:8]", Description: "Y-axis data high byte", Values: "0-255"},
+			}},
+		{Address: "0x07", Name: "HZL", Description: "Z-AXIS DATA LOW - Magnetometer Z low byte", Access: "R", Default: "0x00",
+			BitFields: []BitField{
+				{Bits: "7:0", Name: "HZ[7:0]", Description: "Z-axis data low byte", Values: "0-255"},
+			}},
+		{Address: "0x08", Name: "HZH", Description: "Z-AXIS DATA HIGH - Magnetometer Z high byte", Access: "R", Default: "0x00",
+			BitFields: []BitField{
+				{Bits: "7:0", Name: "HZ[15:8]", Description: "Z-axis data high byte", Values: "0-255"},
+			}},
+		{Address: "0x09", Name: "ST2", Description: "STATUS 2 - Data status and overflow check", Access: "R", Default: "0x00",
+			BitFields: []BitField{
+				{Bits: "3", Name: "HOFL", Description: "Magnetic Sensor Overflow", Values: "0=No overflow, 1=Data overflow occurred"},
+				{Bits: "4", Name: "BITM", Description: "Output Data Bit Width", Values: "0=14-bit, 1=16-bit resolution"},
+				{Bits: "7:5", Name: "RESERVED", Description: "Reserved", Values: "Always 0"},
+			}},
+
+		// Control Registers
+		{Address: "0x0A", Name: "CNTL1", Description: "CONTROL 1 - Operation mode and resolution", Access: "RW", Default: "0x00",
+			BitFields: []BitField{
+				{Bits: "3:0", Name: "MODE", Description: "Operation Mode", Values: "0=PowerDown, 1=SingleMeasure, 2=Continuous1(10Hz), 6=Continuous2(100Hz), 8=ExternalTrigger, 15=SelfTest"},
+				{Bits: "4", Name: "BIT", Description: "Output Data Bit Width", Values: "0=14-bit, 1=16-bit"},
+				{Bits: "7:5", Name: "RESERVED", Description: "Reserved", Values: "Always 0"},
+			}},
+		{Address: "0x0B", Name: "CNTL2", Description: "CONTROL 2 - Soft reset", Access: "RW", Default: "0x00",
+			BitFields: []BitField{
+				{Bits: "0", Name: "SRST", Description: "Soft Reset", Values: "0=Normal, 1=Reset magnetometer"},
+				{Bits: "7:1", Name: "RESERVED", Description: "Reserved", Values: "Always 0"},
+			}},
+		{Address: "0x0C", Name: "ASTC", Description: "ASTC - Self-test control", Access: "RW", Default: "0x00",
+			BitFields: []BitField{
+				{Bits: "6", Name: "SELF", Description: "Self-Test Enable", Values: "0=Disabled, 1=Generate magnetic field for self-test"},
+				{Bits: "7", Name: "RESERVED", Description: "Reserved", Values: "Always 0"},
+			}},
+
+		// Factory Calibration (Sensitivity Adjustment)
+		{Address: "0x10", Name: "ASAX", Description: "X-AXIS SENSITIVITY ADJUST - Factory calibration for X", Access: "R", Default: "0x00",
+			BitFields: []BitField{
+				{Bits: "7:0", Name: "ASAX", Description: "X-axis sensitivity adjustment", Values: "Applied as: (ASA[0]-128)/256 + 1.0"},
+			}},
+		{Address: "0x11", Name: "ASAY", Description: "Y-AXIS SENSITIVITY ADJUST - Factory calibration for Y", Access: "R", Default: "0x00",
+			BitFields: []BitField{
+				{Bits: "7:0", Name: "ASAY", Description: "Y-axis sensitivity adjustment", Values: "Applied as: (ASA[1]-128)/256 + 1.0"},
+			}},
+		{Address: "0x12", Name: "ASAZ", Description: "Z-AXIS SENSITIVITY ADJUST - Factory calibration for Z", Access: "R", Default: "0x00",
+			BitFields: []BitField{
+				{Bits: "7:0", Name: "ASAZ", Description: "Z-axis sensitivity adjustment", Values: "Applied as: (ASA[2]-128)/256 + 1.0"},
+			}},
+	}
+}
