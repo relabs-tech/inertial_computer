@@ -7,7 +7,6 @@ package sensors
 import (
 	"fmt"
 	"log"
-	"time"
 
 	"github.com/relabs-tech/inertial_computer/internal/config"
 	imu_raw "github.com/relabs-tech/inertial_computer/internal/imu"
@@ -99,15 +98,39 @@ func newIMUSource(name, spiDev, csPin string) (IMURawReader, error) {
 	log.Printf("%s IMU: accelerometer DLPF set to %d", name, cfg.IMUAccelDLPF)
 
 	// Self-test
+	log.Printf("%s IMU: running self-test...", name)
 	testResult, err := imu.SelfTest()
 	if err != nil {
-		log.Printf("Warning: %s IMU self-test failed: %v", name, err)
+		log.Printf("%s IMU: WARNING: self-test failed: %v", name, err)
 	} else {
-		log.Printf("%s IMU self-test passed:", name)
-		log.Printf("  Accelerometer deviation: X: %.2f%%, Y: %.2f%%, Z: %.2f%%",
-			testResult.AccelDeviation.X, testResult.AccelDeviation.Y, testResult.AccelDeviation.Z)
-		log.Printf("  Gyroscope deviation: X: %.2f%%, Y: %.2f%%, Z: %.2f%%",
-			testResult.GyroDeviation.X, testResult.GyroDeviation.Y, testResult.GyroDeviation.Z)
+		log.Printf("%s IMU: self-test passed", name)
+		log.Printf("%s IMU:   Accel deviation: X=%.2f%% Y=%.2f%% Z=%.2f%%",
+			name,
+			testResult.AccelDeviation.X,
+			testResult.AccelDeviation.Y,
+			testResult.AccelDeviation.Z)
+		log.Printf("%s IMU:   Gyro deviation:  X=%.2f%% Y=%.2f%% Z=%.2f%%",
+			name,
+			testResult.GyroDeviation.X,
+			testResult.GyroDeviation.Y,
+			testResult.GyroDeviation.Z)
+
+		// Check if deviations are within acceptable range (typically ±14%)
+		maxAccelDev := maxAbsFloat64(
+			testResult.AccelDeviation.X,
+			testResult.AccelDeviation.Y,
+			testResult.AccelDeviation.Z)
+		maxGyroDev := maxAbsFloat64(
+			testResult.GyroDeviation.X,
+			testResult.GyroDeviation.Y,
+			testResult.GyroDeviation.Z)
+
+		if maxAccelDev > 14.0 {
+			log.Printf("%s IMU: WARNING: accelerometer self-test deviation %.2f%% exceeds 14%%", name, maxAccelDev)
+		}
+		if maxGyroDev > 14.0 {
+			log.Printf("%s IMU: WARNING: gyroscope self-test deviation %.2f%% exceeds 14%%", name, maxGyroDev)
+		}
 	}
 
 	// Calibration
@@ -118,9 +141,27 @@ func newIMUSource(name, spiDev, csPin string) (IMURawReader, error) {
 	}
 
 	// Magnetometer initialization (non-fatal)
+	log.Printf("%s IMU: initializing magnetometer...", name)
+
+	// Read magnetometer WHO_AM_I register
+	magID, err := imu.ReadMagID()
+	if err != nil {
+		log.Printf("%s IMU: WARNING: failed to read magnetometer ID: %v", name, err)
+	} else {
+		log.Printf("%s IMU: magnetometer WHO_AM_I = 0x%02X", name, magID)
+		// AK8963 should return 0x48
+		if magID != 0x48 {
+			log.Printf("%s IMU: WARNING: unexpected magnetometer ID 0x%02X (expected 0x48)", name, magID)
+		} else {
+			log.Printf("%s IMU: magnetometer ID verified (AK8963)", name)
+		}
+	}
+
+	// Initialize magnetometer
 	magCal, err := imu.InitMag()
 	if err != nil {
-		log.Printf("%s IMU: magnetometer initialization failed (will continue without mag): %v", name, err)
+		log.Printf("%s IMU: WARNING: magnetometer initialization failed: %v", name, err)
+		log.Printf("%s IMU: continuing without magnetometer", name)
 		return &imuSource{
 			name:     name,
 			imu:      imu,
@@ -129,6 +170,8 @@ func newIMUSource(name, spiDev, csPin string) (IMURawReader, error) {
 	}
 
 	log.Printf("%s IMU: magnetometer initialized successfully", name)
+	log.Printf("%s IMU: magnetometer sensitivity adjustment: X=%.4f Y=%.4f Z=%.4f",
+		name, magCal.AdjX, magCal.AdjY, magCal.AdjZ)
 
 	// Apply magnetometer resolution/rate from config (defaults: 16-bit, 100 Hz)
 	if err := configureMagSettings(imu, cfg); err != nil {
@@ -143,11 +186,11 @@ func newIMUSource(name, spiDev, csPin string) (IMURawReader, error) {
 }
 
 const (
-	ak8963Cntl       = 0x0A
 	defaultMagRateHz = 100
 	defaultMagBits   = 16
 )
 
+// configureMagSettings configures magnetometer settings by delegating to the driver.
 func configureMagSettings(imu *mpu9250.MPU9250, cfg *config.Config) error {
 	// Fallback defaults for backward compatibility
 	resBits := cfg.MagBitResolution
@@ -159,63 +202,12 @@ func configureMagSettings(imu *mpu9250.MPU9250, cfg *config.Config) error {
 		rateHz = defaultMagRateHz
 	}
 
-	var resMask byte
-	switch resBits {
-	case 14:
-		resMask = 0x00
-	case 16:
-		resMask = 0x10
-	default:
-		return fmt.Errorf("invalid magnetometer resolution %d (expected 14 or 16)", resBits)
+	// Delegate to driver's ConfigureMag method
+	if err := imu.ConfigureMag(resBits, rateHz); err != nil {
+		return err
 	}
 
-	var modeMask byte
-	switch rateHz {
-	case 8:
-		modeMask = 0x02
-	case 100:
-		modeMask = 0x06
-	default:
-		return fmt.Errorf("invalid magnetometer rate %d Hz (expected 8 or 100)", rateHz)
-	}
-
-	// Power down then apply new mode
-	if err := writeAK8963Register(imu, ak8963Cntl, 0x00); err != nil {
-		return fmt.Errorf("power-down failed: %w", err)
-	}
-	time.Sleep(10 * time.Millisecond)
-
-	value := resMask | modeMask
-	if err := writeAK8963Register(imu, ak8963Cntl, value); err != nil {
-		return fmt.Errorf("set CNTL failed: %w", err)
-	}
-	time.Sleep(10 * time.Millisecond)
-
-	log.Printf("IMU: magnetometer set to %d-bit @ %d Hz (CNTL=0x%02X)", resBits, rateHz, value)
-	return nil
-}
-
-// writeAK8963Register mirrors the helper in imuSource but scoped for config-time setup.
-func writeAK8963Register(m *mpu9250.MPU9250, regAddr byte, value byte) error {
-	const ak8963Addr = 0x0C
-	const i2cSlv0Addr = 0x25
-	const i2cSlv0Reg = 0x26
-	const i2cSlv0DO = 0x28
-	const i2cSlv0Ctrl = 0x27
-
-	// Configure I2C slave 0 for writing to AK8963
-	if err := m.WriteRegister(i2cSlv0Addr, ak8963Addr); err != nil {
-		return fmt.Errorf("set slave addr: %w", err)
-	}
-	if err := m.WriteRegister(i2cSlv0Reg, regAddr); err != nil {
-		return fmt.Errorf("set reg addr: %w", err)
-	}
-	if err := m.WriteRegister(i2cSlv0DO, value); err != nil {
-		return fmt.Errorf("set write data: %w", err)
-	}
-	if err := m.WriteRegister(i2cSlv0Ctrl, 0x81); err != nil { // enable, 1 byte
-		return fmt.Errorf("enable write: %w", err)
-	}
+	log.Printf("IMU: magnetometer configured to %d-bit @ %d Hz", resBits, rateHz)
 	return nil
 }
 
@@ -279,92 +271,19 @@ func (s *imuSource) ReadRaw() (imu_raw.IMURaw, error) {
 	}, nil
 }
 
-// ReadAK8963Register reads a single register from the AK8963 magnetometer via I2C master.
-// The AK8963 is accessed through MPU9250's internal I2C master using EXT_SENS_DATA.
+// ReadAK8963Register reads a single register from the AK8963 magnetometer (delegates to driver).
 func (s *imuSource) ReadAK8963Register(regAddr byte) (byte, error) {
-	const AK8963_ADDR = 0x0C
-	const I2C_SLV0_ADDR = 0x25
-	const I2C_SLV0_REG = 0x26
-	const I2C_SLV0_CTRL = 0x27
-	const EXT_SENS_DATA_00 = 0x49
-
-	// Configure I2C slave 0 for reading from AK8963
-	// Set slave address with read bit (0x80)
-	if err := s.imu.WriteRegister(I2C_SLV0_ADDR, AK8963_ADDR|0x80); err != nil {
-		return 0, fmt.Errorf("failed to set AK8963 slave address: %w", err)
-	}
-
-	// Set register address to read from
-	if err := s.imu.WriteRegister(I2C_SLV0_REG, regAddr); err != nil {
-		return 0, fmt.Errorf("failed to set AK8963 register address: %w", err)
-	}
-
-	// Enable slave 0, read 1 byte
-	if err := s.imu.WriteRegister(I2C_SLV0_CTRL, 0x81); err != nil {
-		return 0, fmt.Errorf("failed to enable AK8963 read: %w", err)
-	}
-
-	// Wait for I2C transaction to complete
-	time.Sleep(2 * time.Millisecond)
-
-	// Read result from EXT_SENS_DATA_00
-	value, err := s.imu.ReadRegister(EXT_SENS_DATA_00)
-	if err != nil {
-		return 0, fmt.Errorf("failed to read EXT_SENS_DATA_00: %w", err)
-	}
-
-	return value, nil
+	return s.imu.ReadMagRegister(regAddr)
 }
 
-// WriteAK8963Register writes a single register to the AK8963 magnetometer via I2C master.
+// WriteAK8963Register writes a single register to the AK8963 magnetometer (delegates to driver).
 func (s *imuSource) WriteAK8963Register(regAddr byte, value byte) error {
-	const AK8963_ADDR = 0x0C
-	const I2C_SLV0_ADDR = 0x25
-	const I2C_SLV0_REG = 0x26
-	const I2C_SLV0_DO = 0x28
-	const I2C_SLV0_CTRL = 0x27
-
-	// Configure I2C slave 0 for writing to AK8963
-	// Set slave address without read bit (0x00 for write)
-	if err := s.imu.WriteRegister(I2C_SLV0_ADDR, AK8963_ADDR); err != nil {
-		return fmt.Errorf("failed to set AK8963 slave address: %w", err)
-	}
-
-	// Set register address to write to
-	if err := s.imu.WriteRegister(I2C_SLV0_REG, regAddr); err != nil {
-		return fmt.Errorf("failed to set AK8963 register address: %w", err)
-	}
-
-	// Set data to write
-	if err := s.imu.WriteRegister(I2C_SLV0_DO, value); err != nil {
-		return fmt.Errorf("failed to set AK8963 write data: %w", err)
-	}
-
-	// Enable slave 0, write 1 byte
-	if err := s.imu.WriteRegister(I2C_SLV0_CTRL, 0x81); err != nil {
-		return fmt.Errorf("failed to enable AK8963 write: %w", err)
-	}
-
-	// Wait for I2C transaction to complete
-	time.Sleep(2 * time.Millisecond)
-
-	return nil
+	return s.imu.WriteMagRegister(regAddr, value)
 }
 
-// ReadAllAK8963Registers reads all AK8963 registers (0x00-0x12).
+// ReadAllAK8963Registers reads all accessible AK8963 registers (delegates to driver).
 func (s *imuSource) ReadAllAK8963Registers() (map[byte]byte, error) {
-	registers := make(map[byte]byte)
-
-	// Read accessible AK8963 registers
-	for _, addr := range []byte{0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x10, 0x11, 0x12} {
-		value, err := s.ReadAK8963Register(addr)
-		if err != nil {
-			return nil, fmt.Errorf("error reading AK8963 register 0x%02X: %w", addr, err)
-		}
-		registers[addr] = value
-	}
-
-	return registers, nil
+	return s.imu.ReadAllMagRegisters()
 }
 
 // ReadRegister reads a single register from this IMU.
@@ -377,15 +296,29 @@ func (s *imuSource) WriteRegister(regAddr byte, value byte) error {
 	return s.imu.WriteRegister(regAddr, value)
 }
 
-// ReadAllRegisters reads all MPU9250 registers (0x00-0x7F) from this IMU.
+// ReadAllRegisters reads all MPU9250 registers (delegates to driver).
 func (s *imuSource) ReadAllRegisters() (map[byte]byte, error) {
-	registers := make(map[byte]byte)
-	for addr := byte(0x00); addr <= 0x7F; addr++ {
-		value, err := s.imu.ReadRegister(addr)
-		if err != nil {
-			return nil, fmt.Errorf("error reading register 0x%02X: %w", addr, err)
-		}
-		registers[addr] = value
+	return s.imu.ReadAllRegisters()
+}
+
+// maxAbsFloat64 returns the maximum absolute value of three float64 values.
+func maxAbsFloat64(a, b, c float64) float64 {
+	if a < 0 {
+		a = -a
 	}
-	return registers, nil
+	if b < 0 {
+		b = -b
+	}
+	if c < 0 {
+		c = -c
+	}
+
+	max := a
+	if b > max {
+		max = b
+	}
+	if c > max {
+		max = c
+	}
+	return max
 }
