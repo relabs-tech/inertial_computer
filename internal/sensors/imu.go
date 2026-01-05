@@ -347,22 +347,3 @@ func (m *IMUManager) ApplyRegisterConfig(imuID, configFile string) error {
 func (m *IMUManager) ExportRegisterConfig(imuID string) (map[byte]byte, error) {
 	return m.ReadAllRegisters(imuID)
 }
-
-// RegisterInfo holds metadata about a single MPU9250 register.
-// RegisterInfo holds metadata about a single MPU9250 register.
-type RegisterInfo struct {
-	Address     string     `json:"address"`
-	Name        string     `json:"name"`
-	Description string     `json:"description"`
-	Access      string     `json:"access"` // "R", "W", "RW"
-	Default     string     `json:"default,omitempty"`
-	BitFields   []BitField `json:"bit_fields,omitempty"`
-}
-
-// BitField describes a single bit or bit range within a register
-type BitField struct {
-	Bits        string `json:"bits"`        // e.g., "7:6", "5", "4:3"
-	Name        string `json:"name"`        // e.g., "FS_SEL", "DLPF_CFG"
-	Description string `json:"description"` // Function description
-	Values      string `json:"values"`      // Possible values
-}

@@ -18,6 +18,10 @@ current state, known-good references, and all remaining work.
 - Core domain models defined
 - README.md and ARCHITECTURE.md written
 - **Display consumer** ✅ Dual SSD1306 OLED support with configurable content
+  - SSD1306 driver fork enhancements: dual I2C address support, VerticalLSB image format, differential updates
+  - Efficient pixel manipulation via `image1bit` package with `SetBit()` / `BitAt()` methods
+  - Hardware-level scrolling support via `SetDisplayStartLine()` method
+  - Configuration options for rotation and display variants
 - **[DONE]** Separated raw sensor reads from pose computation (branch: `refactor/separate-raw-reads-from-pose`)
   - `IMURawReader` interface for hardware reads
   - Pure functions `AccelToPose()`, `ComputePoseFromAccel()` in orientation package
@@ -35,6 +39,7 @@ current state, known-good references, and all remaining work.
   - Test/debug MQTT topic `inertial/mag/left` publishing mag data with field magnitude
   - Producer logs include magnetometer readings and |B| magnitude
   - Local fork of `periph.io/x/devices` integrated via replace directive
+  - **Fork includes**: AK8963 magnetometer driver, MagCal calibration support, overflow detection, extended register access
 - **[DONE]** GPS/GLONASS constellation separation (2025-01-02)
   - Raw NMEA logging with `[GPS-RAW]` prefix for debugging
   - Separate processing of GPGSV (GPS) and GLGSV (GLONASS) satellite data
@@ -425,5 +430,71 @@ http://localhost:8081
 ```
 
 **Note**: Can run concurrently with imu_producer - hardware access is thread-safe via IMUManager mutex.
+
+---
+
+## 10. Magnetometer Configuration & Testing (2025-01-03)
+
+### Current Magnetometer Configuration
+**Hardware Mode**: 16-bit (0.15 µT/LSB) — fixed at initialization
+**Scale Factors** (for display/interpretation):
+- 14-bit mode: 6.0 units per LSB (0.6 µT/LSB × 10)
+- 16-bit mode: 1.5 units per LSB (0.15 µT/LSB × 10)
+
+### Findings
+1. **Raw sensor readings DO NOT change dramatically between bit modes** ✅
+   - This is EXPECTED and CORRECT behavior
+   - Hardware is fixed to 16-bit at initialization
+   - Register debugger bit mode buttons only change display scale, not hardware
+2. **Register writes to magnetometer not yet implemented**
+   - Writing to AK8963 CNTL register requires complex I2C master configuration
+   - periph.io fork doesn't have `WriteMagRegister()` yet
+   - Full implementation would require enhancements to the fork
+3. **Main dashboard now shows magnetometer mode in metadata**
+   - IMU cards display: "Mag: 16-bit (0.15µT/LSB)"
+   - Clarifies the actual hardware configuration for users
+
+### Magnetometer Self-Test (TODO)
+**Status**: Not yet implemented
+**Purpose**: Verify magnetometer (AK8963) is functioning correctly without hardware writes
+
+**Proposed Implementation Options**:
+
+**Option A: Integrated startup check in `internal/sensors/imu_source.go`**
+```go
+// New method: (s *imuSource) SelfTestMag() (bool, error)
+// Called during IMU initialization
+// Checks: chip availability, data range, axis responses, magnitude stability
+```
+
+**Option B: Standalone CLI tool `cmd/mag_test/main.go`**
+```bash
+go run ./cmd/mag_test/
+# Interactive magnetometer validation without full producer startup
+```
+
+**Option C: Pre-calibration check in calibration tool**
+- Verify magnetometer health before running full calibration
+- Detect overflow conditions or saturation
+- Warn if readings are outside expected range
+
+**Test Criteria**:
+- ✅ Values in range ±500 (±50µT in storage format)
+- ✅ Magnitude |B| consistent (typically 250-600, varies by location)
+- ✅ All axes (X, Y, Z) producing non-zero values
+- ✅ No overflow flags detected
+- ✅ Values change when device is rotated
+
+**Current Testing Methods**:
+1. **MQTT monitoring**: `mosquitto_sub -t 'inertial/mag/left' -v`
+2. **Register debugger**: `http://localhost:8081` → View live sensor cards
+3. **Console output**: `imu_producer` logs include mag readings and magnitude
+
+### Next Steps for Magnetometer
+1. **Implement magnetometer self-test** (choose Option A/B/C above)
+2. **Add I2C master write support to periph.io fork** (for future bit mode changes)
+3. **Integrate calibration coefficients** (hard-iron offset, soft-iron scale)
+4. **Add magnetometer validation to calibration workflow** (pre-check before start)
+5. **Implement yaw fusion** once calibration is working
 
 ---

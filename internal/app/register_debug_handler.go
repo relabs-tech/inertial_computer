@@ -8,11 +8,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"math"
 	"net/http"
 	"time"
 
 	"github.com/gorilla/websocket"
 	"github.com/relabs-tech/inertial_computer/internal/config"
+	"github.com/relabs-tech/inertial_computer/internal/imu"
 	"github.com/relabs-tech/inertial_computer/internal/sensors"
 )
 
@@ -430,7 +432,39 @@ func HandleIMUData(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	json.NewEncoder(w).Encode(raw)
+	// Format the response for the JavaScript UI
+	imuRaw, ok := raw.(imu.IMURaw)
+	if !ok {
+		// Fallback if not IMURaw type
+		json.NewEncoder(w).Encode(raw)
+		return
+	}
+
+	// Calculate magnetometer magnitude
+	magMag := math.Sqrt(float64(imuRaw.Mx)*float64(imuRaw.Mx) +
+		float64(imuRaw.My)*float64(imuRaw.My) +
+		float64(imuRaw.Mz)*float64(imuRaw.Mz))
+
+	response := map[string]interface{}{
+		"accel": map[string]int16{
+			"x": imuRaw.Ax,
+			"y": imuRaw.Ay,
+			"z": imuRaw.Az,
+		},
+		"gyro": map[string]int16{
+			"x": imuRaw.Gx,
+			"y": imuRaw.Gy,
+			"z": imuRaw.Gz,
+		},
+		"mag": map[string]interface{}{
+			"x":         imuRaw.Mx,
+			"y":         imuRaw.My,
+			"z":         imuRaw.Mz,
+			"magnitude": magMag,
+		},
+	}
+
+	json.NewEncoder(w).Encode(response)
 }
 
 // isRegisterWritable checks if a register address is in the allowed write ranges

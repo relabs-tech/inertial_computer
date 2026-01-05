@@ -4,6 +4,29 @@
 
 package sensors
 
+// BitField describes a contiguous range of bits within a register.
+type BitField struct {
+	Bits        string // e.g. "4:3" or "7"
+	Name        string
+	Description string
+	Values      string // human readable value descriptions
+}
+
+// RegisterInfo contains metadata about an MPU9250 register for UI rendering and safety.
+type RegisterInfo struct {
+	Address     string     // hex string e.g. 0x1B
+	Name        string     // register name
+	Description string     // short description
+	Access      string     // R, W, or RW
+	Default     string     // optional default value
+	BitFields   []BitField // optional bitfield definitions
+}
+
+// GetRegisterMap returns metadata for all MPU9250 registers.
+func GetRegisterMap() []RegisterInfo {
+	return getMPU9250RegisterMap()
+}
+
 // getMPU9250RegisterMap returns metadata for all MPU9250 registers.
 // This provides register names, descriptions, access types, and bit field definitions.
 func getMPU9250RegisterMap() []RegisterInfo {
