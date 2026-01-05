@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: MIT
 // See LICENSE file for full license text
 
-
 package sensors
 
 import (
@@ -118,6 +117,12 @@ func newIMUSource(name, spiDev, csPin string) (IMURawReader, error) {
 	}
 
 	// Magnetometer initialization (non-fatal)
+	if magID, err := imu.ReadMagID(); err != nil {
+		log.Printf("%s IMU: WARNING: failed to read magnetometer ID: %v", name, err)
+	} else {
+		log.Printf("%s IMU: magnetometer WHO_AM_I = 0x%02X", name, magID)
+	}
+
 	magCal, err := imu.InitMag()
 	if err != nil {
 		log.Printf("%s IMU: magnetometer initialization failed (will continue without mag): %v", name, err)
@@ -129,6 +134,7 @@ func newIMUSource(name, spiDev, csPin string) (IMURawReader, error) {
 	}
 
 	log.Printf("%s IMU: magnetometer initialized successfully", name)
+	log.Printf("%s IMU: mag sensitivity adj: X=%.4f Y=%.4f Z=%.4f", name, magCal.AdjX, magCal.AdjY, magCal.AdjZ)
 	return &imuSource{
 		name:     name,
 		imu:      imu,
