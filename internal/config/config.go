@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: MIT
 // See LICENSE file for full license text
 
-
 package config
 
 import (
@@ -79,6 +78,18 @@ type Config struct {
 	// GPS
 	GPSSerialPort string
 	GPSBaudRate   int
+
+	// Magnetometer Configuration
+	MagWriteDelayMS      int  // Delay after magnetometer write operations (ms)
+	MagReadDelayMS       int  // Delay for I2C master read completion (ms)
+	MagScale             byte // Resolution: 0=14-bit, 1=16-bit
+	MagMode              byte // Operating mode: 0x02=8Hz, 0x06=100Hz continuous
+	MagSampleRateDivider byte // I2C master read frequency divider (0-15)
+
+	// Register Debug Overrides
+	RegisterDebugMagWriteDelay int  // Experimental write delay override (-1 = use MAG_WRITE_DELAY_MS)
+	RegisterDebugMagReadDelay  int  // Experimental read delay override (-1 = use MAG_READ_DELAY_MS)
+	RegisterDebugMagUnsafeMode bool // Allow unsafe magnetometer operations in register debug
 
 	// Timing
 	IMUSampleInterval  int // milliseconds
@@ -376,6 +387,91 @@ func (c *Config) setValue(key, value string) error {
 		}
 		c.GPSBaudRate = rate
 
+	// Magnetometer Configuration
+	case "MAG_WRITE_DELAY_MS":
+		val, err := strconv.Atoi(value)
+		if err != nil {
+			return fmt.Errorf("invalid MAG_WRITE_DELAY_MS %q: %w", value, err)
+		}
+		if val < 1 || val > 200 {
+			return fmt.Errorf("MAG_WRITE_DELAY_MS must be 1-200ms, got %d", val)
+		}
+		c.MagWriteDelayMS = val
+	case "MAG_READ_DELAY_MS":
+		val, err := strconv.Atoi(value)
+		if err != nil {
+			return fmt.Errorf("invalid MAG_READ_DELAY_MS %q: %w", value, err)
+		}
+		if val < 1 || val > 200 {
+			return fmt.Errorf("MAG_READ_DELAY_MS must be 1-200ms, got %d", val)
+		}
+		c.MagReadDelayMS = val
+	case "MAG_SCALE":
+		val, err := strconv.Atoi(value)
+		if err != nil {
+			return fmt.Errorf("invalid MAG_SCALE %q: %w", value, err)
+		}
+		if val < 0 || val > 1 {
+			return fmt.Errorf("MAG_SCALE must be 0 or 1, got %d", val)
+		}
+		c.MagScale = byte(val)
+	case "MAG_MODE":
+		// Parse hex value (0x06) or decimal
+		var val uint64
+		var err error
+		if strings.HasPrefix(value, "0x") || strings.HasPrefix(value, "0X") {
+			val, err = strconv.ParseUint(value[2:], 16, 8)
+		} else {
+			val, err = strconv.ParseUint(value, 0, 8)
+		}
+		if err != nil {
+			return fmt.Errorf("invalid MAG_MODE %q: %w", value, err)
+		}
+		// Validate against allowed modes
+		validModes := map[byte]bool{
+			0x00: true, 0x01: true, 0x02: true,
+			0x04: true, 0x06: true, 0x08: true, 0x0F: true,
+		}
+		if !validModes[byte(val)] {
+			return fmt.Errorf("MAG_MODE=0x%02X invalid, must be one of: 0x00, 0x01, 0x02, 0x04, 0x06, 0x08, 0x0F", val)
+		}
+		c.MagMode = byte(val)
+	case "MAG_SAMPLE_RATE_DIVIDER":
+		val, err := strconv.Atoi(value)
+		if err != nil {
+			return fmt.Errorf("invalid MAG_SAMPLE_RATE_DIVIDER %q: %w", value, err)
+		}
+		if val < 0 || val > 15 {
+			return fmt.Errorf("MAG_SAMPLE_RATE_DIVIDER must be 0-15, got %d", val)
+		}
+		c.MagSampleRateDivider = byte(val)
+
+	// Register Debug Overrides
+	case "REGISTER_DEBUG_MAG_WRITE_DELAY":
+		val, err := strconv.Atoi(value)
+		if err != nil {
+			return fmt.Errorf("invalid REGISTER_DEBUG_MAG_WRITE_DELAY %q: %w", value, err)
+		}
+		if val != -1 && (val < 1 || val > 500) {
+			return fmt.Errorf("REGISTER_DEBUG_MAG_WRITE_DELAY must be -1 or 1-500ms, got %d", val)
+		}
+		c.RegisterDebugMagWriteDelay = val
+	case "REGISTER_DEBUG_MAG_READ_DELAY":
+		val, err := strconv.Atoi(value)
+		if err != nil {
+			return fmt.Errorf("invalid REGISTER_DEBUG_MAG_READ_DELAY %q: %w", value, err)
+		}
+		if val != -1 && (val < 1 || val > 200) {
+			return fmt.Errorf("REGISTER_DEBUG_MAG_READ_DELAY must be -1 or 1-200ms, got %d", val)
+		}
+		c.RegisterDebugMagReadDelay = val
+	case "REGISTER_DEBUG_MAG_UNSAFE_MODE":
+		val, err := strconv.ParseBool(value)
+		if err != nil {
+			return fmt.Errorf("invalid REGISTER_DEBUG_MAG_UNSAFE_MODE %q: %w", value, err)
+		}
+		c.RegisterDebugMagUnsafeMode = val
+
 	// Timing
 	case "IMU_SAMPLE_INTERVAL":
 		interval, err := strconv.Atoi(value)
@@ -458,6 +554,40 @@ func (c *Config) validate() error {
 	if c.ConsoleLogInterval == 0 {
 		return fmt.Errorf("CONSOLE_LOG_INTERVAL is required")
 	}
+
+	// Magnetometer validation with warnings
+	if c.MagWriteDelayMS == 0 {
+		return fmt.Errorf("MAG_WRITE_DELAY_MS is required")
+	}
+	if c.MagWriteDelayMS < 50 {
+		fmt.Printf("WARNING: MAG_WRITE_DELAY_MS=%dms is below recommended 50ms\n", c.MagWriteDelayMS)
+	}
+	if c.MagReadDelayMS == 0 {
+		return fmt.Errorf("MAG_READ_DELAY_MS is required")
+	}
+	if c.MagReadDelayMS < 50 {
+		fmt.Printf("WARNING: MAG_READ_DELAY_MS=%dms is below recommended 50ms\n", c.MagReadDelayMS)
+	}
+
+	// Register debug safety checks
+	if c.RegisterDebugMagUnsafeMode {
+		fmt.Println("⚠️  REGISTER_DEBUG_MAG_UNSAFE_MODE=true")
+		fmt.Println("⚠️  Unsafe magnetometer operations enabled!")
+		fmt.Println("⚠️  DO NOT use in production systems")
+	}
+	if c.RegisterDebugMagWriteDelay > 0 {
+		if c.RegisterDebugMagWriteDelay < 50 && !c.RegisterDebugMagUnsafeMode {
+			return fmt.Errorf("REGISTER_DEBUG_MAG_WRITE_DELAY < 50ms requires UNSAFE_MODE=true")
+		}
+		fmt.Printf("⚠️  Using experimental mag write delay: %dms\n", c.RegisterDebugMagWriteDelay)
+	}
+	if c.RegisterDebugMagReadDelay > 0 {
+		if c.RegisterDebugMagReadDelay < 50 && !c.RegisterDebugMagUnsafeMode {
+			return fmt.Errorf("REGISTER_DEBUG_MAG_READ_DELAY < 50ms requires UNSAFE_MODE=true")
+		}
+		fmt.Printf("⚠️  Using experimental mag read delay: %dms\n", c.RegisterDebugMagReadDelay)
+	}
+
 	return nil
 }
 

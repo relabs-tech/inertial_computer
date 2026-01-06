@@ -93,6 +93,61 @@ BMP_RIGHT_STANDBY_TIME=1
 GPS_SERIAL_PORT=/dev/serial0
 GPS_BAUD_RATE=9600
 
+# ============================================================================
+# Magnetometer (AK8963) Configuration
+# ============================================================================
+
+# Write Delay (milliseconds)
+# AK8963 requires 50ms settling time after write operations per datasheet
+# DO NOT change unless experimenting - 50ms is hardware requirement
+MAG_WRITE_DELAY_MS=50
+
+# Read Delay (milliseconds)
+# I2C master transaction completion time
+# Using 50ms for consistency and reliability
+MAG_READ_DELAY_MS=50
+
+# Magnetometer Resolution (0=14-bit, 1=16-bit)
+# 0: 14-bit (0.6 µT/LSB sensitivity)
+# 1: 16-bit (0.15 µT/LSB sensitivity) - RECOMMENDED
+MAG_SCALE=1
+
+# Magnetometer Operating Mode
+# 0x00: Power-down mode
+# 0x01: Single measurement mode
+# 0x02: Continuous measurement mode 1 (8 Hz)
+# 0x06: Continuous measurement mode 2 (100 Hz) - RECOMMENDED
+# 0x04: External trigger measurement mode
+# 0x08: Self-test mode
+# 0x0F: Fuse ROM access mode (for calibration read only)
+MAG_MODE=0x06
+
+# Magnetometer Sample Rate Divider (for I2C master reads)
+# Controls how often MPU9250 reads from AK8963
+# 0: Read every accel/gyro sample
+# 1: Read every 2nd sample (recommended to reduce I2C traffic)
+# 2-15: Read every (N+1)th sample
+MAG_SAMPLE_RATE_DIVIDER=1
+
+# ============================================================================
+# Register Debug Tool - Experimental Magnetometer Timing
+# ============================================================================
+
+# Override write delay for register debugging/experimentation
+# WARNING: Values < 50ms may cause unreliable magnetometer operation
+# Use only for testing different timing values
+# Set to -1 to use standard MAG_WRITE_DELAY_MS
+REGISTER_DEBUG_MAG_WRITE_DELAY=-1
+
+# Override read delay for register debugging
+# Set to -1 to use standard MAG_READ_DELAY_MS
+REGISTER_DEBUG_MAG_READ_DELAY=-1
+
+# Allow unsafe magnetometer operations in register debug mode
+# Enables writes to reserved registers, shorter delays, etc.
+# NEVER enable in production/flight systems
+REGISTER_DEBUG_MAG_UNSAFE_MODE=false
+
 # Timing Configuration (milliseconds)
 IMU_SAMPLE_INTERVAL=40
 CONSOLE_LOG_INTERVAL=1000
