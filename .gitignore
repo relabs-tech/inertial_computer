@@ -25,3 +25,4 @@ go.work.sum
 
 # Calibration files
 *_inertial_calibration.json
+*.code-workspace
