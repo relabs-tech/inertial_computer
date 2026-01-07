@@ -116,14 +116,23 @@ func newIMUSource(name, spiDev, csPin string) (IMURawReader, error) {
 		log.Printf("%s IMU calibration complete", name)
 	}
 
-	// Magnetometer initialization (non-fatal)
+	// Magnetometer initialization (non-fatal) with configurable timing
 	if magID, err := imu.ReadMagID(); err != nil {
 		log.Printf("%s IMU: WARNING: failed to read magnetometer ID: %v", name, err)
 	} else {
 		log.Printf("%s IMU: magnetometer WHO_AM_I = 0x%02X", name, magID)
 	}
 
-	magCal, err := imu.InitMag()
+	// Load magnetometer configuration parameters
+	writeDelay := cfg.MagWriteDelayMS * 1_000_000 // Convert ms to nanoseconds
+	readDelay := cfg.MagReadDelayMS * 1_000_000
+	magScale := cfg.MagScale
+	magMode := cfg.MagMode
+
+	log.Printf("%s IMU: initializing magnetometer (writeDelay=%dms, readDelay=%dms, scale=%d, mode=0x%02X)",
+		name, cfg.MagWriteDelayMS, cfg.MagReadDelayMS, magScale, magMode)
+
+	magCal, err := imu.InitMag(writeDelay, readDelay, magScale, magMode)
 	if err != nil {
 		log.Printf("%s IMU: magnetometer initialization failed (will continue without mag): %v", name, err)
 		return &imuSource{
