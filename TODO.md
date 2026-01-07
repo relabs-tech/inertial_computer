@@ -40,6 +40,8 @@ current state, known-good references, and all remaining work.
   - Producer logs include magnetometer readings and |B| magnitude
   - Local fork of `periph.io/x/devices` integrated via replace directive
   - **Fork includes**: AK8963 magnetometer driver, MagCal calibration support, overflow detection, extended register access
+  - 2026-01-06: Magnetometer configuration system added (Phase 1), with configurable timing applied in `internal/sensors/imu_source.go` (Phase 3 update)
+  - 2026-01-07: IMU driver refactor improves magnetometer stability/reliability
 - **[DONE]** GPS/GLONASS constellation separation (2025-01-02)
   - Raw NMEA logging with `[GPS-RAW]` prefix for debugging
   - Separate processing of GPGSV (GPS) and GLGSV (GLONASS) satellite data
@@ -453,6 +455,10 @@ http://localhost:8081
 3. **Main dashboard now shows magnetometer mode in metadata**
    - IMU cards display: "Mag: 16-bit (0.15µT/LSB)"
    - Clarifies the actual hardware configuration for users
+
+### Updates (Last 7 days)
+- 2026-01-06 — Introduced magnetometer configuration system (Phase 1) and applied configurable mag timing in `imu_source` (Phase 3 update). This enables tuning timing parameters for AK8963 reads via code-level configuration.
+- 2026-01-07 — IMU driver refactor improves magnetometer reliability and read stability across both IMUs.
 
 ### Magnetometer Self-Test (TODO)
 **Status**: Not yet implemented

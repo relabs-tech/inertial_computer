@@ -1069,6 +1069,13 @@ Fusion algorithms remain **internal to the producer**. Consumers always receive 
 5. Add complementary filter or EKF for sensor fusion
 6. Dual-IMU fusion for improved accuracy and fault detection
 
+### Last 7 days (2026-01-01 → 2026-01-07)
+
+- 2026-01-07 — IMU driver refactor focused on magnetometer stability and reliability (improved AK8963 handling).
+- 2026-01-06 — Magnetometer configuration system introduced (Phase 1), plus configurable mag timing in `imu_source` (Phase 3 update).
+- 2026-01-05 — Register Debug UI enhancements: live sensor data cards with formatted API responses; HTML assets tracked.
+- 2026-01-03 — Documentation sweep aligning markdown with Register Debug feature (already merged).
+
 ---
 
 ## 14. Magnetometer integration (test/debug mode)
