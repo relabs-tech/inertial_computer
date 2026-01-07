@@ -7,6 +7,7 @@ package sensors
 import (
 	"fmt"
 	"log"
+	"time"
 
 	"github.com/relabs-tech/inertial_computer/internal/config"
 	imu_raw "github.com/relabs-tech/inertial_computer/internal/imu"
@@ -124,8 +125,8 @@ func newIMUSource(name, spiDev, csPin string) (IMURawReader, error) {
 	}
 
 	// Load magnetometer configuration parameters
-	writeDelay := cfg.MagWriteDelayMS * 1_000_000 // Convert ms to nanoseconds
-	readDelay := cfg.MagReadDelayMS * 1_000_000
+	writeDelay := time.Duration(cfg.MagWriteDelayMS) * time.Millisecond
+	readDelay := time.Duration(cfg.MagReadDelayMS) * time.Millisecond
 	magScale := cfg.MagScale
 	magMode := cfg.MagMode
 
