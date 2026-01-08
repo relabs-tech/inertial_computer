@@ -41,7 +41,7 @@ type Config struct {
 	TopicGLONASSSatellites string
 	TopicGPS               string
 	// External magnetometer topic
-	TopicMagHMC            string
+	TopicMagHMC string
 
 	// HMC5983 external magnetometer
 	HMCI2CBus         int

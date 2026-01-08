@@ -9,11 +9,11 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/eclipse/paho.mqtt.golang"
+	mqtt "github.com/eclipse/paho.mqtt.golang"
 	"github.com/relabs-tech/inertial_computer/internal/config"
 	"periph.io/x/conn/v3/i2c/i2creg"
-	"periph.io/x/host/v3"
 	"periph.io/x/devices/v3/hmc5983"
+	"periph.io/x/host/v3"
 )
 
 // hmcPayload is the JSON schema we publish.
@@ -56,14 +56,22 @@ func RunHMC5983Producer() {
 
 	// Parse HMC options from config file lines (simple helper reads env-like via config file not exposed here).
 	addr := cfg.HMCI2CAddr
-	if addr == 0 { addr = 0x1E }
+	if addr == 0 {
+		addr = 0x1E
+	}
 	odr := cfg.HMCODRHz
-	if odr == 0 { odr = 15 }
+	if odr == 0 {
+		odr = 15
+	}
 	avg := cfg.HMCAvgSamples
-	if avg == 0 { avg = 1 }
+	if avg == 0 {
+		avg = 1
+	}
 	gain := cfg.HMCGainCode
 	mode := cfg.HMCMode
-	if mode == "" { mode = "continuous" }
+	if mode == "" {
+		mode = "continuous"
+	}
 	// Create device.
 	dev, err := hmc5983.New(bus, hmc5983.Opts{Addr: addr, ODRHz: odr, AvgSamples: avg, GainCode: gain, Mode: mode})
 	if err != nil {
@@ -92,7 +100,9 @@ func RunHMC5983Producer() {
 	}
 
 	ms := cfg.HMCSampleInterval
-	if ms <= 0 { ms = 100 }
+	if ms <= 0 {
+		ms = 100
+	}
 	interval := time.Duration(ms) * time.Millisecond
 	// Start loop.
 	fmt.Println("hmc: producer started")
