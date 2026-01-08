@@ -330,6 +330,16 @@
           <div class="status" id="envRightStatus">Right BMP: connecting…</div>
         </div>
 
+        <!-- External Magnetometer (HMC) -->
+        <div class="card">
+          <h2>HMC Magnetometer</h2>
+          <div class="value-row"><div class="label">Mx</div><div class="value"><span id="hmc-mx">0</span></div></div>
+          <div class="value-row"><div class="label">My</div><div class="value"><span id="hmc-my">0</span></div></div>
+          <div class="value-row"><div class="label">Mz</div><div class="value"><span id="hmc-mz">0</span></div></div>
+          <div class="value-row"><div class="label">|B|</div><div class="value"><span id="hmc-norm">0.0</span><span class="unit">µT</span></div></div>
+          <div class="status" id="hmcStatus">HMC: connecting…</div>
+        </div>
+
         <!-- Atmospheric Data by GPS Location -->
         <div class="card">
           <h2>Weather @ GPS</h2>
@@ -440,6 +450,13 @@
     const envRightTemp = document.getElementById('env-right-temp');
     const envRightPress = document.getElementById('env-right-press');
     const envRightStatus = document.getElementById('envRightStatus');
+
+    // HMC (external magnetometer)
+    const hmcMx = document.getElementById('hmc-mx');
+    const hmcMy = document.getElementById('hmc-my');
+    const hmcMz = document.getElementById('hmc-mz');
+    const hmcNorm = document.getElementById('hmc-norm');
+    const hmcStatus = document.getElementById('hmcStatus');
 
     // Atmospheric @ GPS
     const atmLocation = document.getElementById('atm-location');
@@ -912,6 +929,22 @@
       }
     }
 
+    async function fetchHMCMag() {
+      try {
+        const res = await fetch('/api/hmc', { cache: 'no-store' });
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const d = await res.json();
+        hmcMx.textContent = d.mx ?? 0;
+        hmcMy.textContent = d.my ?? 0;
+        hmcMz.textContent = d.mz ?? 0;
+        // norm is µT as float
+        hmcNorm.textContent = (d.norm ?? 0).toFixed(1);
+        hmcStatus.textContent = 'HMC: live from MQTT';
+      } catch (err) {
+        hmcStatus.textContent = 'HMC error: ' + err.message;
+      }
+    }
+
     async function fetchAtmospheric() {
       try {
         // Get GPS position
@@ -1040,6 +1073,7 @@
       fetchEnvLeft();
       fetchEnvRight();
       fetchAtmospheric();
+      fetchHMCMag();
     }
 
     // Load config then start polling

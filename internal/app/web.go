@@ -58,6 +58,16 @@ func RunWeb() error {
 			Count      int             `json:"count"`
 		}
 		haveGLONASSSatellites bool
+
+		// External HMC magnetometer (single device)
+		lastHMCMag struct {
+			Mx   int16   `json:"mx"`
+			My   int16   `json:"my"`
+			Mz   int16   `json:"mz"`
+			Norm float64 `json:"norm"`
+			Time string  `json:"time"`
+		}
+		haveHMCMag bool
 	)
 
 	// 1) Connect to MQTT
@@ -185,6 +195,33 @@ func RunWeb() error {
 		return glonassSatToken.Error()
 	}
 	log.Printf("web: subscribed to MQTT topic %s", cfg.TopicGLONASSSatellites)
+
+	// Subscribe to external HMC magnetometer (if configured)
+	hmcTopic := cfg.TopicMagHMC
+	if hmcTopic != "" {
+		hmcToken := client.Subscribe(hmcTopic, 0, func(_ mqtt.Client, msg mqtt.Message) {
+			var m struct {
+				Mx   int16   `json:"mx"`
+				My   int16   `json:"my"`
+				Mz   int16   `json:"mz"`
+				Norm float64 `json:"norm"`
+				Time string  `json:"time"`
+			}
+			if err := json.Unmarshal(msg.Payload(), &m); err != nil {
+				log.Printf("web: hmc mag unmarshal error: %v", err)
+				return
+			}
+			mu.Lock()
+			lastHMCMag = m
+			haveHMCMag = true
+			mu.Unlock()
+		})
+		hmcToken.Wait()
+		if hmcToken.Error() != nil {
+			return hmcToken.Error()
+		}
+		log.Printf("web: subscribed to %s", hmcTopic)
+	}
 
 	// Subscribe to IMU left
 	imuLeftToken := client.Subscribe(cfg.TopicIMULeft, 0, func(_ mqtt.Client, msg mqtt.Message) {
@@ -405,6 +442,20 @@ func RunWeb() error {
 		w.Header().Set("Content-Type", "application/json")
 		if err := json.NewEncoder(w).Encode(lastEnvRight); err != nil {
 			log.Printf("web: right env JSON encode error: %v", err)
+		}
+	})
+
+	// 6c) JSON API: external HMC magnetometer
+	http.HandleFunc("/api/hmc", func(w http.ResponseWriter, r *http.Request) {
+		mu.RLock()
+		defer mu.RUnlock()
+		if !haveHMCMag {
+			http.Error(w, "no hmc data yet", http.StatusServiceUnavailable)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		if err := json.NewEncoder(w).Encode(lastHMCMag); err != nil {
+			log.Printf("web: hmc JSON encode error: %v", err)
 		}
 	})
 
