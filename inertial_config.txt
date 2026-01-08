@@ -26,6 +26,9 @@ TOPIC_GPS_SATELLITES=inertial/gps/satellites
 TOPIC_GLONASS_SATELLITES=inertial/glonass/satellites
 TOPIC_GPS=inertial/gps
 
+# External magnetometer (HMC5983) topic
+TOPIC_MAG_HMC=inertial/mag/hmc
+
 # Display Configuration
 MQTT_CLIENT_ID_DISPLAY=inertial-display-subscriber
 # I2C addresses in hex (default 0x3C and 0x3D)
@@ -155,6 +158,24 @@ CONSOLE_LOG_INTERVAL=1000
 # Web Server Configuration
 WEB_SERVER_PORT=8080
 WEATHER_UPDATE_INTERVAL_MINUTES=5
+
+# MQTT Client IDs for additional producers
+MQTT_CLIENT_ID_HMC=inertial-hmc-producer
+
+# HMC5983 (external I2C magnetometer) configuration
+# Default I2C bus is 1 (/dev/i2c-1); address is typically 0x1E
+HMC_I2C_BUS=1
+HMC_I2C_ADDR=0x1E
+# Output data rate in Hz (typical: 15, 30, 75); driver will map to CRA
+HMC_ODR_HZ=15
+# Averaging: 1, 2, 4, or 8 samples
+HMC_AVG_SAMPLES=1
+# Gain code: 0..7 (default 1.3 Gauss is code 1)
+HMC_GAIN_CODE=1
+# Mode: continuous or single
+HMC_MODE=continuous
+# Producer sample interval (ms) if not polling RDY
+HMC_SAMPLE_INTERVAL=100
 
 # Register Debugging Configuration
 # MQTT Topics for register debugging

@@ -22,6 +22,7 @@ type Config struct {
 	MQTTClientIDConsole  string
 	MQTTClientIDWeb      string
 	MQTTClientIDDisplay  string
+	MQTTClientIDHMC      string
 
 	// Topics
 	TopicPoseLeft          string
@@ -39,6 +40,17 @@ type Config struct {
 	TopicGPSSatellites     string
 	TopicGLONASSSatellites string
 	TopicGPS               string
+	// External magnetometer topic
+	TopicMagHMC            string
+
+	// HMC5983 external magnetometer
+	HMCI2CBus         int
+	HMCI2CAddr        uint16
+	HMCODRHz          int
+	HMCAvgSamples     int
+	HMCGainCode       int
+	HMCMode           string
+	HMCSampleInterval int // milliseconds
 
 	// IMU Hardware
 	IMULeftSPIDevice  string
@@ -204,6 +216,8 @@ func (c *Config) setValue(key, value string) error {
 		c.MQTTClientIDWeb = value
 	case "MQTT_CLIENT_ID_DISPLAY":
 		c.MQTTClientIDDisplay = value
+	case "MQTT_CLIENT_ID_HMC":
+		c.MQTTClientIDHMC = value
 
 	// Topics
 	case "TOPIC_POSE_LEFT":
@@ -236,6 +250,48 @@ func (c *Config) setValue(key, value string) error {
 		c.TopicGLONASSSatellites = value
 	case "TOPIC_GPS":
 		c.TopicGPS = value
+	case "TOPIC_MAG_HMC":
+		c.TopicMagHMC = value
+
+	// HMC5983 external magnetometer
+	case "HMC_I2C_BUS":
+		v, err := strconv.Atoi(value)
+		if err != nil {
+			return fmt.Errorf("invalid HMC_I2C_BUS %q: %w", value, err)
+		}
+		c.HMCI2CBus = v
+	case "HMC_I2C_ADDR":
+		addr, err := strconv.ParseUint(value, 0, 16)
+		if err != nil {
+			return fmt.Errorf("invalid HMC_I2C_ADDR %q: %w", value, err)
+		}
+		c.HMCI2CAddr = uint16(addr)
+	case "HMC_ODR_HZ":
+		v, err := strconv.Atoi(value)
+		if err != nil {
+			return fmt.Errorf("invalid HMC_ODR_HZ %q: %w", value, err)
+		}
+		c.HMCODRHz = v
+	case "HMC_AVG_SAMPLES":
+		v, err := strconv.Atoi(value)
+		if err != nil {
+			return fmt.Errorf("invalid HMC_AVG_SAMPLES %q: %w", value, err)
+		}
+		c.HMCAvgSamples = v
+	case "HMC_GAIN_CODE":
+		v, err := strconv.Atoi(value)
+		if err != nil {
+			return fmt.Errorf("invalid HMC_GAIN_CODE %q: %w", value, err)
+		}
+		c.HMCGainCode = v
+	case "HMC_MODE":
+		c.HMCMode = value
+	case "HMC_SAMPLE_INTERVAL":
+		v, err := strconv.Atoi(value)
+		if err != nil {
+			return fmt.Errorf("invalid HMC_SAMPLE_INTERVAL %q: %w", value, err)
+		}
+		c.HMCSampleInterval = v
 
 	// IMU Hardware
 	case "IMU_LEFT_SPI_DEVICE":
