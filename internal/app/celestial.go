@@ -17,7 +17,7 @@ import (
 	"github.com/relabs-tech/inertial_computer/internal/gps"
 )
 
-// RunCelestial serves the vendored "celestial" sight-reduction web app on its
+// RunCelestial serves the forked "celestial" sight-reduction web app on its
 // own port and exposes the latest GPS fix so the app can pre-fill its
 // Assumed Position fields, consistent with the message-bus-isolation
 // pattern (this consumer never talks to producers directly).

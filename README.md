@@ -203,30 +203,11 @@ dtoverlay=spi0-2cs,cs0_pin=8,cs1_pin=7
 
 ---
 
-## Celestial Navigation App (vendored dependency)
+## Celestial Navigation App (fork)
 
-[`celestial/`](celestial) is a separate web app (Three.js sight-reduction tool), vendored as a **nested git repository** with its own remote (`git@github.com:Daniel-relabs/celestial.git`), rather than a submodule. It's served on the Pi by `cmd/celestial` (see [ARCHITECTURE.md](ARCHITECTURE.md) §6.6) and linked from the main dashboard.
+[`celestial/`](celestial) is a Three.js sight-reduction web app, originally from `git@github.com:Daniel-relabs/celestial.git` and now forked and developed directly in this repo (no nested git repo or submodule). It's served on the Pi by `cmd/celestial` (see [ARCHITECTURE.md](ARCHITECTURE.md) §6.6) and linked from the main dashboard.
 
-This repo has one local-only modification (a "Use inertial-computer GPS fix" button in `celestial/index.html`) that should never be pushed upstream to the `celestial` repo. To keep that change isolated while still being able to pull new upstream commits:
-
-**One-time setup** — move the local edit onto a branch that's never pushed:
-```bash
-cd celestial
-git checkout -b local/inertial-dashboard
-git add -A
-git commit -m "Add GPS-fix button for inertial-computer dashboard"
-```
-`main` now mirrors upstream exactly; the dashboard-specific change lives only on `local/inertial-dashboard`. Since that branch has no tracking upstream configured, a bare `git push` won't touch it — only push `main` explicitly.
-
-**Pulling upstream updates later:**
-```bash
-cd celestial
-git checkout main
-git pull origin main
-git checkout local/inertial-dashboard
-git rebase main
-```
-Resolve any conflicts normally (only possible if upstream touches the same lines you modified), then make sure `celestial/` is checked out on `local/inertial-dashboard` when deploying — that's the branch with the working dashboard integration.
+Changes to `celestial/` — including the "Use inertial-computer GPS fix" button added to `celestial/index.html` — are just regular commits in this repo's history, same as any other file.
 
 ---
 

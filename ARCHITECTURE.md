@@ -813,7 +813,7 @@ Responsibilities:
 
 Entry point: `internal/app/RunCelestial()`
 
-**Purpose**: Serves the vendored, third-party `celestial/` static web app (a self-contained Three.js sight-reduction tool) from the Pi, and feeds it the live GPS fix so its Assumed Position can be pre-filled without manual entry.
+**Purpose**: Serves the forked `celestial/` static web app (a self-contained Three.js sight-reduction tool, developed directly in this repo) from the Pi, and feeds it the live GPS fix so its Assumed Position can be pre-filled without manual entry.
 
 Responsibilities:
 
