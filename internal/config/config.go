@@ -23,6 +23,7 @@ type Config struct {
 	MQTTClientIDWeb      string
 	MQTTClientIDDisplay  string
 	MQTTClientIDHMC      string
+	MQTTClientIDCelestial string
 
 	// Topics
 	TopicPoseLeft          string
@@ -110,6 +111,9 @@ type Config struct {
 	// Web Server
 	WebServerPort                int
 	WeatherUpdateIntervalMinutes int
+
+	// Celestial Navigation Server (serves the vendored "celestial" static app)
+	CelestialServerPort int
 
 	// Display
 	DisplayLeftI2CAddr    uint16
@@ -218,6 +222,8 @@ func (c *Config) setValue(key, value string) error {
 		c.MQTTClientIDDisplay = value
 	case "MQTT_CLIENT_ID_HMC":
 		c.MQTTClientIDHMC = value
+	case "MQTT_CLIENT_ID_CELESTIAL":
+		c.MQTTClientIDCelestial = value
 
 	// Topics
 	case "TOPIC_POSE_LEFT":
@@ -574,6 +580,12 @@ func (c *Config) setValue(key, value string) error {
 			return fmt.Errorf("invalid WEATHER_UPDATE_INTERVAL_MINUTES %q: %w", value, err)
 		}
 		c.WeatherUpdateIntervalMinutes = minutes
+	case "CELESTIAL_SERVER_PORT":
+		port, err := strconv.Atoi(value)
+		if err != nil {
+			return fmt.Errorf("invalid CELESTIAL_SERVER_PORT %q: %w", value, err)
+		}
+		c.CelestialServerPort = port
 
 	// Display
 	case "DISPLAY_LEFT_I2C_ADDR":

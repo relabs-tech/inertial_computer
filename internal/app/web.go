@@ -464,6 +464,7 @@ func RunWeb() error {
 		w.Header().Set("Content-Type", "application/json")
 		configData := map[string]interface{}{
 			"weather_update_interval_minutes": cfg.WeatherUpdateIntervalMinutes,
+			"celestial_server_port":           cfg.CelestialServerPort,
 		}
 		if err := json.NewEncoder(w).Encode(configData); err != nil {
 			log.Printf("web: config JSON encode error: %v", err)

@@ -174,6 +174,29 @@
     .cal-button:active {
       transform: translateY(0);
     }
+
+    .celestial-button {
+      background: linear-gradient(135deg, #1a2a6c 0%, #2c3e50 100%);
+      color: white;
+      border: none;
+      padding: 0.6rem 1.2rem;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      box-shadow: 0 4px 15px rgba(26, 42, 108, 0.4);
+      transition: all 0.3s ease;
+      margin-right: 0.6rem;
+    }
+
+    .celestial-button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(26, 42, 108, 0.6);
+    }
+
+    .celestial-button:active {
+      transform: translateY(0);
+    }
   </style>
 </head>
 <body>
@@ -184,6 +207,9 @@
           <h1>Inertial Computer (MQTT Data)</h1>
           <div class="subtitle">Live data from dual IMUs, BMPs, GPS with left/right/fused orientation</div>
         </div>
+        <button class="celestial-button" id="celestial-button">
+          🧭 Celestial Navigation
+        </button>
         <button class="cal-button" onclick="window.location.href='/calibration.html'">
           🎯 Calibrate IMU
         </button>
@@ -481,6 +507,10 @@
           const config = await res.json();
           WEATHER_UPDATE_INTERVAL_MINUTES = config.weather_update_interval_minutes || 5;
           console.log(`Weather update interval: ${WEATHER_UPDATE_INTERVAL_MINUTES} minutes`);
+          if (config.celestial_server_port) {
+            const celestialUrl = `${window.location.protocol}//${window.location.hostname}:${config.celestial_server_port}/`;
+            document.getElementById('celestial-button').onclick = () => window.location.href = celestialUrl;
+          }
         }
       } catch (err) {
         console.error('Failed to load config:', err);

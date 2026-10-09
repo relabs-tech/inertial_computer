@@ -22,40 +22,27 @@ current state, known-good references, and all remaining work.
   - Efficient pixel manipulation via `image1bit` package with `SetBit()` / `BitAt()` methods
   - Hardware-level scrolling support via `SetDisplayStartLine()` method
   - Configuration options for rotation and display variants
-- **[DONE]** Separated raw sensor reads from pose computation (branch: `refactor/separate-raw-reads-from-pose`)
-  - `IMURawReader` interface for hardware reads
-  - Pure functions `AccelToPose()`, `ComputePoseFromAccel()` in orientation package
-  - Producer refactored to call `ReadRaw()` then compute pose
-- **[DONE]** Right IMU integration (branch: `feature/imu-right`)
-  - Right IMU accessible via SPI0, CS on GPIO 8
-  - Accel, gyro reads working
-- **[DONE]** Gyroscope integration (commit: 34a11cf)
-  - Left and right IMU gyro values read via `GetRotationX/Y/Z()`
-  - Published in IMURaw structs
-- **[NEW]** Magnetometer driver integration (branch: `Mag_Add`, commits: 139a91d, f5f3cb3)
-  - Left and right IMU magnetometer (AK8963) initialized via internal I2C
-  - `InitMag()` and `ReadMag()` implemented in driver
-  - Magnetometer reads working; values published in IMURaw structs
-  - Test/debug MQTT topic `inertial/mag/left` publishing mag data with field magnitude
-  - Producer logs include magnetometer readings and |B| magnitude
-  - Local fork of `periph.io/x/devices` integrated via replace directive
-  - **Fork includes**: AK8963 magnetometer driver, MagCal calibration support, overflow detection, extended register access
-  - 2026-01-06: Magnetometer configuration system added (Phase 1), with configurable timing applied in `internal/sensors/imu_source.go` (Phase 3 update)
-  - 2026-01-07: IMU driver refactor improves magnetometer stability/reliability
-- **[DONE]** GPS/GLONASS constellation separation (2025-01-02)
-  - Raw NMEA logging with `[GPS-RAW]` prefix for debugging
-  - Separate processing of GPGSV (GPS) and GLGSV (GLONASS) satellite data
-  - Data structures updated: `gps.Fix` and `gps.SatellitesInView` with separate GPS/GLONASS fields
-  - Added `TOPIC_GLONASS_SATELLITES` configuration for separate MQTT publishing
-  - Web UI visualization distinguishes GPS (circles) vs GLONASS (squares)
-  - Fixed satellite data display issue: lack of GLONASS data no longer pollutes GPS display
-  - Topic-specific anonymous structs prevent cross-constellation data contamination in MQTT payloads
+- **[DONE]** Separated raw sensor reads from pose computation
+- **[DONE]** Right IMU integration
+- **[DONE]** Gyroscope integration
+- **[DONE]** Magnetometer driver integration (AK8963 via internal I2C)
+- **[NEW]** HMC5983 magnetometer driver integration (2026-01-08)
+  - ✅ Complete HMC5983/HMC5883L driver in periph.io devices fork
+  - ✅ Independent producer (`cmd/hmc5983_producer`) with MQTT publishing
+  - ✅ Configuration-driven setup via `inertial_config.txt`
+  - ✅ Configurable I2C bus, address, ODR, gain, averaging, measurement mode
+  - ✅ Raw and scaled magnetometer output (µT × 10)
+  - ✅ Field magnitude calculation with RFC3339 timestamps
+  - ✅ Separate MQTT topic: `inertial/mag/hmc`
+  - ✅ Display consumer support for HMC5983 visualization
+  - ⚠️ HMC5983-specific calibration routines (TODO)
+  - ⚠️ Multi-sensor magnetometer fusion (combining HMC + IMU mags)
 
 ### Not completed
-- Real IMU (MPU9250) wiring (accel reads work, gyro/mag TODOs remain)
-- Magnetometer (AK8963) integration
-- BMP environmental sensors
-- Proper sensor fusion
+- Magnetometer calibration (hard-iron/soft-iron correction for both AK8963 and HMC5983)
+- Proper sensor fusion (integrating gyro and mag into yaw calculation)
+- Multi-sensor magnetometer fusion (combining left IMU, right IMU, and HMC5983 data)
+- HMC5983-specific calibration UI tools
 
 ---
 
@@ -71,25 +58,37 @@ The Pi never talks directly to the magnetometer.
 
 ---
 
-## 3. Sensor layer (internal/sensors)
+## 3. Sensor layer (internal/sensors and standalone producers)
 
-### Left IMU
-- ✅ Access MPU9250 via SPI (working)
+### Left IMU (MPU9250)
+- ✅ Access via SPI (working)
 - ✅ Read accel via `imuSource.ReadRaw()` (working)
 - ✅ Read gyroscope (rotation) values via `GetRotationX/Y/Z` (implemented)
 - ✅ Configure internal I2C master for AK8963 magnetometer (complete)
-- ✅ Read magnetometer from EXT_SENS_DATA registers (working with test code)
+- ✅ Read magnetometer from EXT_SENS_DATA registers (working)
 - ⚠️ Magnetometer calibration (hard-iron and soft-iron correction TODO)
 - ⚠️ Integration of magnetometer into yaw calculation (fusion TODO)
 
-### Right IMU
-- ✅ Access MPU9250 via SPI (working, wired and tested)
+### Right IMU (MPU9250)
+- ✅ Access via SPI (working, wired and tested)
 - ✅ Read accel via `ReadRightIMURaw()` (working)
 - ✅ Read gyroscope (rotation) values via `GetRotationX/Y/Z()` (implemented)
 - ✅ Configure internal I2C master for AK8963 magnetometer (complete)
-- ✅ Read magnetometer from EXT_SENS_DATA registers (working with test code)
+- ✅ Read magnetometer from EXT_SENS_DATA registers (working)
 - ⚠️ Magnetometer calibration (hard-iron and soft-iron correction TODO)
 - ⚠️ Integration of magnetometer into yaw calculation (fusion TODO)
+
+### HMC5983 Magnetometer (Standalone)
+- ✅ Independent I2C driver with full register control
+- ✅ Configurable ODR (3, 7.5, 15, 30, 75 Hz)
+- ✅ Selectable gain (codes 0-7) for different measurement ranges
+- ✅ Sample averaging (1, 2, 4, 8) for noise reduction
+- ✅ Continuous and single-shot measurement modes
+- ✅ Raw (X,Z,Y order) and scaled (X,Y,Z order in µT × 10) output
+- ✅ Field magnitude computation
+- ✅ Configuration-driven setup via `inertial_config.txt`
+- ⚠️ Magnetometer calibration (hard-iron/soft-iron correction TODO)
+- ⚠️ Multi-sensor fusion with AK8963 magnetometers (TODO)
 
 ### Environmental sensors (BMP)
 - ✅ Initialize BMP sensors on SPI
@@ -117,6 +116,19 @@ The Pi never talks directly to the magnetometer.
 ---
 
 ## 5. Producers
+
+### HMC5983 Producer (`cmd/hmc5983_producer`)
+- ✅ Independent I2C bus initialization
+- ✅ HMC5983 device creation with configurable parameters
+- ✅ Configuration-driven setup from `inertial_config.txt` (I2C bus, address, ODR, gain, averaging, mode, interval)
+- ✅ MQTT publishing to configurable topic (default: `inertial/mag/hmc`)
+- ✅ Raw and scaled magnetometer data with automatic X,Z,Y → X,Y,Z reordering
+- ✅ Field magnitude calculation in µT
+- ✅ RFC3339 timestamp format for synchronization
+- ✅ Error handling for I2C communication
+- ⚠️ Calibration routine integration (TODO)
+- ⚠️ Multi-sensor calibration coordination (TODO)
+- Ready for: HMC5983-specific calibration, multi-sensor magnetometer fusion
 
 ### IMU Producer (`cmd/imu_producer`, renamed from `cmd/producer`)
 - ✅ Refactored to call `ReadRaw()` and `AccelToPose()` separately

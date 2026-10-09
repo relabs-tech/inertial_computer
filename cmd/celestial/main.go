@@ -1,0 +1,24 @@
+// Copyright (c) 2026 Daniel Alarcon Rubio / Relabs Tech
+// SPDX-License-Identifier: MIT
+// See LICENSE file for full license text
+
+package main
+
+import (
+	"log"
+
+	"github.com/relabs-tech/inertial_computer/internal/app"
+	"github.com/relabs-tech/inertial_computer/internal/config"
+)
+
+func main() {
+	log.Println("starting inertial-computer celestial navigation server (MQTT subscriber)")
+
+	if err := config.InitGlobal("inertial_config.txt"); err != nil {
+		log.Fatalf("failed to load config: %v", err)
+	}
+
+	if err := app.RunCelestial(); err != nil {
+		log.Fatalf("fatal: %v", err)
+	}
+}

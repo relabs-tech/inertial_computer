@@ -138,10 +138,12 @@ type Satellite struct {
 
 **Key Design**: GPS and GLONASS satellites are processed and published separately to prevent data contamination. Each topic receives only constellation-specific data using anonymous structs, ensuring clean payloads without cross-constellation fields.
 
-**Test/debug topic** (temporary):
-- `inertial/mag/left` — magnetometer-only data with computed field magnitude
+**Magnetometer topics**:
+- `inertial/mag/left` — left IMU magnetometer (AK8963 via internal I2C)
+- `inertial/mag/right` — right IMU magnetometer (AK8963 via internal I2C)
+- `inertial/mag/hmc` — standalone HMC5983 magnetometer (external I2C)
 
-Format:
+Format (all magnetometer topics):
 ```json
 {
   "mx": -180,
@@ -152,7 +154,10 @@ Format:
 }
 ```
 
-This topic will be removed once magnetometer fusion is stable.
+**Notes**:
+- All magnetometer values published in µT × 10 (int16) for consistency
+- `norm` is the field magnitude in µT (float64)
+- `time` is RFC3339 format UTC timestamp
 
 ---
 
@@ -448,11 +453,56 @@ Future enhancements:
 - Integrate gyro angular velocity for dynamic yaw estimation
 - Add magnetometer fusion to correct yaw drift with heading
 - Implement complementary filter or EKF for robust sensor fusion
-- Add dual-IMU cross-validation and fusion
+- Dual-IMU cross-validation and fusion
+- Multi-sensor magnetometer fusion (combining HMC5983 + AK8963 from both IMUs)
 
 ---
 
-### 5.2 GPS producer (`cmd/gps_producer`)
+### 5.2 HMC5983 producer (`cmd/hmc5983_producer`)
+
+Entry point: `internal/app/RunHMC5983Producer()`
+
+Responsibilities:
+
+- read HMC5983 configuration from `inertial_config.txt`
+- initialize periph.io host and I2C bus
+- create HMC5983 device with configurable parameters:
+  - **I2C Bus**: `HMC_I2C_BUS` (default: 1)
+  - **I2C Address**: `HMC_I2C_ADDR` (default: 0x1E)
+  - **Output Data Rate**: `HMC_ODR_HZ` (default: 15 Hz, options: 3, 7.5, 15, 30, 75)
+  - **Sample Averaging**: `HMC_AVG_SAMPLES` (default: 1, options: 1, 2, 4, 8)
+  - **Gain Code**: `HMC_GAIN_CODE` (default: 1, range 0-7 for different measurement ranges)
+  - **Measurement Mode**: `HMC_MODE` (default: "continuous", alternative: "single")
+  - **Sample Interval**: `HMC_SAMPLE_INTERVAL` (default: 100ms)
+- connect to MQTT broker
+- loop at configurable interval:
+  - call `dev.Sense()` → get scaled magnetometer data (µT × 10)
+  - compute field magnitude: `|B| = sqrt(mx² + my² + mz²)` in µT
+  - publish to `inertial/mag/hmc` (configurable topic via `TOPIC_MAG_HMC`)
+  - include RFC3339 timestamp for synchronization
+- handle I2C communication errors gracefully
+
+Current implementation:
+
+- ✅ Full HMC5983 driver integration
+- ✅ Configuration-driven setup from `inertial_config.txt`
+- ✅ Raw and scaled magnetometer data with automatic reordering (X,Z,Y → X,Y,Z)
+- ✅ Magnitude calculation and timestamping
+- ✅ Separate MQTT topic for independent data stream
+- ✅ Complementary to dual IMU magnetometers (left/right AK8963)
+- ⚠️ Magnetometer calibration (hard-iron/soft-iron correction TODO)
+- ⚠️ Multi-sensor magnetometer fusion (combining HMC5983 + AK8963 data)
+
+Future enhancements:
+
+- Implement HMC5983-specific calibration routines
+- Support magnetometer fusion across three sensors (left IMU, right IMU, standalone HMC)
+- Add magnetometer self-test capability
+- Optional real-time calibration adjustment via web UI
+
+---
+
+### 5.3 GPS producer (`cmd/gps_producer`)
 
 Entry point: `internal/app/RunGPSProducer()`
 
@@ -544,7 +594,7 @@ GET /api/imu/right            → last right IMURaw
 GET /api/env/left             → last left Sample (temp + pressure)
 GET /api/env/right            → last right Sample (temp + pressure)
 GET /api/gps                  → last GPS Fix (full data)
-GET /api/config               → system configuration (weather update interval, etc.)
+GET /api/config               → system configuration (weather update interval, celestial server port, etc.)
 ```
 
 - serve static HTML/JS dashboard from `web/` directory on configured port (default: 8080)
@@ -561,7 +611,7 @@ Frontend behavior:
 
 - polls most APIs every 500ms for real-time updates
 - weather data cached and updated based on configurable interval (default 5 minutes)
-- displays 10 dashboard cards in optimized compact layout:
+- displays 10+ dashboard cards in optimized compact layout:
   - Orientation (roll, pitch, yaw)
   - Fused orientation
   - GPS position and speed
@@ -570,6 +620,7 @@ Frontend behavior:
   - Weather @ GPS (met.no API: temp, pressure, humidity, conditions)
   - Left and right IMU raw data
   - Left and right BMP environmental data
+  - HMC5983 magnetometer data (if enabled)
 - ✅ Satellite visualizations with color-coded signal strength
 - ✅ Weather integration with sea level pressure calculation
 - ✅ Responsive grid layout optimized for single-screen viewing
@@ -629,6 +680,7 @@ DISPLAY_RIGHT_CONTENT=imu_raw_right
 - `orientation_left` - Left orientation (Roll, Pitch, Yaw in degrees)
 - `orientation_right` - Right orientation (Roll, Pitch, Yaw in degrees)
 - `gps` - GPS position (Latitude, Longitude, Altitude)
+- `hmc5983` - HMC5983 magnetometer (Mx, My, Mz, Field magnitude |B|)
 
 **Display rendering:**
 
@@ -653,14 +705,38 @@ MQTT Topics → Display Consumer → I2C Bus → SSD1306 Displays
 
 Design principles:
 
-- **Configurable content**: Any display can show any data type
+- **Configurable content**: Any display can show any data type (including HMC5983)
 - **Independent operation**: Runs separately from web UI
 - **Real-time updates**: Configurable refresh rate for responsiveness
 - **Hardware abstraction**: periph.io for cross-platform I2C access
 
 ---
 
-### 6.4 Register debugger (`cmd/register_debug`)
+### 6.4 HMC5983 Display Support
+
+The display consumer supports showing HMC5983 magnetometer data on SSD1306 displays.
+
+**Display content type**: `hmc5983`
+
+**Configuration in `inertial_config.txt`:**
+```
+DISPLAY_LEFT_CONTENT=hmc5983
+DISPLAY_RIGHT_CONTENT=hmc5983
+```
+
+**Displayed information**:
+- HMC5983 X, Y, Z magnetometer values (µT × 10)
+- Field magnitude |B| in µT
+- Real-time updates at configured refresh interval
+
+Future enhancements:
+- Magnetometer calibration status indicator
+- Combined multi-sensor magnetometer visualization
+- Calibration progress display during HMC5983 calibration
+
+---
+
+### 6.5 Register debugger (`cmd/register_debug`)
 
 Entry point: `internal/app/HandleRegisterDebugWS()`
 
@@ -730,6 +806,36 @@ Responsibilities:
 - Accessible from main dashboard via "Debug Registers" button
 - Runs on separate port (8081) from main web UI (8080)
 - Zero MQTT dependency for simplified debugging architecture
+
+---
+
+### 6.6 Celestial navigation server (`cmd/celestial`)
+
+Entry point: `internal/app/RunCelestial()`
+
+**Purpose**: Serves the vendored, third-party `celestial/` static web app (a self-contained Three.js sight-reduction tool) from the Pi, and feeds it the live GPS fix so its Assumed Position can be pre-filled without manual entry.
+
+Responsibilities:
+
+- read MQTT broker, `TOPIC_GPS`, and `CELESTIAL_SERVER_PORT` from `inertial_config.txt`
+- connect to MQTT broker and subscribe to `TOPIC_GPS`
+- cache the latest GPS `Fix` in memory (protected by RWMutex)
+- expose `GET /api/gps` → last GPS `Fix` (503 until the first fix arrives)
+- serve the static `celestial/` directory (HTML/JS/assets) on the configured port (default: 8082)
+
+```
+GET /api/gps                   → last GPS Fix (full data), 503 if none yet
+```
+
+Frontend behavior (`celestial/index.html`):
+- unmodified upstream celestial-navigation app, with one addition: a **"🛰 Use inertial-computer GPS fix"** button next to the existing "Use my location" browser-geolocation button
+- fetches `/api/gps`, and if `validity == "A"` fills the Assumed Position (lat/lon) fields
+- falls back to an on-screen message if no valid fix is available yet
+
+**Integration**:
+- Accessible from the main dashboard via the "🧭 Celestial Navigation" button, which reads the port from `/api/config` (`celestial_server_port`) and navigates to `http://<host>:<port>/`
+- Runs on its own port, independent from the main web UI (8080) and register debugger (8081); must not collide with either
+- Message-bus isolation preserved: this consumer only reads `TOPIC_GPS`, never talks to producers directly
 
 ---
 

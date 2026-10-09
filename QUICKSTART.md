@@ -20,10 +20,12 @@ cd inertial_computer
 # Build all components
 go build -o imu_producer ./cmd/imu_producer/
 go build -o gps_producer ./cmd/gps_producer/
+go build -o hmc5983_producer ./cmd/hmc5983_producer/
 go build -o web ./cmd/web/
 go build -o calibration ./cmd/calibration/
 go build -o display ./cmd/display/
 go build -o register_debug ./cmd/register_debug/
+go build -o celestial ./cmd/celestial/
 ```
 
 ## Step 2: Configure
@@ -37,7 +39,14 @@ nano inertial_config.txt
 Key settings to verify:
 - `MQTT_BROKER` - MQTT broker address (default: `tcp://localhost:1883`)
 - `WEB_SERVER_PORT` - Web UI port (default: `8080`)
+- `CELESTIAL_SERVER_PORT` - Celestial navigation app port (default: `8082`)
 - `GPS_SERIAL_DEVICE` - GPS serial port (e.g., `/dev/ttyAMA0`)
+- `HMC_I2C_BUS` - I2C bus for HMC5983 (default: 1)
+- `HMC_I2C_ADDR` - HMC5983 address (default: 0x1E)
+- `HMC_ODR_HZ` - HMC5983 sample rate (default: 15, options: 3/7.5/15/30/75)
+- `HMC_GAIN_CODE` - HMC5983 gain (default: 1, range: 0-7)
+- `HMC_AVG_SAMPLES` - HMC5983 averaging (default: 1, options: 1/2/4/8)
+- `HMC_MODE` - HMC5983 mode (default: "continuous", alternative: "single")
 - IMU SPI settings for left and right sensors
 
 ## Step 3: Start MQTT Broker
@@ -76,7 +85,23 @@ Right IMU initialized successfully
 Publishing to: imu/left, imu/right
 ```
 
-### Terminal 2: GPS Producer
+### Terminal 2: HMC5983 Producer (Optional)
+
+If you have an HMC5983 magnetometer connected via I2C:
+
+```bash
+cd ~/go/src/github.com/relabs-tech/inertial_computer
+./hmc5983_producer  # Note: doesn't require sudo for I2C
+```
+
+Expected output:
+```
+starting HMC5983 producer
+[HMC] ID='H' '4' '3' (addr=0x1E)
+hmc: producer started
+```
+
+### Terminal 3: GPS Producer
 
 ```bash
 cd ~/go/src/github.com/relabs-tech/inertial_computer
@@ -90,7 +115,7 @@ GPS initialized successfully
 Publishing to: gps/fix
 ```
 
-### Terminal 3: Web Server
+### Terminal 4: Web Server
 
 ```bash
 cd ~/go/src/github.com/relabs-tech/inertial_computer
@@ -108,7 +133,7 @@ web: subscribed to MQTT topic orientation/right
 web: listening on :8080
 ```
 
-### Terminal 4: Display Consumer (Optional)
+### Terminal 5: Display Consumer (Optional)
 
 If you have SSD1306 OLED displays connected via I2C:
 
@@ -130,12 +155,30 @@ display: starting update loop
 
 **Note**: The display consumer requires hardware (SSD1306 displays) and runs independently of the web UI.
 
+### Terminal 6: Celestial Navigation Server (Optional)
+
+Serves the vendored `celestial/` sight-reduction web app and exposes the latest GPS fix to pre-fill its Assumed Position:
+
+```bash
+cd ~/go/src/github.com/relabs-tech/inertial_computer
+./celestial
+```
+
+Expected output:
+```
+starting inertial-computer celestial navigation server (MQTT subscriber)
+celestial: subscribed to MQTT topic inertial/gps
+celestial: listening on :8082
+```
+
+Open `http://<raspberry-pi-ip>:8082` directly, or click **"🧭 Celestial Navigation"** on the main dashboard. In the app, use the **"🛰 Use inertial-computer GPS fix"** button to pre-fill the Assumed Position from the live GPS producer.
+
 ### Configuring Display Content
 
 You can configure what data appears on each display by editing `inertial_config.txt`:
 
 ```bash
-# Display content options: imu_raw_left, imu_raw_right, orientation_left, orientation_right, gps
+# Display content options: imu_raw_left, imu_raw_right, orientation_left, orientation_right, gps, hmc5983
 DISPLAY_LEFT_CONTENT=imu_raw_left
 DISPLAY_RIGHT_CONTENT=imu_raw_right
 ```
@@ -146,6 +189,7 @@ DISPLAY_RIGHT_CONTENT=imu_raw_right
 - `orientation_left` - Left orientation (Roll, Pitch, Yaw in degrees)
 - `orientation_right` - Right orientation (Roll, Pitch, Yaw in degrees)
 - `gps` - GPS position (Latitude, Longitude, Altitude)
+- `hmc5983` - HMC5983 magnetometer (Mx, My, Mz, and field magnitude |B|)
 
 **Default configuration:** Raw left IMU on left display, raw right IMU on right display.
 
@@ -553,6 +597,8 @@ mosquitto_sub -h localhost -t '#' -v
 
 # Monitor specific topics
 mosquitto_sub -h localhost -t 'imu/left' -v
+mosquitto_sub -h localhost -t 'imu/right' -v
+mosquitto_sub -h localhost -t 'mag/hmc' -v
 mosquitto_sub -h localhost -t 'gps/fix' -v
 
 # Check process status
@@ -569,6 +615,7 @@ pkill -f web
 go build -o imu_producer ./cmd/imu_producer/
 go build -o gps_producer ./cmd/gps_producer/
 go build -o web ./cmd/web/
+go build -o celestial ./cmd/celestial/
 
 # Clean build
 go clean
@@ -586,11 +633,12 @@ For issues, questions, or contributions:
 | Component | Command | Port/Topic | Notes |
 |-----------|---------|------------|-------|
 | MQTT Broker | `mosquitto` | 1883 | Must start first |
-| IMU Producer | `sudo ./imu_producer` | → `imu/left`, `imu/right` | Needs sudo |
-| GPS Producer | `sudo ./gps_producer` | → `gps/fix` | Needs sudo |
+| IMU Producer | `sudo ./imu_producer` | → `imu/left`, `imu/right`, `mag/left`, `mag/right` | Needs sudo |
+| GPS Producer | `sudo ./gps_producer` | → `gps/fix`, `gps/satellites` | Needs sudo |
+| HMC5983 Producer | `./hmc5983_producer` | → `mag/hmc` | No sudo needed (I2C) |
 | Web Server | `./web` | :8080 | No sudo needed |
-| Dashboard | Browser | http://localhost:8080 | - |
-| Calibration UI | Browser | http://localhost:8080/calibration.html | - |
+| Dashboard | Browser | http://localhost:8080 | Displays all sensors |
+| Calibration UI | Browser | http://localhost:8080/calibration.html | IMU calibration |
 | Calibration CLI | `sudo ./calibration` | - | Alternative to web UI |
 | Register Debug | `sudo ./register_debug` | :8081 | Hardware debugging |
 | Register Debug UI | Browser | http://localhost:8081 | Direct register access |
