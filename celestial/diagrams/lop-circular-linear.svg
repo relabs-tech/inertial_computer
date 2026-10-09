@@ -1,0 +1,29 @@
+<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 560 560' width='560' height='560'>
+<rect x='1' y='1' width='558' height='558' rx='12' fill='#0e1220' stroke='#232a42' stroke-width='2'/>
+<text x='280.0' y='30' fill='#e7ebf5' font-size='14.5' text-anchor='middle' font-weight='600' font-family='Space Grotesk, Helvetica, Arial, sans-serif'>Circle of equal altitude &#8594; local straight-line approximation</text>
+<clipPath id='mainClip'><rect x='16' y='48' width='528' height='250' rx='8'/></clipPath>
+<g clip-path='url(#mainClip)'>
+<rect x='16' y='48' width='528' height='250' fill='#0b0f1c'/>
+<circle cx='884' cy='678' r='760' fill='none' stroke='#6fb389' stroke-width='2.5'/>
+</g>
+<rect x='16' y='48' width='528' height='250' rx='8' fill='none' stroke='#232a42' stroke-width='1.5'/>
+<circle cx='146' cy='198' r='4.5' fill='#ffffff'/>
+<text x='136' y='188' fill='#ffffff' font-size='12' text-anchor='end' font-weight='700' font-family='Space Grotesk, Helvetica, Arial, sans-serif'>AP</text>
+<line x1='146' y1='198' x2='201.3' y2='234.0' stroke='#e0b04a' stroke-width='2.5' stroke-linecap='round'/>
+<text x='164' y='220' fill='#e0b04a' font-size='12' text-anchor='start' font-weight='700' font-family='Space Grotesk, Helvetica, Arial, sans-serif'>intercept a</text>
+<circle cx='201.3' cy='234.0' r='4' fill='#e0b04a'/>
+<line x1='283.1' y1='108.2' x2='119.5' y2='359.7' stroke='#e7ebf5' stroke-width='2.25' stroke-dasharray='7,5' stroke-linecap='round'/>
+<text x='530' y='282' fill='#e7ebf5' font-size='12' text-anchor='end' font-weight='700' font-family='Space Grotesk, Helvetica, Arial, sans-serif'>LOP (straight, plotted)</text>
+<text x='30' y='70' fill='#6fb389' font-size='12' text-anchor='start' font-weight='700' font-family='Space Grotesk, Helvetica, Arial, sans-serif'>True circle of equal altitude</text>
+<text x='30' y='86' fill='#8892ac' font-size='10.5' text-anchor='start' font-weight='500' font-family='Space Grotesk, Helvetica, Arial, sans-serif'>radius = 90&#176; &#8722; Ho, centred on the body's GP &#8212; often 1,000+ nm away</text>
+<rect x='156.3' y='204.0' width='90' height='60' fill='none' stroke='#a481d6' stroke-width='1.5' stroke-dasharray='4,3'/>
+<line x1='156.3' y1='264.0' x2='60' y2='368' stroke='#a481d6' stroke-width='1.2' stroke-dasharray='3,3' opacity='0.7'/>
+<line x1='246.3' y1='264.0' x2='500' y2='368' stroke='#a481d6' stroke-width='1.2' stroke-dasharray='3,3' opacity='0.7'/>
+<rect x='60' y='368' width='440' height='130' rx='8' fill='#0b0f1c' stroke='#a481d6' stroke-width='1.5'/>
+<text x='280.0' y='392' fill='#a481d6' font-size='11.5' text-anchor='middle' font-weight='700' font-family='Space Grotesk, Helvetica, Arial, sans-serif'>Zoomed in: arc &#8776; straight line over a few nm</text>
+<line x1='90.0' y1='453.0' x2='470.0' y2='453.0' stroke='#e7ebf5' stroke-width='2' stroke-dasharray='6,4'/>
+<path d='M 90.0,453.0 Q 280.0,460.0 470.0,453.0' fill='none' stroke='#6fb389' stroke-width='2'/>
+<text x='280.0' y='484' fill='#8892ac' font-size='10.5' text-anchor='middle' font-weight='500' font-family='Space Grotesk, Helvetica, Arial, sans-serif'>true arc (green) vs. LOP tangent (dashed white) &#8212; indistinguishable at chart scale</text>
+<line x1='30' y1='514' x2='530' y2='514' stroke='#232a42' stroke-width='1.5'/>
+<text x='280.0' y='538' fill='#8892ac' font-size='11' text-anchor='middle' font-weight='500' font-family='Space Grotesk, Helvetica, Arial, sans-serif'>One sight &#8658; one LOP (a line, not a fix). Two or more crossing LOPs &#8658; a position.</text>
+</svg>

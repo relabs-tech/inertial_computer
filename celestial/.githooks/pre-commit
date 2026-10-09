@@ -1,0 +1,12 @@
+#!/bin/sh
+# Stamps the header version span in index.html from the nearest git tag before each commit.
+set -e
+
+REPO_ROOT=$(git rev-parse --show-toplevel)
+cd "$REPO_ROOT"
+
+VERSION=$(git describe --tags --always)
+sed -i.bak -E "s|(<span class=\"version\"[^>]*>)[^<]*(</span>)|\1${VERSION}\2|" index.html
+rm -f index.html.bak
+
+git add index.html

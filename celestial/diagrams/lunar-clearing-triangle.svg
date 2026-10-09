@@ -1,0 +1,20 @@
+<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 560 460' width='560' height='460'>
+<rect x='1' y='1' width='558' height='458' rx='12' fill='#0e1220' stroke='#232a42' stroke-width='2'/>
+<text x='280.0' y='30.0' fill='#e7ebf5' font-size='13.5' text-anchor='middle' font-weight='600' font-family='Space Grotesk, Helvetica, Arial, sans-serif'>The apparent triangle at the zenith (clearing a lunar distance)</text>
+<line x1='280.00' y1='96.00' x2='148.00' y2='336.00' stroke='#5b8dd9' stroke-width='2.5' stroke-linecap='round'/>
+<line x1='280.00' y1='96.00' x2='412.00' y2='336.00' stroke='#e0b04a' stroke-width='2.5' stroke-linecap='round'/>
+<line x1='148.00' y1='336.00' x2='412.00' y2='336.00' stroke='#e0803f' stroke-width='2.75' stroke-linecap='round'/>
+<path d='M 252.05,146.82 A 58,58 0 0 1 307.95,146.82' stroke='#6fb389' stroke-width='2' fill='none' stroke-dasharray='5,4'/>
+<text x='280.0' y='146.0' fill='#6fb389' font-size='13' text-anchor='middle' font-weight='700' font-family='Space Grotesk, Helvetica, Arial, sans-serif'>Z</text>
+<circle cx='280.00' cy='96.00' r='5' fill='#e7ebf5'/>
+<text x='280.0' y='82.0' fill='#e7ebf5' font-size='12.5' text-anchor='middle' font-weight='600' font-family='Space Grotesk, Helvetica, Arial, sans-serif'>Zenith (Z)</text>
+<circle cx='148.00' cy='336.00' r='5' fill='#5b8dd9'/>
+<text x='138.0' y='360.0' fill='#5b8dd9' font-size='12.5' text-anchor='end' font-weight='700' font-family='Space Grotesk, Helvetica, Arial, sans-serif'>Moon (M')</text>
+<circle cx='412.00' cy='336.00' r='5' fill='#e0b04a'/>
+<text x='422.0' y='360.0' fill='#e0b04a' font-size='12.5' text-anchor='start' font-weight='700' font-family='Space Grotesk, Helvetica, Arial, sans-serif'>Sun / star (S')</text>
+<text x='212.2' y='252.5' fill='#5b8dd9' font-size='12' text-anchor='end' font-weight='700' font-family='Space Grotesk, Helvetica, Arial, sans-serif'>90° − h'm</text>
+<text x='347.8' y='252.5' fill='#e0b04a' font-size='12' text-anchor='start' font-weight='700' font-family='Space Grotesk, Helvetica, Arial, sans-serif'>90° − h's</text>
+<text x='280.0' y='376.0' fill='#e0803f' font-size='13' text-anchor='middle' font-weight='700' font-family='Space Grotesk, Helvetica, Arial, sans-serif'>D0 (observed distance)</text>
+<text x='280.0' y='418.0' fill='#8892ac' font-size='11.3' text-anchor='middle' font-weight='500' font-family='Space Grotesk, Helvetica, Arial, sans-serif'>Refraction and parallax move each body along its own zenith line ZM' / ZS', so the angle Z is unchanged.</text>
+<text x='280.0' y='440.0' fill='#e7ebf5' font-size='13' text-anchor='middle' font-weight='600' font-family='Space Grotesk, Helvetica, Arial, sans-serif'>cos D0 = sin h'm sin h's + cos h'm cos h's cos Z</text>
+</svg>
