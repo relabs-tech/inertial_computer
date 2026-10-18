@@ -11,6 +11,7 @@ import (
 
 	"github.com/relabs-tech/inertial_computer/internal/app"
 	"github.com/relabs-tech/inertial_computer/internal/config"
+	"github.com/relabs-tech/inertial_computer/internal/ledger"
 	"github.com/relabs-tech/inertial_computer/internal/watchdog"
 )
 
@@ -21,6 +22,8 @@ func main() {
 		log.Fatalf("failed to load config: %v", err)
 	}
 
+	ledger.Init(config.Get().LedgerFilePath)
+	ledger.Log("celestial", "start", "", nil)
 	watchdog.StartHeartbeat(context.Background(), 10*time.Second)
 
 	if err := app.RunCelestial(); err != nil {

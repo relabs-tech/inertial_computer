@@ -62,6 +62,22 @@ The core goals are:
   - ✅ **Live sensor monitoring** during register modifications
   - ✅ **SPI speed control** for debugging timing issues
   - ✅ **Configuration export/import** with JSON persistence
+- Celestial navigation web app (`cmd/celestial`, see below)
+- Power/UPS producer (`cmd/power_producer`)
+  - ✅ Polls a PiSugar 3 UPS over I2C (voltage, battery %, external-power state)
+  - ✅ Publishes to MQTT, logs low/critical battery transitions to the ledger
+  - ✅ Optional safe-shutdown command and PiSugar hardware watchdog (both off by default)
+
+### Reliability subsystem
+
+Working toward a ruggedized, always-on navigation computer (see [NAVCOMPUTER.md](NAVCOMPUTER.md)):
+- ✅ `internal/watchdog` — dependency-free systemd `sd_notify` heartbeat, wired into every
+  long-running service
+- ✅ `internal/ledger` — append-only JSONL audit log (service starts, battery events, etc.)
+- ✅ Hardened `systemd/` unit files (`Type=notify`, `WatchdogSec`, `Restart=always`) +
+  `scripts/install_systemd_services.sh`
+- ✅ DS3231 RTC and PiSugar 3 UPS hardware added
+- ⚠️ Read-only root filesystem setup script (planned)
 
 ---
 
@@ -99,6 +115,16 @@ The core goals are:
 - ⚠️ Apply calibration coefficients in producers
 
 **Recent Changes**:
+- **Reliability subsystem** (2026-10-18): watchdog + ledger + power/UPS monitoring
+  - `internal/watchdog`: dependency-free systemd `sd_notify` heartbeat, wired into every
+    long-running service
+  - `internal/ledger`: append-only JSONL audit log for service starts, battery events, etc.
+  - `cmd/power_producer`: polls a PiSugar 3 UPS over I2C (`internal/sensors/pisugar`),
+    publishes battery state to MQTT, logs low/critical transitions, optional safe-shutdown
+    command and PiSugar hardware watchdog (both off by default)
+  - Hardened `systemd/` unit files (`Type=notify`, `WatchdogSec=30`, `Restart=always`) +
+    `inertial.target` + `scripts/install_systemd_services.sh`
+  - See [NAVCOMPUTER.md](NAVCOMPUTER.md) for the full ruggedized-navigation-computer roadmap
 - **HMC5983 Magnetometer Driver** (2026-01-08): New standalone magnetometer support
   - Complete HMC5983/HMC5883L driver in periph.io devices fork
   - Configuration-driven setup via `inertial_config.txt`
@@ -160,6 +186,8 @@ All system settings are centralized in `inertial_config.txt` at the project root
 - **Timing intervals** (IMU sample rate, console logging)
 - **Web server port**
 - **Weather API update interval** (minutes between met.no API calls)
+- **Ledger file path** and **power/UPS monitoring** (I2C bus/address, battery thresholds, optional
+  safe-shutdown command and PiSugar hardware watchdog)
 
 To customize your setup, edit `inertial_config.txt` before running any program. The configuration file uses a simple `KEY=VALUE` format with comments starting with `#`.
 

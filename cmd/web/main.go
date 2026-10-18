@@ -11,6 +11,7 @@ import (
 
 	"github.com/relabs-tech/inertial_computer/internal/app"
 	"github.com/relabs-tech/inertial_computer/internal/config"
+	"github.com/relabs-tech/inertial_computer/internal/ledger"
 	"github.com/relabs-tech/inertial_computer/internal/watchdog"
 )
 
@@ -24,6 +25,8 @@ func main() {
 
 	log.Println("Note: Calibration requires IMU producer to be running (sudo ./imu_producer)")
 
+	ledger.Init(config.Get().LedgerFilePath)
+	ledger.Log("web", "start", "", nil)
 	watchdog.StartHeartbeat(context.Background(), 10*time.Second)
 
 	if err := app.RunWeb(); err != nil {

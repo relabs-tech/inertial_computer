@@ -4,6 +4,10 @@ This document consolidates everything discussed so far into a single place.
 It is intended as a restart guide after a pause, capturing architecture decisions,
 current state, known-good references, and all remaining work.
 
+See [NAVCOMPUTER.md](NAVCOMPUTER.md) for the ruggedized navigation-computer roadmap
+(dead reckoning, celestial/GPS fusion, chronometer, reliability hardening) — that
+document now owns the phased plan for anything beyond the sensor/MQTT/web work below.
+
 ---
 
 ## 1. Current state
@@ -17,6 +21,12 @@ current state, known-good references, and all remaining work.
 - GPS ingestion and publication working
 - Core domain models defined
 - README.md and ARCHITECTURE.md written
+- **Reliability subsystem** (2026-10-18, Phase 1 of NAVCOMPUTER.md, in progress)
+  - ✅ `internal/watchdog` — systemd `sd_notify` heartbeat wired into every long-running service
+  - ✅ `internal/ledger` — append-only JSONL audit log
+  - ✅ `cmd/power_producer` + `internal/sensors/pisugar` — PiSugar 3 UPS monitoring over I2C
+  - ✅ Hardened `systemd/` unit files + `inertial.target` + `scripts/install_systemd_services.sh`
+  - ⚠️ `scripts/setup_rtc.sh` and `scripts/setup_readonly_root.sh` still pending
 - **Display consumer** ✅ Dual SSD1306 OLED support with configurable content
   - SSD1306 driver fork enhancements: dual I2C address support, VerticalLSB image format, differential updates
   - Efficient pixel manipulation via `image1bit` package with `SetBit()` / `BitAt()` methods

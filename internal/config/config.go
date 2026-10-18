@@ -115,6 +115,21 @@ type Config struct {
 	// Celestial Navigation Server (serves the vendored "celestial" static app)
 	CelestialServerPort int
 
+	// Ledger (append-only audit log of config changes, calibration, restarts, updates)
+	LedgerFilePath string
+
+	// Power / UPS battery monitoring (PiSugar 3 family)
+	MQTTClientIDPower           string
+	TopicPower                  string
+	PowerI2CBus                 int
+	PowerI2CAddr                uint16
+	PowerPollIntervalMS         int
+	PowerLowBatteryPercent      float64
+	PowerCriticalBatteryPercent float64
+	PowerShutdownCommand        string
+	PowerHWWatchdogEnable       bool
+	PowerHWWatchdogIntervalSec  int
+
 	// Display
 	DisplayLeftI2CAddr    uint16
 	DisplayRightI2CAddr   uint16
@@ -586,6 +601,60 @@ func (c *Config) setValue(key, value string) error {
 			return fmt.Errorf("invalid CELESTIAL_SERVER_PORT %q: %w", value, err)
 		}
 		c.CelestialServerPort = port
+
+	// Ledger
+	case "LEDGER_FILE_PATH":
+		c.LedgerFilePath = value
+
+	// Power / UPS monitoring
+	case "MQTT_CLIENT_ID_POWER":
+		c.MQTTClientIDPower = value
+	case "TOPIC_POWER":
+		c.TopicPower = value
+	case "POWER_I2C_BUS":
+		v, err := strconv.Atoi(value)
+		if err != nil {
+			return fmt.Errorf("invalid POWER_I2C_BUS %q: %w", value, err)
+		}
+		c.PowerI2CBus = v
+	case "POWER_I2C_ADDR":
+		addr, err := strconv.ParseUint(value, 0, 16)
+		if err != nil {
+			return fmt.Errorf("invalid POWER_I2C_ADDR %q: %w", value, err)
+		}
+		c.PowerI2CAddr = uint16(addr)
+	case "POWER_POLL_INTERVAL_MS":
+		v, err := strconv.Atoi(value)
+		if err != nil {
+			return fmt.Errorf("invalid POWER_POLL_INTERVAL_MS %q: %w", value, err)
+		}
+		c.PowerPollIntervalMS = v
+	case "POWER_LOW_BATTERY_PERCENT":
+		v, err := strconv.ParseFloat(value, 64)
+		if err != nil {
+			return fmt.Errorf("invalid POWER_LOW_BATTERY_PERCENT %q: %w", value, err)
+		}
+		c.PowerLowBatteryPercent = v
+	case "POWER_CRITICAL_BATTERY_PERCENT":
+		v, err := strconv.ParseFloat(value, 64)
+		if err != nil {
+			return fmt.Errorf("invalid POWER_CRITICAL_BATTERY_PERCENT %q: %w", value, err)
+		}
+		c.PowerCriticalBatteryPercent = v
+	case "POWER_SHUTDOWN_COMMAND":
+		c.PowerShutdownCommand = value
+	case "POWER_HW_WATCHDOG_ENABLE":
+		v, err := strconv.ParseBool(value)
+		if err != nil {
+			return fmt.Errorf("invalid POWER_HW_WATCHDOG_ENABLE %q: %w", value, err)
+		}
+		c.PowerHWWatchdogEnable = v
+	case "POWER_HW_WATCHDOG_INTERVAL_SEC":
+		v, err := strconv.Atoi(value)
+		if err != nil {
+			return fmt.Errorf("invalid POWER_HW_WATCHDOG_INTERVAL_SEC %q: %w", value, err)
+		}
+		c.PowerHWWatchdogIntervalSec = v
 
 	// Display
 	case "DISPLAY_LEFT_I2C_ADDR":

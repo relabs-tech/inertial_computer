@@ -12,6 +12,7 @@ import (
 
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 	"github.com/relabs-tech/inertial_computer/internal/config"
+	"github.com/relabs-tech/inertial_computer/internal/ledger"
 	"github.com/relabs-tech/inertial_computer/internal/watchdog"
 	"periph.io/x/conn/v3/i2c/i2creg"
 	"periph.io/x/devices/v3/hmc5983"
@@ -37,6 +38,9 @@ func RunHMC5983Producer() {
 		return
 	}
 	cfg := config.Get()
+
+	ledger.Init(cfg.LedgerFilePath)
+	ledger.Log("hmc5983_producer", "start", "", nil)
 
 	// Initialize periph host.
 	if _, err := host.Init(); err != nil {

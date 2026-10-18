@@ -27,7 +27,7 @@ cat <<EOF
 
 Done. Enable the always-on services with:
   sudo systemctl enable --now inertial-imu inertial-gps inertial-hmc5983 \\
-      inertial-web inertial-display inertial-celestial
+      inertial-web inertial-display inertial-celestial inertial-power
 
 Optional (manual debugging aid, not part of inertial.target):
   sudo systemctl enable --now inertial-console-mqtt

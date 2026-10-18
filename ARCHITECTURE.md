@@ -839,6 +839,50 @@ Frontend behavior (`celestial/index.html`):
 
 ---
 
+### 6.7 Reliability subsystem (watchdog, ledger, power/UPS)
+
+Part of turning the Pi into a ruggedized navigation computer that recovers from any fault as
+long as it has power (see [NAVCOMPUTER.md](../NAVCOMPUTER.md)).
+
+**`internal/watchdog`** — a dependency-free systemd `sd_notify` client:
+- `Ready()` signals startup complete (for `Type=notify` units)
+- `StartHeartbeat(ctx, interval)` sends `READY=1` then periodic `WATCHDOG=1` pings
+- No-ops when `$NOTIFY_SOCKET` isn't set, so every binary still runs standalone (`./imu_producer`)
+- Wired into every long-running service: `imu_producer`, `gps_producer`, `hmc5983_producer`,
+  `web`, `display`, `celestial`, `console_mqtt`, `power_producer`
+- Paired with `systemd/*.service` units (`Type=notify`, `WatchdogSec=30`, `Restart=always`,
+  `RestartSec=5`, `StartLimitIntervalSec=0`) so systemd restarts any service whose heartbeat stops,
+  independent of whether the process crashed or merely hung
+
+**`internal/ledger`** — an append-only JSONL audit log (`Log(service, event, message, fields)`),
+written to `LEDGER_FILE_PATH`. Every reliability-relevant event gets one line: service start,
+battery state transitions, shutdown triggers, UPS watchdog arming. Never panics or blocks its
+caller — a ledger write failure is swallowed, not propagated.
+
+**`cmd/power_producer`** (`internal/app/power_producer.go`) — polls the PiSugar 3 UPS over I2C
+via `internal/sensors/pisugar` (register map:
+https://docs.pisugar.com/docs/product-wiki/battery/pisugar3/pisugar-3-i2c):
+
+```
+GET-equivalent MQTT publish → TOPIC_POWER: {voltage_mv, percent, external_power, time}
+```
+
+- Publishes battery state every `POWER_POLL_INTERVAL_MS`
+- Logs a ledger entry on each normal/low/critical transition (`POWER_LOW_BATTERY_PERCENT`,
+  `POWER_CRITICAL_BATTERY_PERCENT`)
+- Runs `POWER_SHUTDOWN_COMMAND` once at the critical threshold (empty/disabled by default — an
+  explicit opt-in once thresholds are verified against real battery behavior)
+- Optionally arms the PiSugar's own hardware watchdog (`POWER_HW_WATCHDOG_ENABLE`,
+  `POWER_HW_WATCHDOG_INTERVAL_SEC`): if not kicked in time, the UPS power-cycles the Pi's 5V
+  output directly — recovers even a fully hung kernel, which a software-only (systemd) watchdog
+  cannot
+
+**`systemd/`** — hardened unit files for every service plus `inertial.target` grouping them, and
+`scripts/install_systemd_services.sh` which auto-detects the repo path and invoking user and
+substitutes them into the installed units (`@REPO_DIR@`, `@USER@` placeholders).
+
+---
+
 ## 7. Calibration system
 
 ### 7.1 Overview

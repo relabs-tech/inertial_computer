@@ -26,6 +26,7 @@ go build -o calibration ./cmd/calibration/
 go build -o display ./cmd/display/
 go build -o register_debug ./cmd/register_debug/
 go build -o celestial ./cmd/celestial/
+go build -o power_producer ./cmd/power_producer/
 ```
 
 ## Step 2: Configure
@@ -41,6 +42,10 @@ Key settings to verify:
 - `WEB_SERVER_PORT` - Web UI port (default: `8080`)
 - `CELESTIAL_SERVER_PORT` - Celestial navigation app port (default: `8082`)
 - `GPS_SERIAL_DEVICE` - GPS serial port (e.g., `/dev/ttyAMA0`)
+- `LEDGER_FILE_PATH` - append-only audit log path (default: `./inertial_ledger.jsonl`)
+- `POWER_I2C_ADDR` - PiSugar 3 UPS address (default: `0x57`)
+- `POWER_SHUTDOWN_COMMAND` / `POWER_HW_WATCHDOG_ENABLE` - leave disabled (default) until you've
+  verified battery thresholds against real battery behavior
 - `HMC_I2C_BUS` - I2C bus for HMC5983 (default: 1)
 - `HMC_I2C_ADDR` - HMC5983 address (default: 0x1E)
 - `HMC_ODR_HZ` - HMC5983 sample rate (default: 15, options: 3/7.5/15/30/75)
@@ -172,6 +177,21 @@ celestial: listening on :8082
 ```
 
 Open `http://<raspberry-pi-ip>:8082` directly, or click **"🧭 Celestial Navigation"** on the main dashboard. In the app, use the **"🛰 Use inertial-computer GPS fix"** button to pre-fill the Assumed Position from the live GPS producer.
+
+### Terminal 7: Power/UPS Producer (Optional, requires a PiSugar 3)
+
+Polls the PiSugar 3 UPS over I2C and publishes battery state to MQTT:
+
+```bash
+cd ~/go/src/github.com/relabs-tech/inertial_computer
+sudo ./power_producer
+```
+
+Expected output:
+```
+starting inertial-computer power/UPS producer (PiSugar 3 → MQTT)
+power: producer started
+```
 
 ### Configuring Display Content
 
@@ -446,114 +466,36 @@ sudo ./gps_producer
 
 ## Systemd Services (Auto-Start on Boot)
 
-Create systemd service files for automatic startup:
-
-### `/etc/systemd/system/inertial-imu.service`
-
-```ini
-[Unit]
-Description=Inertial Computer IMU Producer
-After=network.target mosquitto.service
-
-[Service]
-Type=simple
-User=root
-WorkingDirectory=/home/dalarub/go/src/github.com/relabs-tech/inertial_computer
-ExecStart=/home/dalarub/go/src/github.com/relabs-tech/inertial_computer/imu_producer
-Restart=always
-RestartSec=10
-
-[Install]
-WantedBy=multi-user.target
-```
-
-### `/etc/systemd/system/inertial-gps.service`
-
-```ini
-[Unit]
-Description=Inertial Computer GPS Producer
-After=network.target mosquitto.service
-
-[Service]
-Type=simple
-User=root
-WorkingDirectory=/home/dalarub/go/src/github.com/relabs-tech/inertial_computer
-ExecStart=/home/dalarub/go/src/github.com/relabs-tech/inertial_computer/gps_producer
-Restart=always
-RestartSec=10
-
-[Install]
-WantedBy=multi-user.target
-```
-
-### `/etc/systemd/system/inertial-web.service`
-
-```ini
-[Unit]
-Description=Inertial Computer Web Server
-After=network.target mosquitto.service
-
-[Service]
-Type=simple
-User=dalarub
-WorkingDirectory=/home/dalarub/go/src/github.com/relabs-tech/inertial_computer
-ExecStart=/home/dalarub/go/src/github.com/relabs-tech/inertial_computer/web
-Restart=always
-RestartSec=10
-
-[Install]
-WantedBy=multi-user.target
-```
-
-**Optional: Display Consumer Service** (`/etc/systemd/system/inertial-display.service`)
-
-```ini
-[Unit]
-Description=Inertial Computer Display Consumer
-After=network.target mosquitto.service
-Requires=mosquitto.service
-
-[Service]
-Type=simple
-User=root
-WorkingDirectory=/home/dalarub/go/src/github.com/relabs-tech/inertial_computer
-ExecStart=/home/dalarub/go/src/github.com/relabs-tech/inertial_computer/display
-Restart=always
-RestartSec=10
-
-[Install]
-WantedBy=multi-user.target
-```
-
-**Note**: Display service runs as root for I2C hardware access.
-
-### Enable and Start Services
+Hardened unit files are checked into [`systemd/`](systemd/) — `Type=notify` + `WatchdogSec=30`
+(paired with each binary's built-in `internal/watchdog` heartbeat) + `Restart=always`, grouped
+under `inertial.target`. Don't hand-write units; install them with:
 
 ```bash
-# Reload systemd
-sudo systemctl daemon-reload
+./scripts/install_systemd_services.sh
+```
 
-# Enable services (auto-start on boot)
-sudo systemctl enable inertial-imu
-sudo systemctl enable inertial-gps
-sudo systemctl enable inertial-web
-sudo systemctl enable inertial-display  # Optional
+This auto-detects the repo path and the invoking user, substitutes them into the units, copies
+them to `/etc/systemd/system/`, and runs `systemctl daemon-reload`.
 
-# Start services now
-sudo systemctl start inertial-imu
-sudo systemctl start inertial-gps
-sudo systemctl start inertial-web
-sudo systemctl start inertial-display  # Optional
+Then enable/start the always-on services:
 
-# Check status
+```bash
+sudo systemctl enable --now inertial-imu inertial-gps inertial-hmc5983 \
+    inertial-web inertial-display inertial-celestial inertial-power
+```
+
+`inertial-console-mqtt` is a manual debugging aid (duplicates the web dashboard) — not part of
+`inertial.target`, enable it only if you want it:
+
+```bash
+sudo systemctl enable --now inertial-console-mqtt
+```
+
+Check status/logs the normal systemd way:
+
+```bash
 sudo systemctl status inertial-imu
-sudo systemctl status inertial-gps
-sudo systemctl status inertial-web
-
-# View logs
 sudo journalctl -u inertial-imu -f
-sudo journalctl -u inertial-gps -f
-sudo journalctl -u inertial-web -f
 ```
 
 ## Performance Tuning
