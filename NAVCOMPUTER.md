@@ -113,7 +113,7 @@ sufficient on its own.
       already has `rtcsync` so chrony writes the disciplined time back to the RTC itself. No script
       needed — Raspberry Pi OS + chrony's `rtcsync` already do the right thing once a real RTC exists.
 - [ ] `scripts/setup_readonly_root.sh`
-- [ ] Update README/ARCHITECTURE/QUICKSTART/TODO with the reliability subsystem (in progress)
+- [x] Update README/ARCHITECTURE/QUICKSTART/TODO with the reliability subsystem
 - [ ] Verify `POWER_LOW_BATTERY_PERCENT`/`POWER_CRITICAL_BATTERY_PERCENT` thresholds against real
       battery behavior before setting `POWER_SHUTDOWN_COMMAND` or `POWER_HW_WATCHDOG_ENABLE=true`
       (both default to safe/off)
