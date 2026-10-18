@@ -5,10 +5,13 @@
 package main
 
 import (
+	"context"
 	"log"
+	"time"
 
 	"github.com/relabs-tech/inertial_computer/internal/app"
 	"github.com/relabs-tech/inertial_computer/internal/config"
+	"github.com/relabs-tech/inertial_computer/internal/watchdog"
 )
 
 func main() {
@@ -17,6 +20,8 @@ func main() {
 	if err := config.InitGlobal("inertial_config.txt"); err != nil {
 		log.Fatalf("failed to load config: %v", err)
 	}
+
+	watchdog.StartHeartbeat(context.Background(), 10*time.Second)
 
 	if err := app.RunCelestial(); err != nil {
 		log.Fatalf("fatal: %v", err)

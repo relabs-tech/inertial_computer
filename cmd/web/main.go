@@ -5,10 +5,13 @@
 package main
 
 import (
+	"context"
 	"log"
+	"time"
 
 	"github.com/relabs-tech/inertial_computer/internal/app"
 	"github.com/relabs-tech/inertial_computer/internal/config"
+	"github.com/relabs-tech/inertial_computer/internal/watchdog"
 )
 
 func main() {
@@ -20,6 +23,8 @@ func main() {
 	}
 
 	log.Println("Note: Calibration requires IMU producer to be running (sudo ./imu_producer)")
+
+	watchdog.StartHeartbeat(context.Background(), 10*time.Second)
 
 	if err := app.RunWeb(); err != nil {
 		log.Fatalf("fatal: %v", err)

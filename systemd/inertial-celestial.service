@@ -1,0 +1,23 @@
+# Copyright (c) 2026 Daniel Alarcon Rubio / Relabs Tech
+# SPDX-License-Identifier: MIT
+# See LICENSE file for full license text
+
+[Unit]
+Description=Inertial Computer Celestial Navigation App Server
+After=network-online.target mosquitto.service
+Wants=network-online.target
+PartOf=inertial.target
+
+[Service]
+Type=notify
+NotifyAccess=main
+WatchdogSec=30
+User=@USER@
+WorkingDirectory=@REPO_DIR@
+ExecStart=@REPO_DIR@/celestial
+Restart=always
+RestartSec=5
+StartLimitIntervalSec=0
+
+[Install]
+WantedBy=inertial.target

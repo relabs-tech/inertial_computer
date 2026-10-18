@@ -1,0 +1,23 @@
+# Copyright (c) 2026 Daniel Alarcon Rubio / Relabs Tech
+# SPDX-License-Identifier: MIT
+# See LICENSE file for full license text
+#
+# Optional manual/debugging tool: prints a human-readable feed of all MQTT streams.
+# Not part of inertial.target — install and start it explicitly if you want it,
+# since its output duplicates the web dashboard.
+
+[Unit]
+Description=Inertial Computer Console MQTT Subscriber (debugging aid)
+After=network-online.target mosquitto.service
+Wants=network-online.target
+
+[Service]
+Type=notify
+NotifyAccess=main
+WatchdogSec=30
+User=@USER@
+WorkingDirectory=@REPO_DIR@
+ExecStart=@REPO_DIR@/console_mqtt
+Restart=always
+RestartSec=5
+StartLimitIntervalSec=0

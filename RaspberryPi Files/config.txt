@@ -53,4 +53,7 @@ dtoverlay=dwc2,dr_mode=host
 
 [all]
 enable_uart=1
+dtoverlay=i2c-rtc,ds3231
+dtoverlay=uart3
+dtoverlay=pps-gpio,gpiopin=6
 

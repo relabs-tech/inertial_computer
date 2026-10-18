@@ -5,12 +5,14 @@
 package app
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"time"
 
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 	"github.com/relabs-tech/inertial_computer/internal/config"
+	"github.com/relabs-tech/inertial_computer/internal/watchdog"
 	"periph.io/x/conn/v3/i2c/i2creg"
 	"periph.io/x/devices/v3/hmc5983"
 	"periph.io/x/host/v3"
@@ -106,6 +108,7 @@ func RunHMC5983Producer() {
 	interval := time.Duration(ms) * time.Millisecond
 	// Start loop.
 	fmt.Println("hmc: producer started")
+	watchdog.StartHeartbeat(context.Background(), 10*time.Second)
 	for {
 		x, y, z, err := dev.Sense()
 		if err != nil {

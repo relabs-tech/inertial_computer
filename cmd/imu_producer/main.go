@@ -6,11 +6,14 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"log"
+	"time"
 
 	"github.com/relabs-tech/inertial_computer/internal/app"
 	"github.com/relabs-tech/inertial_computer/internal/config"
+	"github.com/relabs-tech/inertial_computer/internal/watchdog"
 )
 
 func main() {
@@ -23,6 +26,8 @@ func main() {
 	if err := config.InitGlobal(*configPath); err != nil {
 		log.Fatalf("failed to load config: %v", err)
 	}
+
+	watchdog.StartHeartbeat(context.Background(), 10*time.Second)
 
 	if err := app.RunInertialProducer(); err != nil {
 		log.Fatalf("fatal: %v", err)

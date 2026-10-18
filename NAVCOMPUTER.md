@@ -38,9 +38,10 @@ generic/rebranded clone UPS HAT).
 
 | Gap | Why it's needed | Status |
 |---|---|---|
-| **RTC with battery backup** (e.g. DS3231) | Pi 4 has no onboard RTC; without one, clock resets to boot time on power loss — breaks chronometer function and DR timestamping before GPS lock. | **Needed** |
+| **RTC with battery backup** (e.g. DS3231) | Pi 4 has no onboard RTC; without one, clock resets to boot time on power loss — breaks chronometer function and DR timestamping before GPS lock. | **Done** — DS3231 added, `dtoverlay=i2c-rtc,ds3231` enabled in `config.txt` |
+| **GPS PPS (pulse-per-second) discipline** | Raw NMEA timestamps are only ~100ms-accurate; PPS gives sub-microsecond edges for true chronometer-grade GPS time discipline. | **Done** — `dtoverlay=pps-gpio,gpiopin=6` enabled (GPS module's PPS output wired to GPIO6); also added `dtoverlay=uart3` (likely for the GPS module's NMEA UART, freeing/separating it from the primary UART) |
 | **UPS with I2C fuel gauge + auto-power-on-restore** | Required to know battery state, safely shut down before brownout, and auto-boot when power returns. | Have a UPS (10 Ah) but **exact chipset/I2C address unconfirmed** — see open question below |
-| **WiFi for hotspot** | Needed for laptop/tablet access to web apps. | **Already available** — Pi 4 has onboard WiFi/BT |
+| **WiFi for hotspot** | Needed for laptop/tablet access to web apps. | **Done** — Pi 4 has onboard WiFi/BT, plus a USB WiFi dongle added (useful for running the onboard adapter as AP/hotspot while the dongle handles any uplink, or vice versa) |
 | **External/active GPS antenna** | Cabin/below-deck reception is often poor; GPS is also the time source. | Recommended, likely already planned |
 | **Speed input for DR** | IMU+compass alone cannot do dead reckoning (accelerometers can't sense constant velocity). Need GPS speed, NMEA log/paddlewheel sensor, or manual entry. | Plan to support **all three** |
 | **Storage reliability** | SD cards are the #1 failure point under vibration + sudden power loss. | Recommend industrial-grade SD card or eMMC/SSD + read-only/overlay root filesystem |
@@ -93,18 +94,23 @@ generic/rebranded clone UPS HAT).
 
 ### Phase 1 — Reliability hardening (in progress / next up)
 - [ ] `internal/ledger` package (append-only JSONL, `Log(service, event, message, fields)`)
-- [ ] `internal/watchdog` package (sd_notify `Ready()` + `StartHeartbeat()`, no new Go dependency)
+- [x] `internal/watchdog` package (sd_notify `Ready()` + `StartHeartbeat()`, no new Go dependency)
+- [x] Wire watchdog heartbeat into: `imu_producer`, `gps_producer`, `hmc5983_producer`,
+      `web`, `display`, `celestial`, `console_mqtt` (power_producer pending, see below)
 - [ ] Config additions: `LEDGER_FILE_PATH`, `POWER_I2C_BUS`, `POWER_I2C_ADDR`,
       `POWER_POLL_INTERVAL_MS`, `POWER_LOW_BATTERY_PERCENT`, `POWER_CRITICAL_BATTERY_PERCENT`,
       `POWER_SHUTDOWN_COMMAND`, `TOPIC_POWER`, `MQTT_CLIENT_ID_POWER`
 - [ ] Resolve UPS fuel-gauge chip (see open question above), then implement
       `internal/sensors/power.go` + `internal/app/power_producer.go` + `cmd/power_producer`
-- [ ] Wire ledger + watchdog heartbeat into: `imu_producer`, `gps_producer`, `hmc5983_producer`,
-      `web`, `display`, `celestial`, `console_mqtt`, `power_producer`
-- [ ] `systemd/` directory: hardened unit files + `inertial.target` + `scripts/install_systemd_services.sh`
-- [ ] `scripts/setup_rtc.sh` (requires DS3231 hardware)
+      (will also get watchdog + ledger wiring once it exists)
+- [ ] Wire ledger logging into all of the above once `internal/ledger` exists
+- [x] `systemd/` directory: hardened unit files (`Type=notify`, `WatchdogSec=30`, `Restart=always`)
+      + `inertial.target` + `scripts/install_systemd_services.sh` — units cover imu, gps,
+      hmc5983, web, display, celestial, and an optional (non-target) console-mqtt debugging unit
+- [ ] `scripts/setup_rtc.sh` — DS3231 hardware now installed, `dtoverlay=i2c-rtc,ds3231` already in `config.txt`, ready to implement
 - [ ] `scripts/setup_readonly_root.sh`
 - [ ] Update README/ARCHITECTURE/QUICKSTART/TODO with the reliability subsystem
+
 
 ### Phase 2 — Dead reckoning + navigation fusion
 - [ ] Decide/implement speed-source abstraction (GPS speed, NMEA log sensor, manual entry)
@@ -131,7 +137,13 @@ generic/rebranded clone UPS HAT).
 ## 5. Open questions to resolve before/while implementing
 
 - Exact UPS fuel-gauge chip + I2C address (see §2)
-- Confirm Pi is Pi 4 (has onboard WiFi — confirmed) and whether a DS3231 (or similar) RTC will be
-  added
+- ~~Confirm Pi is Pi 4 (has onboard WiFi — confirmed) and whether a DS3231 (or similar) RTC will be added~~ **Resolved**: Pi 4, DS3231 RTC added, USB WiFi dongle added, GPS PPS wired to GPIO6
 - Preferred speed-source priority/fallback order for DR (GPS → log sensor → manual?)
 - HP48GX cable: wired serial vs IR dongle
+- Which USB WiFi adapter model (for `hostapd` AP-mode driver compatibility) and which radio
+  (onboard vs dongle) will run the hotspot vs any uplink
+  - **Found**: dongle enumerates via `lsusb` as "Aicsemi Aic MSC" (Mass Storage Class) — typical
+    of AIC8800-chipset dongles stuck in CD-ROM/installer mode; no `wlan1`-style interface appears
+    yet. Needs a mode-switch + the AIC8800 Linux driver before it's usable for the hotspot.
+- Confirm GPS module actually drives a PPS output pin wired to GPIO6, and which UART (`uart3` vs
+  the primary) it's connected to — needed before implementing PPS-based time discipline in Phase 3
