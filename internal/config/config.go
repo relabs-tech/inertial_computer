@@ -16,13 +16,13 @@ import (
 // Config holds all application configuration values.
 type Config struct {
 	// MQTT
-	MQTTBroker           string
-	MQTTClientIDProducer string
-	MQTTClientIDGPS      string
-	MQTTClientIDConsole  string
-	MQTTClientIDWeb      string
-	MQTTClientIDDisplay  string
-	MQTTClientIDHMC      string
+	MQTTBroker            string
+	MQTTClientIDProducer  string
+	MQTTClientIDGPS       string
+	MQTTClientIDConsole   string
+	MQTTClientIDWeb       string
+	MQTTClientIDDisplay   string
+	MQTTClientIDHMC       string
 	MQTTClientIDCelestial string
 
 	// Topics
