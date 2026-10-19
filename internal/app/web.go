@@ -37,6 +37,9 @@ func RunWeb() error {
 		lastFix gps.Fix
 		haveFix bool
 
+		lastSystemFix gps.SystemFix
+		haveSystemFix bool
+
 		lastIMULeft  imu_raw.IMURaw
 		haveIMULeft  bool
 		lastIMURight imu_raw.IMURaw
@@ -153,6 +156,24 @@ func RunWeb() error {
 		return gpsToken.Error()
 	}
 	log.Printf("web: subscribed to MQTT topic %s", cfg.TopicGPS)
+
+	// Subscribe to the system GPS (gpsd bridge, ttyAMA3 + PPS)
+	gpsSystemToken := client.Subscribe(cfg.TopicGPSSystem, 0, func(_ mqtt.Client, msg mqtt.Message) {
+		var f gps.SystemFix
+		if err := json.Unmarshal(msg.Payload(), &f); err != nil {
+			log.Printf("web: system gps unmarshal error: %v", err)
+			return
+		}
+		mu.Lock()
+		lastSystemFix = f
+		haveSystemFix = true
+		mu.Unlock()
+	})
+	gpsSystemToken.Wait()
+	if gpsSystemToken.Error() != nil {
+		return gpsSystemToken.Error()
+	}
+	log.Printf("web: subscribed to MQTT topic %s", cfg.TopicGPSSystem)
 
 	// Subscribe to GPS satellites
 	gpsSatToken := client.Subscribe(cfg.TopicGPSSatellites, 0, func(_ mqtt.Client, msg mqtt.Message) {
@@ -356,6 +377,22 @@ func RunWeb() error {
 		w.Header().Set("Content-Type", "application/json")
 		if err := json.NewEncoder(w).Encode(lastFix); err != nil {
 			log.Printf("web: gps JSON encode error: %v", err)
+		}
+	})
+
+	// 6-system) JSON API: latest system GPS fix (gpsd bridge, ttyAMA3 + PPS)
+	http.HandleFunc("/api/gps/system", func(w http.ResponseWriter, r *http.Request) {
+		mu.RLock()
+		defer mu.RUnlock()
+
+		if !haveSystemFix {
+			http.Error(w, "no system gps data yet", http.StatusServiceUnavailable)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		if err := json.NewEncoder(w).Encode(lastSystemFix); err != nil {
+			log.Printf("web: system gps JSON encode error: %v", err)
 		}
 	})
 

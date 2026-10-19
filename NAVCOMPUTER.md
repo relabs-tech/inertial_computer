@@ -140,6 +140,14 @@ sufficient on its own.
 - [x] UART mapping confirmed: the system/chrony GPS is on `/dev/ttyAMA3` (`dtoverlay=uart3`,
       GPIO4/5 TXD3/RXD3), a dedicated full PL011 UART unaffected by Bluetooth/mini-UART jitter.
       `/dev/serial0` is the app's GPS and is not part of the PPS time-discipline path.
+- [x] `cmd/gpsd_producer` + `internal/app/gpsd_producer.go` — bridges gpsd's JSON network
+      protocol (`GPSD_HOST`/`GPSD_PORT`/`GPSD_DEVICE` in `inertial_config.txt`) to MQTT
+      (`TOPIC_GPS_SYSTEM`). Needed because `gpsd` holds `/dev/ttyAMA3` exclusively, so the
+      existing `gps_producer` (which reads raw NMEA directly off `/dev/serial0`) cannot also
+      read `ttyAMA3` — publishes position/fix/DOP/satellite-count plus the live PPS-vs-system-clock
+      offset (gpsd `PPS` reports) once a fix is valid. Exposed on `web/timing.html` via
+      `/api/gps/system`, alongside the app GPS (`/api/gps`) and `chronyc`-based timing sources
+      (`/api/timing`).
 - [ ] GPS-disciplined time service exposing "best UTC estimate + confidence" over MQTT/REST for the
       celestial app's chronometer tab (drift tracking/logging when GPS is lost is mostly covered by
       chrony's own drift file + `rtcsync`, but the navcomputer needs its own confidence/age signal

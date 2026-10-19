@@ -9,6 +9,7 @@ MQTT_CLIENT_ID_GPS=inertial-gps-producer
 MQTT_CLIENT_ID_CONSOLE=inertial-console-subscriber
 MQTT_CLIENT_ID_WEB=inertial-web-subscriber
 MQTT_CLIENT_ID_CELESTIAL=inertial-celestial-subscriber
+MQTT_CLIENT_ID_GPSD=inertial-gpsd-producer
 
 # MQTT Topics
 TOPIC_POSE_LEFT=inertial/pose/left
@@ -26,6 +27,7 @@ TOPIC_GPS_QUALITY=inertial/gps/quality
 TOPIC_GPS_SATELLITES=inertial/gps/satellites
 TOPIC_GLONASS_SATELLITES=inertial/glonass/satellites
 TOPIC_GPS=inertial/gps
+TOPIC_GPS_SYSTEM=inertial/gps/system
 
 # External magnetometer (HMC5983) topic
 TOPIC_MAG_HMC=inertial/mag/hmc
@@ -96,6 +98,14 @@ BMP_RIGHT_STANDBY_TIME=1
 # GPS Configuration
 GPS_SERIAL_PORT=/dev/serial0
 GPS_BAUD_RATE=9600
+
+# System GPS (gpsd bridge) - second GPS module on /dev/ttyAMA3 (UART3) with
+# PPS wired to GPIO6, dedicated to chrony time discipline. gpsd holds that
+# device exclusively, so gpsd_producer reads it over gpsd's JSON network
+# protocol instead of opening the serial port directly.
+GPSD_HOST=127.0.0.1
+GPSD_PORT=2947
+GPSD_DEVICE=/dev/ttyAMA3
 
 # ============================================================================
 # Magnetometer (AK8963) Configuration

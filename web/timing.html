@@ -196,9 +196,9 @@
           <div class="value-row"><div class="label">J2000 epoch</div><div class="value">2451545.0</div></div>
         </div>
 
-        <!-- GPS status, same fields as the main dashboard's GPS card -->
+        <!-- App GPS: inertial-computer's own module on /dev/serial0 -->
         <div class="card">
-          <h2>GPS (SIM28)</h2>
+          <h2>App GPS (SIM28, serial0)</h2>
           <div class="value-row"><div class="label">UTC (NMEA)</div><div class="value"><span id="gps-time">--</span></div></div>
           <div class="value-row"><div class="label">Date (NMEA)</div><div class="value"><span id="gps-date">--</span></div></div>
           <div class="value-row"><div class="label">Lat</div><div class="value"><span id="gps-lat">--</span></div></div>
@@ -208,6 +208,20 @@
           <div class="value-row"><div class="label">Sats</div><div class="value"><span id="gps-sats">--</span></div></div>
           <div class="value-row"><div class="label">HDOP</div><div class="value"><span id="gps-hdop">--</span></div></div>
           <div class="status" id="gpsStatus">GPS: connecting…</div>
+        </div>
+
+        <!-- System GPS: separate module on /dev/ttyAMA3, PPS on GPIO6, owned by gpsd -->
+        <div class="card">
+          <h2>System GPS (gpsd, ttyAMA3 + PPS)</h2>
+          <div class="value-row"><div class="label">UTC (gpsd)</div><div class="value"><span id="sysgps-time">--</span></div></div>
+          <div class="value-row"><div class="label">Lat</div><div class="value"><span id="sysgps-lat">--</span></div></div>
+          <div class="value-row"><div class="label">Lon</div><div class="value"><span id="sysgps-lon">--</span></div></div>
+          <div class="value-row"><div class="label">Alt</div><div class="value"><span id="sysgps-alt">--</span><span class="unit">m</span></div></div>
+          <div class="value-row"><div class="label">Fix</div><div class="value" id="sysgps-fix">--</div></div>
+          <div class="value-row"><div class="label">Sats used/seen</div><div class="value" id="sysgps-sats">--</div></div>
+          <div class="value-row"><div class="label">HDOP</div><div class="value"><span id="sysgps-hdop">--</span></div></div>
+          <div class="value-row"><div class="label">PPS offset</div><div class="value"><span id="sysgps-pps">--</span></div></div>
+          <div class="status" id="sysgpsStatus">System GPS: connecting…</div>
         </div>
 
         <!-- chrony tracking summary -->
@@ -265,7 +279,10 @@
     }
     function pad(n) { return String(n).padStart(2, '0'); }
 
-    let gpsLon = null; // used as the LMST longitude once a fix is available
+    // used as the LMST longitude once a fix is available; the system GPS
+    // (gpsd/ttyAMA3) is preferred since it's the PPS-disciplined module.
+    let gpsLon = null;
+    let systemGpsLon = null;
 
     function updateClocks() {
       const now = new Date();
@@ -281,10 +298,11 @@
       document.getElementById('gmst-time').textContent = degToHMS(gmst);
       document.getElementById('gmst-deg').textContent = gmst.toFixed(4);
 
-      const lon = gpsLon ?? 0;
+      const effectiveLon = systemGpsLon ?? gpsLon;
+      const lon = effectiveLon ?? 0;
       const lmst = ((gmst + lon) % 360 + 360) % 360;
       document.getElementById('lmst-time').textContent = degToHMS(lmst);
-      document.getElementById('lmst-lon').textContent = gpsLon === null ? '0 (no fix)' : lon.toFixed(4);
+      document.getElementById('lmst-lon').textContent = effectiveLon === null ? '0 (no fix)' : lon.toFixed(4);
 
       document.getElementById('jd-value').textContent = jd.toFixed(5);
     }
@@ -312,6 +330,33 @@
         gpsStatusEl.textContent = 'GPS: live from MQTT';
       } catch (err) {
         gpsStatusEl.textContent = 'GPS error: ' + err.message;
+      }
+    }
+
+    async function fetchSystemGPS() {
+      const sysgpsStatusEl = document.getElementById('sysgpsStatus');
+      try {
+        const res = await fetch('/api/gps/system', { cache: 'no-store' });
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const data = await res.json();
+
+        document.getElementById('sysgps-time').textContent = data.time || '--';
+        document.getElementById('sysgps-lat').textContent = (data.lat ?? 0).toFixed(6);
+        document.getElementById('sysgps-lon').textContent = (data.lon ?? 0).toFixed(6);
+        document.getElementById('sysgps-alt').textContent = (data.altitude_m ?? 0).toFixed(1);
+        document.getElementById('sysgps-fix').textContent = data.fix_type || '--';
+        document.getElementById('sysgps-sats').textContent = `${data.satellites_used ?? 0}/${data.satellites_seen ?? 0}`;
+        document.getElementById('sysgps-hdop').textContent = (data.hdop ?? 0).toFixed(1);
+
+        document.getElementById('sysgps-pps').textContent = data.have_pps ? `${(data.pps_offset_sec * 1000).toFixed(3)} ms` : 'no PPS';
+
+        if (data.mode >= 2) {
+          systemGpsLon = data.lon ?? 0;
+        }
+
+        sysgpsStatusEl.textContent = 'System GPS: live from MQTT (via gpsd)';
+      } catch (err) {
+        sysgpsStatusEl.textContent = 'System GPS error: ' + err.message;
       }
     }
 
@@ -370,8 +415,10 @@
     setInterval(updateClocks, 1000);
 
     fetchGPS();
+    fetchSystemGPS();
     fetchTiming();
     setInterval(fetchGPS, 2000);
+    setInterval(fetchSystemGPS, 2000);
     setInterval(fetchTiming, 5000);
   </script>
 </body>

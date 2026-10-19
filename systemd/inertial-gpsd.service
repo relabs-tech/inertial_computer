@@ -1,0 +1,24 @@
+# Copyright (c) 2026 Daniel Alarcon Rubio / Relabs Tech
+# SPDX-License-Identifier: MIT
+# See LICENSE file for full license text
+
+[Unit]
+Description=Inertial Computer gpsd Bridge Producer (system GPS, ttyAMA3 + PPS)
+After=network-online.target mosquitto.service gpsd.service
+Wants=network-online.target
+Requires=gpsd.service
+PartOf=inertial.target
+
+[Service]
+Type=notify
+NotifyAccess=main
+WatchdogSec=30
+User=@USER@
+WorkingDirectory=@REPO_DIR@
+ExecStart=@REPO_DIR@/bin/gpsd_producer
+Restart=always
+RestartSec=5
+StartLimitIntervalSec=0
+
+[Install]
+WantedBy=inertial.target

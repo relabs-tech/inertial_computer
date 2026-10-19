@@ -34,6 +34,7 @@ RUN_USER="${SUDO_USER:-$(whoami)}"
 declare -A NEEDS_SUDO=(
     [imu_producer]=1
     [gps_producer]=1
+    [gpsd_producer]=0
     [hmc5983_producer]=1
     [power_producer]=1
     [display]=1
@@ -42,7 +43,7 @@ declare -A NEEDS_SUDO=(
     [console_mqtt]=0
 )
 
-COMPONENTS=(imu_producer gps_producer hmc5983_producer power_producer display web celestial)
+COMPONENTS=(imu_producer gps_producer gpsd_producer hmc5983_producer power_producer display web celestial)
 
 # name -> inertial_config.txt key holding the TCP port it listens on
 declare -A PORT_CONFIG_KEY=(

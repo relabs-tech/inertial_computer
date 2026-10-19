@@ -24,6 +24,7 @@ type Config struct {
 	MQTTClientIDDisplay   string
 	MQTTClientIDHMC       string
 	MQTTClientIDCelestial string
+	MQTTClientIDGPSD      string
 
 	// Topics
 	TopicPoseLeft          string
@@ -41,6 +42,7 @@ type Config struct {
 	TopicGPSSatellites     string
 	TopicGLONASSSatellites string
 	TopicGPS               string
+	TopicGPSSystem         string
 	// External magnetometer topic
 	TopicMagHMC string
 
@@ -91,6 +93,14 @@ type Config struct {
 	// GPS
 	GPSSerialPort string
 	GPSBaudRate   int
+
+	// System GPS via gpsd (second module on /dev/ttyAMA3 + PPS/GPIO6,
+	// dedicated to chrony time discipline). gpsd holds that device
+	// exclusively, so it's read via gpsd's JSON network protocol instead of
+	// opening the serial port directly.
+	GPSDHost   string
+	GPSDPort   int
+	GPSDDevice string
 
 	// Magnetometer Configuration
 	MagWriteDelayMS      int  // Delay after magnetometer write operations (ms)
@@ -239,6 +249,8 @@ func (c *Config) setValue(key, value string) error {
 		c.MQTTClientIDHMC = value
 	case "MQTT_CLIENT_ID_CELESTIAL":
 		c.MQTTClientIDCelestial = value
+	case "MQTT_CLIENT_ID_GPSD":
+		c.MQTTClientIDGPSD = value
 
 	// Topics
 	case "TOPIC_POSE_LEFT":
@@ -271,6 +283,8 @@ func (c *Config) setValue(key, value string) error {
 		c.TopicGLONASSSatellites = value
 	case "TOPIC_GPS":
 		c.TopicGPS = value
+	case "TOPIC_GPS_SYSTEM":
+		c.TopicGPSSystem = value
 	case "TOPIC_MAG_HMC":
 		c.TopicMagHMC = value
 
@@ -482,6 +496,18 @@ func (c *Config) setValue(key, value string) error {
 			return fmt.Errorf("invalid GPS_BAUD_RATE %q: %w", value, err)
 		}
 		c.GPSBaudRate = rate
+
+	// System GPS via gpsd
+	case "GPSD_HOST":
+		c.GPSDHost = value
+	case "GPSD_PORT":
+		port, err := strconv.Atoi(value)
+		if err != nil {
+			return fmt.Errorf("invalid GPSD_PORT %q: %w", value, err)
+		}
+		c.GPSDPort = port
+	case "GPSD_DEVICE":
+		c.GPSDDevice = value
 
 	// Magnetometer Configuration
 	case "MAG_WRITE_DELAY_MS":

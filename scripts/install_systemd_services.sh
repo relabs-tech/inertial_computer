@@ -26,7 +26,7 @@ sudo systemctl daemon-reload
 cat <<EOF
 
 Done. Enable the always-on services with:
-  sudo systemctl enable --now inertial-imu inertial-gps inertial-hmc5983 \\
+  sudo systemctl enable --now inertial-imu inertial-gps inertial-gpsd inertial-hmc5983 \\
       inertial-web inertial-display inertial-celestial inertial-power
 
 Optional (manual debugging aid, not part of inertial.target):
