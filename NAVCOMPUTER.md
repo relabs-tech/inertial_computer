@@ -38,7 +38,7 @@ Current hardware: Raspberry Pi 4, dual MPU9250 IMUs, HMC5983 compass, dual BMP e
 | Gap | Why it's needed | Status |
 |---|---|---|
 | **RTC with battery backup** (e.g. DS3231) | Pi 4 has no onboard RTC; without one, clock resets to boot time on power loss — breaks chronometer function and DR timestamping before GPS lock. | **Done** — DS3231 added, `dtoverlay=i2c-rtc,ds3231` enabled in `config.txt` |
-| **GPS PPS (pulse-per-second) discipline** | Raw NMEA timestamps are only ~100ms-accurate; PPS gives sub-microsecond edges for true chronometer-grade GPS time discipline. | **Partially done** — `dtoverlay=pps-gpio,gpiopin=6` enabled, `pps_gpio` module loaded, `/dev/pps0` exists; `gpsd` configured and reading the GPS on `/dev/serial0`; `chrony.conf` has both `refclock SHM`/`PPS` lines. **PPS signal itself is not physically wired yet** — confirmed via `chronyc sources -v` showing 0 reachability on `#? PPS` (expected with no pulse connected). Also added `dtoverlay=uart3` (GPIO4/5, confirmed via `pinctrl`) for a second GPS module. |
+| **GPS PPS (pulse-per-second) discipline** | Raw NMEA timestamps are only ~100ms-accurate; PPS gives sub-microsecond edges for true chronometer-grade GPS time discipline. | **Done** — two GPS modules: one on `/dev/serial0` dedicated to the inertial-computer `gps_producer` app, a second on `/dev/ttyAMA3` (`dtoverlay=uart3`, GPIO4/5) wired PPS/TIMEPULSE to GPIO6 (`dtoverlay=pps-gpio,gpiopin=6`) feeding `gpsd`/chrony. Both UART and PPS are physically wired and confirmed live. |
 | **UPS with I2C fuel gauge + auto-power-on-restore** | Required to know battery state, safely shut down before brownout, and auto-boot when power returns. | **Done** — PiSugar 3 (10 Ah), I2C address `0x57`, register map documented at https://docs.pisugar.com/docs/product-wiki/battery/pisugar3/pisugar-3-i2c. Also has its own hardware watchdog (power-cycles the Pi even on a fully hung kernel) — see `cmd/power_producer`. |
 | **WiFi for hotspot** | Needed for laptop/tablet access to web apps. | **Done** — Pi 4 has onboard WiFi/BT, plus a USB WiFi dongle added. **Open item**: the dongle enumerates as `Aicsemi Aic MSC` (mass-storage/"CD-ROM installer" mode) instead of a network interface — typical of cheap AIC8800-chipset dongles needing a mode-switch/driver. Only onboard `wlan0` is active for now. |
 | **External/active GPS antenna** | Cabin/below-deck reception is often poor; GPS is also the time source. | Recommended, likely already planned |
@@ -127,20 +127,19 @@ sufficient on its own.
 ### Phase 3 — Chronometer
 - [x] RTC integration verified working: DS3231 sets system clock at boot, chrony's `rtcsync`
       writes back once the clock is disciplined — no custom code/script needed (see Phase 1)
-- [x] `gpsd` configured (`DEVICES="/dev/serial0"`, `GPSD_OPTIONS="-n"`, running as `gpsd.service`,
-      confirmed reading live NMEA fixes)
+- [x] `gpsd` configured (`DEVICES="/dev/ttyAMA3"`, `GPSD_OPTIONS="-n"`, running as `gpsd.service`,
+      confirmed reading live NMEA fixes). `/dev/serial0` is reserved for the inertial-computer
+      `gps_producer` app (see `/etc/default/gpsd` comment) so the two GPS modules don't contend
+      for the same device.
 - [x] chrony GPS refclocks added to `chrony.conf`:
       `refclock SHM 0 offset 0.0 delay 0.2 refid NMEA noselect` (coarse, always-on fallback once
       offline — confirmed reachable, ~hundreds of ms accuracy, intentionally `noselect`) and
       `refclock PPS /dev/pps0 lock NMEA refid PPS` (precise, sub-microsecond once selected)
-- [ ] **PPS not physically wired yet** — `pps_gpio` module is loaded and `/dev/pps0` exists
-      (`dtoverlay=pps-gpio,gpiopin=6` in `config.txt`), but with no physical pulse connected,
-      chrony's PPS refclock correctly shows 0 reachability. Wire the GPS module's PPS/TIMEPULSE
-      output to GPIO6, then re-check `chronyc sources -v` for `#* PPS` to appear.
-- [ ] Once PPS is live: double check `/dev/serial0`'s actual UART mapping (`ttyS0` mini-UART vs
-      `ttyAMA0` full PL011) — if Bluetooth is enabled, `serial0` may alias to the mini-UART, which
-      has clock-scaling-related jitter that can degrade PPS timing precision. Not yet confirmed
-      either way; check `ls -la /dev/serial0` and whether `hciuart`/Bluetooth is active.
+- [x] **PPS physically wired and live** — second GPS module's PPS/TIMEPULSE output wired to GPIO6,
+      `pps_gpio` module loaded, `/dev/pps0` exists, confirmed via `chronyc sources -v`.
+- [x] UART mapping confirmed: the system/chrony GPS is on `/dev/ttyAMA3` (`dtoverlay=uart3`,
+      GPIO4/5 TXD3/RXD3), a dedicated full PL011 UART unaffected by Bluetooth/mini-UART jitter.
+      `/dev/serial0` is the app's GPS and is not part of the PPS time-discipline path.
 - [ ] GPS-disciplined time service exposing "best UTC estimate + confidence" over MQTT/REST for the
       celestial app's chronometer tab (drift tracking/logging when GPS is lost is mostly covered by
       chrony's own drift file + `rtcsync`, but the navcomputer needs its own confidence/age signal
@@ -170,5 +169,6 @@ sufficient on its own.
   - **Found**: dongle enumerates via `lsusb` as "Aicsemi Aic MSC" (Mass Storage Class) — typical
     of AIC8800-chipset dongles stuck in CD-ROM/installer mode; no `wlan1`-style interface appears
     yet. Needs a mode-switch + the AIC8800 Linux driver before it's usable for the hotspot.
-- Confirm GPS module actually drives a PPS output pin wired to GPIO6, and which UART (`uart3` vs
-  the primary) it's connected to — needed before implementing PPS-based time discipline in Phase 3
+- ~~Confirm GPS module actually drives a PPS output pin wired to GPIO6, and which UART (`uart3` vs
+  the primary) it's connected to~~ **Resolved**: system GPS is on `/dev/ttyAMA3` (`uart3`) with PPS
+  wired to GPIO6; `/dev/serial0` is the separate app-facing GPS module. Both confirmed live.
