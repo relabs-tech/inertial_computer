@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<!--
+  Copyright (c) 2026 Daniel Alarcon Rubio / Relabs Tech
+  SPDX-License-Identifier: MIT
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Inertial Computer — Timing</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    :root {
+      --bg: #05060a;
+      --card-bg: #15171c;
+      --text: #e5e5e5;
+      --muted: #999;
+      --accent: #4fc3f7;
+      --label: #c586c0;
+      --shadow: 0 18px 40px rgba(0, 0, 0, 0.7);
+      --radius: 16px;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+      background: radial-gradient(circle at top, #10131a 0, #05060a 45%, #000 100%);
+      color: var(--text);
+    }
+
+    .page {
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      padding: 0.5rem 1rem 1rem;
+    }
+
+    .app { width: 100%; max-width: 1600px; }
+
+    h1 {
+      margin: 0 0 0.5rem;
+      font-size: 1.3rem;
+      font-weight: 600;
+      text-align: center;
+      color: var(--accent);
+    }
+
+    .subtitle {
+      text-align: center;
+      margin-bottom: 0.8rem;
+      font-size: 0.8rem;
+      color: var(--muted);
+    }
+
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 0.8rem;
+    }
+
+    .header-left { flex: 1; }
+
+    .cal-button {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      padding: 0.6rem 1.2rem;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+      transition: all 0.3s ease;
+    }
+
+    .cal-button:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6); }
+    .cal-button:active { transform: translateY(0); }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 0.8rem;
+      align-items: stretch;
+    }
+
+    .card {
+      background: var(--card-bg);
+      border-radius: 8px;
+      padding: 0.8rem 1rem;
+      box-shadow: var(--shadow);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      min-height: 140px;
+    }
+
+    .card.wide { grid-column: 1 / -1; }
+
+    h2 {
+      margin: 0 0 0.5rem;
+      font-size: 0.95rem;
+      color: var(--accent);
+    }
+
+    .value-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.85rem;
+      margin: 0.1rem 0;
+    }
+
+    .label { color: var(--label); }
+
+    .value {
+      font-variant-numeric: tabular-nums;
+      font-weight: 600;
+    }
+
+    .big-value {
+      font-variant-numeric: tabular-nums;
+      font-weight: 700;
+      font-size: 1.6rem;
+      text-align: center;
+      margin: 0.3rem 0;
+    }
+
+    .unit { margin-left: 0.2rem; color: var(--muted); font-weight: 400; }
+
+    .status { margin-top: 0.5rem; font-size: 0.7rem; color: var(--muted); }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.8rem;
+      margin-top: 0.3rem;
+    }
+
+    th, td {
+      text-align: left;
+      padding: 0.3rem 0.5rem;
+      border-bottom: 1px solid #2a2d35;
+      white-space: nowrap;
+    }
+
+    th { color: var(--label); font-weight: 600; }
+    td { font-variant-numeric: tabular-nums; }
+
+    .state-selected { color: #7CFC00; font-weight: 700; }
+    .state-unreachable { color: #ff6b6b; }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="app">
+      <div class="header">
+        <div class="header-left">
+          <h1>Timing</h1>
+          <div class="subtitle">UTC / sidereal clocks, GPS (SIM28) status, and chrony timing sources</div>
+        </div>
+        <button class="cal-button" onclick="window.location.href='/'">
+          ⬅ Main Dashboard
+        </button>
+      </div>
+
+      <div class="grid">
+        <!-- Current times -->
+        <div class="card">
+          <h2>UTC</h2>
+          <div class="big-value" id="utc-time">--:--:--</div>
+          <div class="value-row"><div class="label">Date</div><div class="value" id="utc-date">--</div></div>
+        </div>
+
+        <div class="card">
+          <h2>Local Time</h2>
+          <div class="big-value" id="local-time">--:--:--</div>
+          <div class="value-row"><div class="label">Zone</div><div class="value" id="local-zone">--</div></div>
+        </div>
+
+        <div class="card">
+          <h2>Greenwich Sidereal (GMST)</h2>
+          <div class="big-value" id="gmst-time">--:--:--</div>
+          <div class="value-row"><div class="label">Degrees</div><div class="value"><span id="gmst-deg">--</span><span class="unit">deg</span></div></div>
+        </div>
+
+        <div class="card">
+          <h2>Local Sidereal (LMST)</h2>
+          <div class="big-value" id="lmst-time">--:--:--</div>
+          <div class="value-row"><div class="label">Longitude used</div><div class="value"><span id="lmst-lon">--</span><span class="unit">deg</span></div></div>
+        </div>
+
+        <div class="card">
+          <h2>Julian Date</h2>
+          <div class="big-value" id="jd-value">--</div>
+          <div class="value-row"><div class="label">J2000 epoch</div><div class="value">2451545.0</div></div>
+        </div>
+
+        <!-- GPS status, same fields as the main dashboard's GPS card -->
+        <div class="card">
+          <h2>GPS (SIM28)</h2>
+          <div class="value-row"><div class="label">UTC (NMEA)</div><div class="value"><span id="gps-time">--</span></div></div>
+          <div class="value-row"><div class="label">Date (NMEA)</div><div class="value"><span id="gps-date">--</span></div></div>
+          <div class="value-row"><div class="label">Lat</div><div class="value"><span id="gps-lat">--</span></div></div>
+          <div class="value-row"><div class="label">Lon</div><div class="value"><span id="gps-lon">--</span></div></div>
+          <div class="value-row"><div class="label">Alt</div><div class="value"><span id="gps-alt">--</span><span class="unit">m</span></div></div>
+          <div class="value-row"><div class="label">Fix</div><div class="value" id="gps-fix">--</div></div>
+          <div class="value-row"><div class="label">Sats</div><div class="value"><span id="gps-sats">--</span></div></div>
+          <div class="value-row"><div class="label">HDOP</div><div class="value"><span id="gps-hdop">--</span></div></div>
+          <div class="status" id="gpsStatus">GPS: connecting…</div>
+        </div>
+
+        <!-- chrony tracking summary -->
+        <div class="card">
+          <h2>Chrony Tracking</h2>
+          <div class="value-row"><div class="label">Reference ID</div><div class="value" id="trk-refid">--</div></div>
+          <div class="value-row"><div class="label">Stratum</div><div class="value" id="trk-stratum">--</div></div>
+          <div class="value-row"><div class="label">System time</div><div class="value" id="trk-systime">--</div></div>
+          <div class="value-row"><div class="label">Last offset</div><div class="value" id="trk-lastoffset">--</div></div>
+          <div class="value-row"><div class="label">RMS offset</div><div class="value" id="trk-rmsoffset">--</div></div>
+          <div class="value-row"><div class="label">Leap status</div><div class="value" id="trk-leap">--</div></div>
+          <div class="status" id="chronyStatus">Chrony: connecting…</div>
+        </div>
+
+        <!-- chrony sources table -->
+        <div class="card wide">
+          <h2>Timing Sources</h2>
+          <table>
+            <thead>
+              <tr>
+                <th>State</th>
+                <th>Name</th>
+                <th>Stratum</th>
+                <th>Poll</th>
+                <th>Reach</th>
+                <th>Last Rx</th>
+                <th>Last Sample</th>
+              </tr>
+            </thead>
+            <tbody id="sources-body">
+              <tr><td colspan="7">Loading…</td></tr>
+            </tbody>
+          </table>
+          <div class="status" id="sourcesStatus">Sources: connecting…</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ---- Sidereal time math (same formulas as celestial/index.html) ----
+    function julianDate(date) { return date.getTime() / 86400000 + 2440587.5; }
+    function gmstDeg(jd) {
+      const T = (jd - 2451545.0) / 36525;
+      const g = 280.46061837 + 360.98564736629 * (jd - 2451545.0) + 0.000387933 * T * T - (T * T * T) / 38710000;
+      return ((g % 360) + 360) % 360;
+    }
+    function degToHMS(deg) {
+      let totalHours = ((deg / 15) % 24 + 24) % 24;
+      const h = Math.floor(totalHours);
+      const mTotal = (totalHours - h) * 60;
+      const m = Math.floor(mTotal);
+      const s = (mTotal - m) * 60;
+      return `${pad(h)}:${pad(m)}:${pad(s.toFixed(0))}`;
+    }
+    function pad(n) { return String(n).padStart(2, '0'); }
+
+    let gpsLon = null; // used as the LMST longitude once a fix is available
+
+    function updateClocks() {
+      const now = new Date();
+      const jd = julianDate(now);
+
+      document.getElementById('utc-time').textContent = now.toUTCString().split(' ')[4];
+      document.getElementById('utc-date').textContent = now.toISOString().slice(0, 10);
+
+      document.getElementById('local-time').textContent = now.toLocaleTimeString();
+      document.getElementById('local-zone').textContent = Intl.DateTimeFormat().resolvedOptions().timeZone;
+
+      const gmst = gmstDeg(jd);
+      document.getElementById('gmst-time').textContent = degToHMS(gmst);
+      document.getElementById('gmst-deg').textContent = gmst.toFixed(4);
+
+      const lon = gpsLon ?? 0;
+      const lmst = ((gmst + lon) % 360 + 360) % 360;
+      document.getElementById('lmst-time').textContent = degToHMS(lmst);
+      document.getElementById('lmst-lon').textContent = gpsLon === null ? '0 (no fix)' : lon.toFixed(4);
+
+      document.getElementById('jd-value').textContent = jd.toFixed(5);
+    }
+
+    async function fetchGPS() {
+      const gpsStatusEl = document.getElementById('gpsStatus');
+      try {
+        const res = await fetch('/api/gps', { cache: 'no-store' });
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const data = await res.json();
+
+        document.getElementById('gps-time').textContent = data.time || '--';
+        document.getElementById('gps-date').textContent = data.date || '--';
+        document.getElementById('gps-lat').textContent = (data.lat ?? 0).toFixed(6);
+        document.getElementById('gps-lon').textContent = (data.lon ?? 0).toFixed(6);
+        document.getElementById('gps-alt').textContent = (data.altitude_m ?? 0).toFixed(1);
+        document.getElementById('gps-fix').textContent = data.fix_type || '--';
+        document.getElementById('gps-sats').textContent = data.num_satellites ?? '--';
+        document.getElementById('gps-hdop').textContent = (data.hdop ?? 0).toFixed(1);
+
+        if (data.validity === 'A') {
+          gpsLon = data.lon ?? 0;
+        }
+
+        gpsStatusEl.textContent = 'GPS: live from MQTT';
+      } catch (err) {
+        gpsStatusEl.textContent = 'GPS error: ' + err.message;
+      }
+    }
+
+    async function fetchTiming() {
+      const chronyStatusEl = document.getElementById('chronyStatus');
+      const sourcesStatusEl = document.getElementById('sourcesStatus');
+      const sourcesBody = document.getElementById('sources-body');
+      try {
+        const res = await fetch('/api/timing', { cache: 'no-store' });
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const data = await res.json();
+
+        if (data.error) {
+          chronyStatusEl.textContent = 'Chrony: ' + data.error;
+          sourcesStatusEl.textContent = 'Sources: ' + data.error;
+          sourcesBody.innerHTML = '<tr><td colspan="7">unavailable</td></tr>';
+          return;
+        }
+
+        const trk = data.tracking || {};
+        document.getElementById('trk-refid').textContent = trk['Reference ID'] || '--';
+        document.getElementById('trk-stratum').textContent = trk['Stratum'] || '--';
+        document.getElementById('trk-systime').textContent = trk['System time'] || '--';
+        document.getElementById('trk-lastoffset').textContent = trk['Last offset'] || '--';
+        document.getElementById('trk-rmsoffset').textContent = trk['RMS offset'] || '--';
+        document.getElementById('trk-leap').textContent = trk['Leap status'] || '--';
+        chronyStatusEl.textContent = 'Chrony: live';
+
+        const sources = data.sources || [];
+        if (sources.length === 0) {
+          sourcesBody.innerHTML = '<tr><td colspan="7">no sources</td></tr>';
+        } else {
+          sourcesBody.innerHTML = sources.map(s => {
+            const selected = s.state === '*' || s.state === '+';
+            const unreachable = s.reach === 0;
+            const cls = selected ? 'state-selected' : (unreachable ? 'state-unreachable' : '');
+            return `<tr class="${cls}">` +
+              `<td>${s.mode}${s.state}</td>` +
+              `<td>${s.name}</td>` +
+              `<td>${s.stratum}</td>` +
+              `<td>${s.poll}</td>` +
+              `<td>${s.reach}</td>` +
+              `<td>${s.last_rx}</td>` +
+              `<td>${s.last_sample}</td>` +
+              `</tr>`;
+          }).join('');
+        }
+        sourcesStatusEl.textContent = `Sources: ${sources.length} tracked`;
+      } catch (err) {
+        chronyStatusEl.textContent = 'Chrony error: ' + err.message;
+        sourcesStatusEl.textContent = 'Sources error: ' + err.message;
+      }
+    }
+
+    updateClocks();
+    setInterval(updateClocks, 1000);
+
+    fetchGPS();
+    fetchTiming();
+    setInterval(fetchGPS, 2000);
+    setInterval(fetchTiming, 5000);
+  </script>
+</body>
+</html>

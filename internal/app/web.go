@@ -474,6 +474,9 @@ func RunWeb() error {
 	// Calibration WebSocket endpoint
 	http.HandleFunc("/api/calibration/ws", HandleCalibrationWS)
 
+	// JSON API: chrony timing-sources status (for timing.html)
+	http.HandleFunc("/api/timing", HandleTiming)
+
 	// 7) Static UI from ./web
 	fs := http.FileServer(http.Dir("web"))
 	http.Handle("/", fs)
