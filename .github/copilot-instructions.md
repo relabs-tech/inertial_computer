@@ -82,16 +82,19 @@ Published to: `inertial/pose/left`, `inertial/pose/right`, `inertial/pose/fused`
 
 ### Building and Running
 ```bash
-# Build individual components
-go build -o imu_producer ./cmd/imu_producer/
-go build -o web ./cmd/web/
+# Build individual components into bin/ (NOT the repo root: web/ and
+# celestial/ are asset directories the servers serve from, so building
+# "-o web"/"-o celestial" at the root collides with those directories)
+go build -o bin/imu_producer ./cmd/imu_producer/
+go build -o bin/web ./cmd/web/
 
-# Run with sudo (required for GPIO/SPI/I2C access)
-sudo ./imu_producer
-./web  # web server doesn't need sudo
+# Run with sudo (required for GPIO/SPI/I2C access), from the repo root so
+# relative asset/config paths resolve
+sudo ./bin/imu_producer
+./bin/web  # web server doesn't need sudo
 
 # Run with custom config
-sudo ./imu_producer -config /path/to/custom_config.txt
+sudo ./bin/imu_producer -config /path/to/custom_config.txt
 ```
 
 ### Testing Hardware Access

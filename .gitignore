@@ -23,6 +23,12 @@ go.work.sum
 # Logs
 *.log
 
+# startup.sh runtime PID tracking
+/.run/
+
+# Append-only audit log (runtime data, see LEDGER_FILE_PATH in inertial_config.txt)
+/inertial_ledger.jsonl
+
 # Diagnostic dumps (machine-specific, regenerate on demand)
 /raspinfo.txt
 

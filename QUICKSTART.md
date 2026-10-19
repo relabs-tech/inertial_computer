@@ -17,16 +17,18 @@ cd ~/go/src/github.com/relabs-tech
 git clone https://github.com/relabs-tech/inertial_computer.git
 cd inertial_computer
 
-# Build all components
-go build -o imu_producer ./cmd/imu_producer/
-go build -o gps_producer ./cmd/gps_producer/
-go build -o hmc5983_producer ./cmd/hmc5983_producer/
-go build -o web ./cmd/web/
-go build -o calibration ./cmd/calibration/
-go build -o display ./cmd/display/
-go build -o register_debug ./cmd/register_debug/
-go build -o celestial ./cmd/celestial/
-go build -o power_producer ./cmd/power_producer/
+# Build all components into bin/ (NOT the repo root: web/ and celestial/
+# are asset directories the web/celestial servers serve from, and
+# "go build -o web" would collide with the web/ directory)
+go build -o bin/imu_producer ./cmd/imu_producer/
+go build -o bin/gps_producer ./cmd/gps_producer/
+go build -o bin/hmc5983_producer ./cmd/hmc5983_producer/
+go build -o bin/web ./cmd/web/
+go build -o bin/calibration ./cmd/calibration/
+go build -o bin/display ./cmd/display/
+go build -o bin/register_debug ./cmd/register_debug/
+go build -o bin/celestial ./cmd/celestial/
+go build -o bin/power_producer ./cmd/power_producer/
 ```
 
 ## Step 2: Configure
@@ -554,10 +556,10 @@ pkill -f gps_producer
 pkill -f web
 
 # Rebuild everything
-go build -o imu_producer ./cmd/imu_producer/
-go build -o gps_producer ./cmd/gps_producer/
-go build -o web ./cmd/web/
-go build -o celestial ./cmd/celestial/
+go build -o bin/imu_producer ./cmd/imu_producer/
+go build -o bin/gps_producer ./cmd/gps_producer/
+go build -o bin/web ./cmd/web/
+go build -o bin/celestial ./cmd/celestial/
 
 # Clean build
 go clean

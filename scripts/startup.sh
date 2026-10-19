@@ -5,8 +5,10 @@
 #
 # Manual start/stop/status helper for all inertial-computer producers and
 # servers, for development/bench use without systemd. Builds binaries into
-# the repo root (matching the paths systemd/*.service expects), launches them
-# in the background, and tracks PIDs/logs under .run/ and logs/.
+# bin/ (the repo root itself cannot be used: it already contains web/ and
+# celestial/ asset directories that the web/celestial servers serve from),
+# launches them with the repo root as working directory so those relative
+# asset paths still resolve, and tracks PIDs/logs under .run/ and logs/.
 #
 # Usage:
 #   scripts/startup.sh [start|stop|restart|status|build] [--with-console]
@@ -22,6 +24,7 @@
 set -euo pipefail
 
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+BIN_DIR="$REPO_DIR/bin"
 PID_DIR="$REPO_DIR/.run"
 LOG_DIR="$REPO_DIR/logs"
 RUN_USER="${SUDO_USER:-$(whoami)}"
@@ -53,12 +56,12 @@ if [[ "$WITH_CONSOLE" -eq 1 ]]; then
     COMPONENTS+=(console_mqtt)
 fi
 
-mkdir -p "$PID_DIR" "$LOG_DIR"
+mkdir -p "$BIN_DIR" "$PID_DIR" "$LOG_DIR"
 
 build_component() {
     local name="$1"
     echo "Building $name..."
-    (cd "$REPO_DIR" && go build -o "$name" "./cmd/$name/")
+    (cd "$REPO_DIR" && go build -o "$BIN_DIR/$name" "./cmd/$name/")
 }
 
 build_all() {
@@ -70,7 +73,13 @@ build_all() {
 is_running() {
     local name="$1"
     local pid_file="$PID_DIR/$name.pid"
-    [[ -f "$pid_file" ]] && kill -0 "$(cat "$pid_file")" 2>/dev/null
+    [[ -f "$pid_file" ]] || return 1
+    local pid
+    pid="$(cat "$pid_file" 2>/dev/null)"
+    # /proc/<pid> is readable regardless of owner, unlike kill -0 (which
+    # returns EPERM for root-owned processes and falsely looks "stopped")
+    [[ -n "$pid" && -d "/proc/$pid" ]] || return 1
+    grep -q "$name" "/proc/$pid/cmdline" 2>/dev/null
 }
 
 check_mosquitto() {
@@ -86,19 +95,30 @@ start_component() {
         echo "$name already running (pid $(cat "$PID_DIR/$name.pid"))"
         return
     fi
-    if [[ ! -x "$REPO_DIR/$name" ]]; then
+    if [[ ! -x "$BIN_DIR/$name" ]]; then
         build_component "$name"
     fi
 
-    local log_file="$PID_DIR/$name.pid"
+    local pid_file="$PID_DIR/$name.pid"
+    rm -f "$pid_file"
+    local bin="$BIN_DIR/$name"
+    local log="$LOG_DIR/$name.log"
     if [[ "${NEEDS_SUDO[$name]}" -eq 1 && "$(id -u)" -ne 0 ]]; then
         echo "Starting $name (sudo)..."
-        (cd "$REPO_DIR" && sudo -b nohup "./$name" >>"$LOG_DIR/$name.log" 2>&1 &
-         echo $! > "$log_file")
+        # Do the backgrounding + pid capture as root in one non-backgrounded
+        # 'sudo bash -c' call so $! is the real binary's pid, not a sudo
+        # wrapper pid (plain 'sudo ... &' plus '-b' spawns extra sudo/pty
+        # layers and the outer $! ends up pointing at the wrong process).
+        # 'cd' must be its own statement (not "cd X && nohup Y &"): with &&,
+        # '&' backgrounds the whole chain as one subshell and $! would be
+        # that subshell's pid instead of nohup's.
+        sudo bash -c 'cd "$1" || exit 1; nohup "$2" >>"$3" 2>&1 </dev/null & echo $! > "$4"' \
+            _ "$REPO_DIR" "$bin" "$log" "$pid_file"
     else
         echo "Starting $name..."
-        (cd "$REPO_DIR" && nohup "./$name" >>"$LOG_DIR/$name.log" 2>&1 &
-         echo $! > "$log_file")
+        (cd "$REPO_DIR" || exit 1
+         nohup "$bin" >>"$log" 2>&1 </dev/null &
+         echo $! > "$pid_file")
     fi
 }
 
