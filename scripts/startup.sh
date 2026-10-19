@@ -27,6 +27,7 @@ REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 BIN_DIR="$REPO_DIR/bin"
 PID_DIR="$REPO_DIR/.run"
 LOG_DIR="$REPO_DIR/logs"
+CONFIG_FILE="$REPO_DIR/inertial_config.txt"
 RUN_USER="${SUDO_USER:-$(whoami)}"
 
 # name -> needs root for hardware access (SPI/I2C/GPIO/serial)
@@ -42,6 +43,12 @@ declare -A NEEDS_SUDO=(
 )
 
 COMPONENTS=(imu_producer gps_producer hmc5983_producer power_producer display web celestial)
+
+# name -> inertial_config.txt key holding the TCP port it listens on
+declare -A PORT_CONFIG_KEY=(
+    [web]=WEB_SERVER_PORT
+    [celestial]=CELESTIAL_SERVER_PORT
+)
 
 WITH_CONSOLE=0
 COMMAND="start"
@@ -86,6 +93,45 @@ check_mosquitto() {
     if ! (systemctl is-active --quiet mosquitto 2>/dev/null || pgrep -x mosquitto >/dev/null 2>&1); then
         echo "Warning: mosquitto MQTT broker does not appear to be running." >&2
         echo "  Start it with: sudo systemctl start mosquitto" >&2
+    fi
+}
+
+config_value() {
+    local key="$1"
+    [[ -f "$CONFIG_FILE" ]] || return 1
+    grep -E "^${key}=" "$CONFIG_FILE" | tail -n1 | cut -d= -f2-
+}
+
+# true (0) if something is listening on the given TCP port
+port_listening() {
+    local port="$1"
+    [[ -n "$port" ]] || return 1
+    command -v ss >/dev/null 2>&1 || return 1
+    ss -ltn 2>/dev/null | awk '{print $4}' | grep -qE ":${port}\$"
+}
+
+print_ports() {
+    echo "Ports:"
+    local name key port
+    for name in "${!PORT_CONFIG_KEY[@]}"; do
+        key="${PORT_CONFIG_KEY[$name]}"
+        port="$(config_value "$key")"
+        if [[ -z "$port" ]]; then
+            echo "  $name: $key not set in inertial_config.txt"
+        elif port_listening "$port"; then
+            echo "  $name: port $port listening"
+        else
+            echo "  $name: port $port NOT listening"
+        fi
+    done
+    local mqtt_port
+    mqtt_port="$(config_value MQTT_BROKER | sed -E 's#.*:([0-9]+)$#\1#')"
+    if [[ -n "$mqtt_port" ]]; then
+        if port_listening "$mqtt_port"; then
+            echo "  mosquitto (MQTT broker): port $mqtt_port listening"
+        else
+            echo "  mosquitto (MQTT broker): port $mqtt_port NOT listening"
+        fi
     fi
 }
 
@@ -161,6 +207,8 @@ case "$COMMAND" in
             start_component "$name"
         done
         echo
+        print_ports
+        echo
         echo "All components started. Logs in $LOG_DIR, PIDs in $PID_DIR."
         echo "Check status with: scripts/startup.sh status"
         ;;
@@ -178,5 +226,7 @@ case "$COMMAND" in
         for name in "${COMPONENTS[@]}"; do
             status_component "$name"
         done
+        echo
+        print_ports
         ;;
 esac
