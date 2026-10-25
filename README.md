@@ -67,6 +67,14 @@ The core goals are:
   - ✅ Polls a PiSugar 3 UPS over I2C (voltage, battery %, external-power state)
   - ✅ Publishes to MQTT, logs low/critical battery transitions to the ledger
   - ✅ Optional safe-shutdown command and PiSugar hardware watchdog (both off by default)
+- System-GPS producer (`cmd/gpsd_producer`)
+  - ✅ Bridges the second GPS module on `/dev/ttyAMA3` (PPS→GPIO6, chrony-disciplined) from
+    `gpsd`'s JSON protocol to MQTT (`inertial/gps/system`)
+  - ✅ Reports TPV fix, satellite count, and PPS-vs-clock offset
+  - ✅ Surfaced on the web UI's **Timing** page via `/api/timing`
+- Web UI pages
+  - ✅ **Timing** page (`web/timing.html`, served by `/api/timing`): UTC / sidereal clocks,
+    live system-GPS fix, and chrony timing sources / tracking
 
 ### Reliability subsystem
 
@@ -115,6 +123,17 @@ Working toward a ruggedized, always-on navigation computer (see [NAVCOMPUTER.md]
 - ⚠️ Apply calibration coefficients in producers
 
 **Recent Changes**:
+- **System GPS + timing** (2026-10-19): second GPS module bridged from gpsd, plus a web
+  timing page
+  - `cmd/gpsd_producer` + `internal/app/gpsd_producer.go` read the chrony-disciplined GPS on
+    `/dev/ttyAMA3` over `gpsd`'s JSON protocol and publish `inertial/gps/system`
+  - `internal/gps/gpsd.go` (`SystemFix`) and config keys `GPSD_HOST`/`GPSD_PORT`/
+    `GPSD_DEVICE`/`TOPIC_GPS_SYSTEM`
+  - `web/timing.html` + `internal/app/timing_handler.go` (`/api/timing`): UTC / sidereal
+    clocks, live system-GPS fix, chrony timing sources / tracking
+- **WiFi mode scripts** (2026-10-21): `scripts/NavComputer.sh` (onboard Wi-Fi as an access
+  point, USB dongle as uplink) and `scripts/WifiNormal.sh` (return onboard Wi-Fi to the home
+  network), both persisting across reboots
 - **Reliability subsystem** (2026-10-18): watchdog + ledger + power/UPS monitoring
   - `internal/watchdog`: dependency-free systemd `sd_notify` heartbeat, wired into every
     long-running service

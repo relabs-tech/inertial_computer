@@ -293,6 +293,7 @@ TOPIC_GPS_VELOCITY=inertial/gps/velocity
 TOPIC_GPS_QUALITY=inertial/gps/quality
 TOPIC_GPS_SATELLITES=inertial/gps/satellites
 TOPIC_GPS=inertial/gps
+TOPIC_GPS_SYSTEM=inertial/gps/system
 
 # IMU Hardware
 IMU_LEFT_SPI_DEVICE=/dev/spidev6.0
@@ -317,6 +318,11 @@ BMP_RIGHT_STANDBY_TIME=1
 # GPS Hardware
 GPS_SERIAL_PORT=/dev/serial0
 GPS_BAUD_RATE=9600
+
+# System GPS (gpsd bridge — second module on /dev/ttyAMA3 + PPS/GPIO6)
+GPSD_HOST=127.0.0.1
+GPSD_PORT=2947
+GPSD_DEVICE=/dev/ttyAMA3
 
 # Timing
 IMU_SAMPLE_INTERVAL=100
@@ -535,9 +541,25 @@ Current implementation:
 
 Future enhancements:
 
-- implement time synchronization
 - add data validation and outlier detection
 - support additional sentence types (ZDA, GLL, etc.)
+
+### 5.4 System-GPS producer (`cmd/gpsd_producer`)
+
+Entry point: `internal/app/RunGPSDProducer()`
+
+The system GPS module (a second receiver on `/dev/ttyAMA3` with PPS wired to GPIO6) is
+dedicated to chrony time discipline, so `gpsd` holds that serial device exclusively. This
+producer therefore does **not** open the port itself — it reads the fix over `gpsd`'s JSON
+network protocol (`GPSD_HOST`/`GPSD_PORT`, default `127.0.0.1:2947`, watching `GPSD_DEVICE`):
+
+- connect to `gpsd` over its JSON socket, enable `WATCH` for the configured device
+- decode `TPV` (position/velocity/fix), `SKY` (satellites seen/used), and `PPS` (pulse-vs-
+  system-clock offset) messages into `gps.SystemFix` (`internal/gps/gpsd.go`)
+- publish to `inertial/gps/system` (`TOPIC_GPS_SYSTEM`), distinct from the NMEA `inertial/gps`
+  stream, and is surfaced on the web UI's **Timing** page (`web/timing.html` via `/api/timing`)
+- ✅ `gpsd` bridge (JSON protocol), config-driven host/port/device, PPS-vs-clock offset reporting
+- ✅ no raw serial dependency — complements `gps_producer` rather than contending for a port
 
 ## 6. Consumers
 
@@ -594,6 +616,7 @@ GET /api/imu/right            → last right IMURaw
 GET /api/env/left             → last left Sample (temp + pressure)
 GET /api/env/right            → last right Sample (temp + pressure)
 GET /api/gps                  → last GPS Fix (full data)
+GET /api/timing               → chrony timing sources + tracking (for web/timing.html)
 GET /api/config               → system configuration (weather update interval, celestial server port, etc.)
 ```
 
@@ -848,8 +871,8 @@ long as it has power (see [NAVCOMPUTER.md](../NAVCOMPUTER.md)).
 - `Ready()` signals startup complete (for `Type=notify` units)
 - `StartHeartbeat(ctx, interval)` sends `READY=1` then periodic `WATCHDOG=1` pings
 - No-ops when `$NOTIFY_SOCKET` isn't set, so every binary still runs standalone (`./imu_producer`)
-- Wired into every long-running service: `imu_producer`, `gps_producer`, `hmc5983_producer`,
-  `web`, `display`, `celestial`, `console_mqtt`, `power_producer`
+- Wired into every long-running service: `imu_producer`, `gps_producer`, `gpsd_producer`,
+  `hmc5983_producer`, `web`, `display`, `celestial`, `console_mqtt`, `power_producer`
 - Paired with `systemd/*.service` units (`Type=notify`, `WatchdogSec=30`, `Restart=always`,
   `RestartSec=5`, `StartLimitIntervalSec=0`) so systemd restarts any service whose heartbeat stops,
   independent of whether the process crashed or merely hung

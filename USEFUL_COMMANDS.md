@@ -43,6 +43,7 @@ ls -la /dev/i2c-*
 go build -o bin/imu_producer ./cmd/imu_producer/
 go build -o bin/web ./cmd/web/
 go build -o bin/gps_producer ./cmd/gps_producer/
+go build -o bin/gpsd_producer ./cmd/gpsd_producer/
 go build -o bin/console_mqtt ./cmd/console_mqtt/
 go build -o bin/display ./cmd/display/
 
@@ -68,6 +69,9 @@ sudo go run ./cmd/web/main.go
 # Run GPS producer (requires sudo for serial port access)
 sudo go run ./cmd/gps_producer/main.go
 
+# Run system-GPS producer (bridges gpsd JSON -> MQTT, no sudo; gpsd holds /dev/ttyAMA3)
+go run ./cmd/gpsd_producer/main.go
+
 # Run console MQTT subscriber (no sudo needed)
 go run ./cmd/console_mqtt/main.go
 
@@ -89,6 +93,7 @@ mosquitto_sub -h localhost -t 'inertial/pose/left'
 mosquitto_sub -h localhost -t 'inertial/pose/right'
 mosquitto_sub -h localhost -t 'inertial/pose/fused'
 mosquitto_sub -h localhost -t 'inertial/gps'
+mosquitto_sub -h localhost -t 'inertial/gps/system'
 mosquitto_sub -h localhost -t 'inertial/bmp/left'
 mosquitto_sub -h localhost -t 'inertial/bmp/right'
 ```

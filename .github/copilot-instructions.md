@@ -38,8 +38,9 @@ All source files must include the standard license header:
 
 ### Message Bus Isolation
 **Pattern**: Producers and consumers are completely decoupled via MQTT. Never add direct dependencies between them.
-- **Producers** (`cmd/imu_producer`, `cmd/gps_producer`) read hardware and publish JSON
-- **Consumers** (`cmd/console_mqtt`, `cmd/web`, `cmd/display`) subscribe to topics
+- **Producers** (`cmd/imu_producer`, `cmd/gps_producer`, `cmd/gpsd_producer`, `cmd/hmc5983_producer`,
+  `cmd/power_producer`) read hardware and publish JSON
+- **Consumers** (`cmd/console_mqtt`, `cmd/web`, `cmd/display`, `cmd/celestial`) subscribe to topics
 - All components can restart independently without affecting others
 - Example: Adding new consumer requires zero producer changes
 

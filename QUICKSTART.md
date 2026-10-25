@@ -29,6 +29,7 @@ go build -o bin/display ./cmd/display/
 go build -o bin/register_debug ./cmd/register_debug/
 go build -o bin/celestial ./cmd/celestial/
 go build -o bin/power_producer ./cmd/power_producer/
+go build -o bin/gpsd_producer ./cmd/gpsd_producer/
 ```
 
 ## Step 2: Configure
@@ -43,7 +44,10 @@ Key settings to verify:
 - `MQTT_BROKER` - MQTT broker address (default: `tcp://localhost:1883`)
 - `WEB_SERVER_PORT` - Web UI port (default: `8080`)
 - `CELESTIAL_SERVER_PORT` - Celestial navigation app port (default: `8082`)
-- `GPS_SERIAL_DEVICE` - GPS serial port (e.g., `/dev/ttyAMA0`)
+- `GPS_SERIAL_PORT` - inertial-computer GPS serial port (e.g., `/dev/serial0`, default `/dev/serial0`)
+- `GPSD_HOST` / `GPSD_PORT` / `GPSD_DEVICE` - system GPS (gpsd bridge) host, port, and
+  device for the second module on `/dev/ttyAMA3` (defaults: `127.0.0.1`, `2947`,
+  `/dev/ttyAMA3`) — see Step 4 Terminal 8
 - `LEDGER_FILE_PATH` - append-only audit log path (default: `./inertial_ledger.jsonl`)
 - `POWER_I2C_ADDR` - PiSugar 3 UPS address (default: `0x57`)
 - `POWER_SHUTDOWN_COMMAND` / `POWER_HW_WATCHDOG_ENABLE` - leave disabled (default) until you've
@@ -195,6 +199,29 @@ starting inertial-computer power/UPS producer (PiSugar 3 → MQTT)
 power: producer started
 ```
 
+### Terminal 8: System GPS Producer (Optional, requires gpsd + a second GPS module)
+
+A second GPS module on `/dev/ttyAMA3` (with PPS wired to GPIO6) feeds `gpsd`/chrony for
+time discipline. Because `gpsd` holds that device exclusively, this producer reads the fix
+over `gpsd`'s JSON network protocol (`GPSD_HOST`/`GPSD_PORT`) rather than opening the serial
+port, and publishes to `inertial/gps/system` (`TOPIC_GPS_SYSTEM`):
+
+```bash
+cd ~/go/src/github.com/relabs-tech/inertial_computer
+./gpsd_producer
+```
+
+Expected output:
+```
+starting inertial-computer gpsd producer (gpsd JSON -> MQTT, system GPS on ttyAMA3)
+gpsd producer connected to MQTT broker at tcp://localhost:1883
+gpsd producer connected to gpsd at 127.0.0.1:2947
+```
+
+This is distinct from the `gps_producer` (Terminal 3), which reads the inertial-computer's
+own module on `/dev/serial0` directly over NMEA. The system-GPS timing is surfaced on the
+web UI's **Timing** page (see Step 5).
+
 ### Configuring Display Content
 
 You can configure what data appears on each display by editing `inertial_config.txt`:
@@ -234,6 +261,12 @@ You should see:
 - GPS position and satellite data
 - Environmental sensor data (BMP280)
 - 3D orientation visualization
+- Links to the **Celestial Navigation** app (`:8082`), the register debugger, and the
+  **Timing** page (`/timing.html`)
+
+The **Timing** page shows UTC / sidereal clocks, the live system-GPS fix (from
+`gpsd_producer`, `inertial/gps/system`), and chrony's timing sources / tracking, served by
+the web API at `/api/timing`.
 
 ## Step 6: Calibrate IMUs (Recommended)
 
@@ -468,6 +501,15 @@ sudo ./gps_producer
 
 ## Systemd Services (Auto-Start on Boot)
 
+For quick local bring-up without systemd, `scripts/startup.sh` builds the binaries into `bin/`
+and starts/stops/reports status on all producers and servers (and prints the listening ports):
+
+```bash
+./scripts/startup.sh start   # build + start everything
+./scripts/startup.sh status  # running services + listening ports (web, celestial, mosquitto)
+./scripts/startup.sh stop
+```
+
 Hardened unit files are checked into [`systemd/`](systemd/) — `Type=notify` + `WatchdogSec=30`
 (paired with each binary's built-in `internal/watchdog` heartbeat) + `Restart=always`, grouped
 under `inertial.target`. Don't hand-write units; install them with:
@@ -482,7 +524,7 @@ them to `/etc/systemd/system/`, and runs `systemctl daemon-reload`.
 Then enable/start the always-on services:
 
 ```bash
-sudo systemctl enable --now inertial-imu inertial-gps inertial-hmc5983 \
+sudo systemctl enable --now inertial-imu inertial-gps inertial-gpsd inertial-hmc5983 \
     inertial-web inertial-display inertial-celestial inertial-power
 ```
 

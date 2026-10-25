@@ -40,7 +40,7 @@ Current hardware: Raspberry Pi 4, dual MPU9250 IMUs, HMC5983 compass, dual BMP e
 | **RTC with battery backup** (e.g. DS3231) | Pi 4 has no onboard RTC; without one, clock resets to boot time on power loss — breaks chronometer function and DR timestamping before GPS lock. | **Done** — DS3231 added, `dtoverlay=i2c-rtc,ds3231` enabled in `config.txt` |
 | **GPS PPS (pulse-per-second) discipline** | Raw NMEA timestamps are only ~100ms-accurate; PPS gives sub-microsecond edges for true chronometer-grade GPS time discipline. | **Done** — two GPS modules: one on `/dev/serial0` dedicated to the inertial-computer `gps_producer` app, a second on `/dev/ttyAMA3` (`dtoverlay=uart3`, GPIO4/5) wired PPS/TIMEPULSE to GPIO6 (`dtoverlay=pps-gpio,gpiopin=6`) feeding `gpsd`/chrony. Both UART and PPS are physically wired and confirmed live. |
 | **UPS with I2C fuel gauge + auto-power-on-restore** | Required to know battery state, safely shut down before brownout, and auto-boot when power returns. | **Done** — PiSugar 3 (10 Ah), I2C address `0x57`, register map documented at https://docs.pisugar.com/docs/product-wiki/battery/pisugar3/pisugar-3-i2c. Also has its own hardware watchdog (power-cycles the Pi even on a fully hung kernel) — see `cmd/power_producer`. |
-| **WiFi for hotspot** | Needed for laptop/tablet access to web apps. | **Done** — Pi 4 has onboard WiFi/BT, plus a USB WiFi dongle added. **Open item**: the dongle enumerates as `Aicsemi Aic MSC` (mass-storage/"CD-ROM installer" mode) instead of a network interface — typical of cheap AIC8800-chipset dongles needing a mode-switch/driver. Only onboard `wlan0` is active for now. |
+| **WiFi for hotspot** | Needed for laptop/tablet access to web apps. | **Done** — `scripts/NavComputer.sh` sets the onboard `wlan0` up as the "Navigation Computer" access point (192.168.50.1, DHCP + NAT) with the USB dongle as the uplink; `scripts/WifiNormal.sh` returns onboard Wi-Fi to the home network. Both persist across reboots. **Open item**: the dongle enumerates as `Aicsemi Aic MSC` (mass-storage/"CD-ROM installer" mode) instead of a network interface — typical of cheap AIC8800-chipset dongles needing a mode-switch/driver; `NavComputer.sh` degrades gracefully when the dongle is absent, using onboard `wlan0` AP alone. |
 | **External/active GPS antenna** | Cabin/below-deck reception is often poor; GPS is also the time source. | Recommended, likely already planned |
 | **Speed input for DR** | IMU+compass alone cannot do dead reckoning (accelerometers can't sense constant velocity). Need GPS speed, NMEA log/paddlewheel sensor, or manual entry. | Plan to support **all three** |
 | **Storage reliability** | SD cards are the #1 failure point under vibration + sudden power loss. | Recommend industrial-grade SD card or eMMC/SSD + read-only/overlay root filesystem |
@@ -87,6 +87,15 @@ sufficient on its own.
    for HP48 is mature in that ecosystem), triggered manually or on cable-connect, logged to ledger.
 9. **Skyfield integration** — Python environment/venv on the Pi, pre-bundled ephemeris kernel,
    likely its own small service producing/cross-checking almanac data for the celestial app.
+10. **Captive portal / AP onboarding** — when a laptop/tablet joins the "Navigation Computer"
+    hotspot (from `scripts/NavComputer.sh`, `192.168.50.1`), the first request from a new client
+    is intercepted (DNS/HTTP) and a sign-in page is presented; on a successful sign-in the browser
+    is redirected straight to the nav website landing page (the web dashboard `:8080`, and/or the
+    celestial app `:8082`). Likely a small, dependency-light Go service (`cmd/portal`, or folded
+    into `cmd/web`) with a `systemd/` unit + watchdog/ledger wiring consistent with the other
+    services, started/stopped alongside the AP in `NavComputer.sh`. Config-driven via `inertial_config.txt`
+    (e.g. `PORTAL_*` keys: enabled, listen port, landing target, and where credentials live). Must
+    degrade gracefully when no client connects and never disrupt the existing dashboard/celestial access.
 
 ---
 
@@ -163,6 +172,21 @@ sufficient on its own.
 - [ ] Scheduled updater service + ledger integration
 - [ ] Skyfield Python environment + pre-bundled ephemeris kernel
 - [ ] HP48GX serial cable/adapter wiring + sync utility
+
+### Phase 6 — AP onboarding / captive portal
+- [ ] Decide sign-in model: single shared passphrase / per-device codes / no-auth "click to
+      continue" — and where credentials are stored (config vs a small local store, logged to ledger)
+- [ ] `cmd/portal` (or fold into `cmd/web`) — intercept the first HTTP/DNS request from a newly
+      connected AP client and serve a sign-in page; on success redirect to the nav website landing
+      page (web dashboard `:8080`, and/or celestial `:8082`)
+- [ ] Wire it into `scripts/NavComputer.sh` so the portal starts/stops with the "Navigation
+      Computer" access point; add a hardened `systemd/` unit (`Type=notify`, `WatchdogSec`,
+      `Restart=always`) + `internal/watchdog` heartbeat + `internal/ledger` start/sign-in entries
+- [ ] Config-driven via `inertial_config.txt` (e.g. `PORTAL_ENABLED`, `PORTAL_LISTEN_PORT`,
+      `PORTAL_LANDING_URL`, `PORTAL_CREDENTIALS` / source), never hardcoded
+- [ ] Graceful degradation: portal must not disrupt existing dashboard/celestial access or block
+      when no client is connected; verify it works for both onboard `wlan0` AP and (when the AIC8800
+      dongle mode-switch is done) the dongle uplink
 
 ---
 

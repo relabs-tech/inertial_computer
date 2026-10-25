@@ -26,7 +26,19 @@ document now owns the phased plan for anything beyond the sensor/MQTT/web work b
   - ✅ `internal/ledger` — append-only JSONL audit log
   - ✅ `cmd/power_producer` + `internal/sensors/pisugar` — PiSugar 3 UPS monitoring over I2C
   - ✅ Hardened `systemd/` unit files + `inertial.target` + `scripts/install_systemd_services.sh`
+  - ✅ `scripts/startup.sh` — dev convenience: build into `bin/` + start/stop/status all
+    services, reporting listening ports (web, celestial, mosquitto)
   - ⚠️ `scripts/setup_rtc.sh` and `scripts/setup_readonly_root.sh` still pending
+- **System GPS + timing** (2026-10-19, Phase 2 of NAVCOMPUTER.md)
+  - ✅ `cmd/gpsd_producer` + `internal/app/gpsd_producer.go` — bridges the chrony-disciplined
+    GPS on `/dev/ttyAMA3` from `gpsd`'s JSON protocol to MQTT (`inertial/gps/system`)
+  - ✅ `internal/gps/gpsd.go` (`SystemFix`) + config keys `GPSD_HOST`/`GPSD_PORT`/
+    `GPSD_DEVICE`/`TOPIC_GPS_SYSTEM`
+  - ✅ `web/timing.html` + `internal/app/timing_handler.go` (`/api/timing`): UTC / sidereal
+    clocks, live system-GPS fix, chrony timing sources / tracking
+- **WiFi mode scripts** (2026-10-21)
+  - ✅ `scripts/NavComputer.sh` — onboard Wi-Fi as access point, USB dongle as uplink
+  - ✅ `scripts/WifiNormal.sh` — return onboard Wi-Fi to the home network
 - **Display consumer** ✅ Dual SSD1306 OLED support with configurable content
   - SSD1306 driver fork enhancements: dual I2C address support, VerticalLSB image format, differential updates
   - Efficient pixel manipulation via `image1bit` package with `SetBit()` / `BitAt()` methods
