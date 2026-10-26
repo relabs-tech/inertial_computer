@@ -107,6 +107,13 @@ GPSD_HOST=127.0.0.1
 GPSD_PORT=2947
 GPSD_DEVICE=/dev/ttyAMA3
 
+# Hardware RTC (DS3231 on /dev/rtc0, rtc-ds1307 driver). The timing page's
+# "RTC (DS3231)" card reads the world-readable sysfs date/time attributes so the
+# unprivileged web service can show the RTC and its drift vs the system clock
+# without root/hwclock. Default is /sys/class/rtc/rtc0; point this elsewhere if
+# the RTC is registered as a different device.
+RTC_SYSFS_DIR=/sys/class/rtc/rtc0
+
 # ============================================================================
 # Magnetometer (AK8963) Configuration
 # ============================================================================

@@ -71,6 +71,21 @@ func RunWeb() error {
 			Time string  `json:"time"`
 		}
 		haveHMCMag bool
+
+		// Power / UPS (PiSugar 3 family)
+		lastPower struct {
+			VoltageMV          int     `json:"voltage_mv"`
+			Percent            float64 `json:"percent"`
+			ExternalPower      bool    `json:"external_power"`
+			Charging           bool    `json:"charging"`
+			OutputOn           bool    `json:"output_on"`
+			AutoHibernate      bool    `json:"auto_hibernate"`
+			SoftShutdownEnable bool    `json:"soft_shutdown_enabled"`
+			SoftShutdownPend   bool    `json:"soft_shutdown_pending"`
+			WatchdogArmed      bool    `json:"watchdog_armed"`
+			Time               string  `json:"time"`
+		}
+		havePower bool
 	)
 
 	// 1) Connect to MQTT
@@ -242,6 +257,38 @@ func RunWeb() error {
 			return hmcToken.Error()
 		}
 		log.Printf("web: subscribed to %s", hmcTopic)
+	}
+
+	// Subscribe to Power / UPS (PiSugar 3 family), if configured
+	powerTopic := cfg.TopicPower
+	if powerTopic != "" {
+		powerToken := client.Subscribe(powerTopic, 0, func(_ mqtt.Client, msg mqtt.Message) {
+			var p struct {
+				VoltageMV          int     `json:"voltage_mv"`
+				Percent            float64 `json:"percent"`
+				ExternalPower      bool    `json:"external_power"`
+				Charging           bool    `json:"charging"`
+				OutputOn           bool    `json:"output_on"`
+				AutoHibernate      bool    `json:"auto_hibernate"`
+				SoftShutdownEnable bool    `json:"soft_shutdown_enabled"`
+				SoftShutdownPend   bool    `json:"soft_shutdown_pending"`
+				WatchdogArmed      bool    `json:"watchdog_armed"`
+				Time               string  `json:"time"`
+			}
+			if err := json.Unmarshal(msg.Payload(), &p); err != nil {
+				log.Printf("web: power unmarshal error: %v", err)
+				return
+			}
+			mu.Lock()
+			lastPower = p
+			havePower = true
+			mu.Unlock()
+		})
+		powerToken.Wait()
+		if powerToken.Error() != nil {
+			return powerToken.Error()
+		}
+		log.Printf("web: subscribed to %s", powerTopic)
 	}
 
 	// Subscribe to IMU left
@@ -496,12 +543,28 @@ func RunWeb() error {
 		}
 	})
 
+	// 6d) JSON API: Power / UPS (PiSugar 3 family)
+	http.HandleFunc("/api/power", func(w http.ResponseWriter, r *http.Request) {
+		mu.RLock()
+		defer mu.RUnlock()
+		if !havePower {
+			http.Error(w, "no power data yet", http.StatusServiceUnavailable)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		if err := json.NewEncoder(w).Encode(lastPower); err != nil {
+			log.Printf("web: power JSON encode error: %v", err)
+		}
+	})
+
 	// API endpoint for configuration
 	http.HandleFunc("/api/config", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		configData := map[string]interface{}{
 			"weather_update_interval_minutes": cfg.WeatherUpdateIntervalMinutes,
 			"celestial_server_port":           cfg.CelestialServerPort,
+			"power_low_battery_percent":       cfg.PowerLowBatteryPercent,
+			"power_critical_battery_percent":  cfg.PowerCriticalBatteryPercent,
 		}
 		if err := json.NewEncoder(w).Encode(configData); err != nil {
 			log.Printf("web: config JSON encode error: %v", err)

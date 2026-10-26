@@ -117,6 +117,10 @@ type Config struct {
 	// Timing
 	IMUSampleInterval  int // milliseconds
 	ConsoleLogInterval int // milliseconds
+	// RTCSysfsDir is the sysfs directory for the hardware RTC (DS3231), read
+	// by the timing page's RTC card. It's world-readable, so the unprivileged
+	// web service can read it without hwclock/CAP_SYS_TIME.
+	RTCSysfsDir string
 
 	// Web Server
 	WebServerPort                int
@@ -224,6 +228,11 @@ func Load(configPath string) (*Config, error) {
 	// Validate required fields
 	if err := cfg.validate(); err != nil {
 		return nil, err
+	}
+
+	// Defaults for optional fields
+	if cfg.RTCSysfsDir == "" {
+		cfg.RTCSysfsDir = "/sys/class/rtc/rtc0"
 	}
 
 	return cfg, nil
@@ -508,6 +517,10 @@ func (c *Config) setValue(key, value string) error {
 		c.GPSDPort = port
 	case "GPSD_DEVICE":
 		c.GPSDDevice = value
+
+	// Hardware RTC (DS3231) sysfs directory for the timing page
+	case "RTC_SYSFS_DIR":
+		c.RTCSysfsDir = value
 
 	// Magnetometer Configuration
 	case "MAG_WRITE_DELAY_MS":

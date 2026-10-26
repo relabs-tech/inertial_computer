@@ -110,6 +110,24 @@
       color: var(--muted);
     }
 
+    /* Power / UPS battery bar */
+    .power-bar {
+      width: 100%;
+      height: 8px;
+      background: #2a2d34;
+      border-radius: 4px;
+      overflow: hidden;
+      margin: 0.4rem 0;
+    }
+    .power-bar-fill {
+      height: 100%;
+      width: 0%;
+      background: var(--accent);
+      transition: width 0.3s ease, background 0.3s ease;
+    }
+    .power-bar-fill.warn { background: #ff9800; }
+    .power-bar-fill.crit { background: #f44336; }
+
     /* Satellite sky plot */
     .sat-card {
       grid-column: span 2;
@@ -369,6 +387,45 @@
           <div class="status" id="hmcStatus">HMC: connecting…</div>
         </div>
 
+        <!-- Power / UPS (PiSugar 3) -->
+        <div class="card" id="power-card">
+          <h2>Power / UPS</h2>
+          <div class="value-row">
+            <div class="label">Battery</div>
+            <div class="value"><span id="power-percent">--</span><span class="unit">%</span></div>
+          </div>
+          <div class="power-bar"><div class="power-bar-fill" id="power-bar-fill"></div></div>
+          <div class="value-row">
+            <div class="label">Voltage</div>
+            <div class="value"><span id="power-voltage">--</span><span class="unit">V</span></div>
+          </div>
+          <div class="value-row">
+            <div class="label">Source</div>
+            <div class="value" id="power-source">--</div>
+          </div>
+          <div class="value-row">
+            <div class="label">Charging</div>
+            <div class="value" id="power-charging">--</div>
+          </div>
+          <div class="value-row">
+            <div class="label">Output</div>
+            <div class="value" id="power-output">--</div>
+          </div>
+          <div class="value-row">
+            <div class="label">Auto-hyb</div>
+            <div class="value" id="power-autohyb">--</div>
+          </div>
+          <div class="value-row">
+            <div class="label">Soft-shut</div>
+            <div class="value" id="power-softshut">--</div>
+          </div>
+          <div class="value-row">
+            <div class="label">Watchdog</div>
+            <div class="value" id="power-watchdog">--</div>
+          </div>
+          <div class="status" id="powerStatus">UPS: connecting…</div>
+        </div>
+
         <!-- Atmospheric Data by GPS Location -->
         <div class="card">
           <h2>Weather @ GPS</h2>
@@ -487,6 +544,18 @@
     const hmcNorm = document.getElementById('hmc-norm');
     const hmcStatus = document.getElementById('hmcStatus');
 
+    // Power / UPS (PiSugar 3)
+    const powerPercent = document.getElementById('power-percent');
+    const powerBarFill = document.getElementById('power-bar-fill');
+    const powerVoltage = document.getElementById('power-voltage');
+    const powerSource = document.getElementById('power-source');
+    const powerCharging = document.getElementById('power-charging');
+    const powerOutput = document.getElementById('power-output');
+    const powerAutoHyb = document.getElementById('power-autohyb');
+    const powerSoftShut = document.getElementById('power-softshut');
+    const powerWatchdog = document.getElementById('power-watchdog');
+    const powerStatus = document.getElementById('powerStatus');
+
     // Atmospheric @ GPS
     const atmLocation = document.getElementById('atm-location');
     const atmCoords = document.getElementById('atm-coords');
@@ -502,6 +571,11 @@
     let lastWeatherFetch = 0;
     let cachedWeatherData = null;
 
+    // Power battery thresholds, loaded from config so the bar colors match the
+    // producer's low/critical triggers (no hardcoded thresholds in the UI).
+    let POWER_LOW_BATTERY_PERCENT = 20;
+    let POWER_CRITICAL_BATTERY_PERCENT = 8;
+
     // Load configuration from server
     async function loadConfig() {
       try {
@@ -509,6 +583,8 @@
         if (res.ok) {
           const config = await res.json();
           WEATHER_UPDATE_INTERVAL_MINUTES = config.weather_update_interval_minutes || 5;
+          if (config.power_low_battery_percent) POWER_LOW_BATTERY_PERCENT = config.power_low_battery_percent;
+          if (config.power_critical_battery_percent) POWER_CRITICAL_BATTERY_PERCENT = config.power_critical_battery_percent;
           console.log(`Weather update interval: ${WEATHER_UPDATE_INTERVAL_MINUTES} minutes`);
           if (config.celestial_server_port) {
             const celestialUrl = `${window.location.protocol}//${window.location.hostname}:${config.celestial_server_port}/`;
@@ -978,6 +1054,59 @@
       }
     }
 
+    async function fetchPower() {
+      try {
+        const res = await fetch('/api/power', { cache: 'no-store' });
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const d = await res.json();
+
+        const pct = d.percent ?? 0;
+        powerPercent.textContent = pct.toFixed(1);
+
+        // Voltage in volts
+        powerVoltage.textContent = ((d.voltage_mv ?? 0) / 1000).toFixed(3);
+
+        // Source: shore power vs battery
+        powerSource.textContent = d.external_power ? 'Shore power' : 'Battery';
+
+        // Charging indicator
+        powerCharging.textContent = d.charging ? 'Yes' : (d.external_power ? 'No (full?)' : '—');
+
+        // Output on (5V being supplied)
+        powerOutput.textContent = d.output_on ? 'On' : 'Off';
+
+        // Auto-hibernate enabled?
+        powerAutoHyb.textContent = d.auto_hibernate ? 'On' : 'Off';
+
+        // Soft-shutdown enabled / in progress
+        powerSoftShut.textContent = d.soft_shutdown_pending ? 'PENDING' : (d.soft_shutdown_enabled ? 'Armed' : 'Off');
+
+        // Watchdog arming status
+        powerWatchdog.textContent = d.watchdog_armed ? 'Armed' : 'Off';
+
+        // Color the battery bar by the same thresholds the producer uses
+        powerBarFill.style.width = Math.max(0, Math.min(100, pct)) + '%';
+        powerBarFill.classList.remove('warn', 'crit');
+        if (pct <= POWER_CRITICAL_BATTERY_PERCENT) {
+          powerBarFill.classList.add('crit');
+        } else if (pct <= POWER_LOW_BATTERY_PERCENT) {
+          powerBarFill.classList.add('warn');
+        }
+
+        // Status / freshness
+        const ageSec = d.time ? Math.floor((Date.now() - new Date(d.time).getTime()) / 1000) : null;
+        let status = 'UPS: live from MQTT';
+        if (d.soft_shutdown_pending) {
+          status = 'UPS: SHUTTING DOWN…';
+        } else if (ageSec !== null) {
+          status = ageSec <= 1 ? 'UPS: live from MQTT' : `UPS: ${ageSec}s ago`;
+        }
+        powerStatus.textContent = status;
+      } catch (err) {
+        powerStatus.textContent = 'UPS: no data';
+      }
+    }
+
     async function fetchAtmospheric() {
       try {
         // Get GPS position
@@ -1107,6 +1236,7 @@
       fetchEnvRight();
       fetchAtmospheric();
       fetchHMCMag();
+      fetchPower();
     }
 
     // Load config then start polling

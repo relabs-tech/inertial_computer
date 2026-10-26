@@ -236,6 +236,15 @@
           <div class="status" id="chronyStatus">Chrony: connecting…</div>
         </div>
 
+        <!-- Hardware RTC: DS3231 on /dev/rtc, disciplined back via chrony rtcsync -->
+        <div class="card">
+          <h2>RTC (DS3231, /dev/rtc)</h2>
+          <div class="value-row"><div class="label">RTC time (UTC)</div><div class="value" id="rtc-time">--</div></div>
+          <div class="value-row"><div class="label">System time</div><div class="value" id="rtc-sys">--</div></div>
+          <div class="value-row"><div class="label">Drift (RTC − sys)</div><div class="value" id="rtc-drift">--</div></div>
+          <div class="status" id="rtcStatus">RTC: connecting…</div>
+        </div>
+
         <!-- chrony sources table -->
         <div class="card wide">
           <h2>Timing Sources</h2>
@@ -373,6 +382,17 @@
           chronyStatusEl.textContent = 'Chrony: ' + data.error;
           sourcesStatusEl.textContent = 'Sources: ' + data.error;
           sourcesBody.innerHTML = '<tr><td colspan="7">unavailable</td></tr>';
+          // RTC may still be present even when chrony is unavailable; render it if so.
+          const rtc = data.rtc || {};
+          const rtcStatusEl = document.getElementById('rtcStatus');
+          if (rtc.error) {
+            rtcStatusEl.textContent = 'RTC: ' + rtc.error;
+          } else {
+            document.getElementById('rtc-time').textContent = rtc.time || '--';
+            document.getElementById('rtc-sys').textContent = rtc.sys_time || '--';
+            document.getElementById('rtc-drift').textContent = rtc.drift || '--';
+            rtcStatusEl.textContent = 'RTC: live from hwclock';
+          }
           return;
         }
 
@@ -384,6 +404,20 @@
         document.getElementById('trk-rmsoffset').textContent = trk['RMS offset'] || '--';
         document.getElementById('trk-leap').textContent = trk['Leap status'] || '--';
         chronyStatusEl.textContent = 'Chrony: live';
+
+        const rtc = data.rtc || {};
+        const rtcStatusEl = document.getElementById('rtcStatus');
+        if (rtc.error) {
+          document.getElementById('rtc-time').textContent = '--';
+          document.getElementById('rtc-sys').textContent = '--';
+          document.getElementById('rtc-drift').textContent = '--';
+          rtcStatusEl.textContent = 'RTC: ' + rtc.error;
+        } else {
+          document.getElementById('rtc-time').textContent = rtc.time || '--';
+          document.getElementById('rtc-sys').textContent = rtc.sys_time || '--';
+          document.getElementById('rtc-drift').textContent = rtc.drift || '--';
+          rtcStatusEl.textContent = 'RTC: live from hwclock';
+        }
 
         const sources = data.sources || [];
         if (sources.length === 0) {
@@ -408,6 +442,7 @@
       } catch (err) {
         chronyStatusEl.textContent = 'Chrony error: ' + err.message;
         sourcesStatusEl.textContent = 'Sources error: ' + err.message;
+        document.getElementById('rtcStatus').textContent = 'RTC error: ' + err.message;
       }
     }
 

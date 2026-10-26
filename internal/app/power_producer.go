@@ -21,10 +21,16 @@ import (
 
 // powerPayload is the JSON schema published to TOPIC_POWER.
 type powerPayload struct {
-	VoltageMV     int     `json:"voltage_mv"`
-	Percent       float64 `json:"percent"`
-	ExternalPower bool    `json:"external_power"`
-	Time          string  `json:"time"`
+	VoltageMV          int     `json:"voltage_mv"`
+	Percent            float64 `json:"percent"`
+	ExternalPower      bool    `json:"external_power"`
+	Charging           bool    `json:"charging"`
+	OutputOn           bool    `json:"output_on"`
+	AutoHibernate      bool    `json:"auto_hibernate"`
+	SoftShutdownEnable bool    `json:"soft_shutdown_enabled"`
+	SoftShutdownPend   bool    `json:"soft_shutdown_pending"`
+	WatchdogArmed      bool    `json:"watchdog_armed"`
+	Time               string  `json:"time"`
 }
 
 // battery state transitions, tracked so the ledger only gets one entry per transition
@@ -131,11 +137,45 @@ func RunPowerProducer() error {
 			fmt.Printf("power: read external-power error: %v\n", err)
 		}
 
+		// Status bits. These are best-effort: a transient read failure on any of
+		// them shouldn't drop the voltage/percent we already have, so we log and
+		// publish the last-known (false) values rather than skipping the whole poll.
+		charging, err := dev.Charging()
+		if err != nil {
+			fmt.Printf("power: read charging error: %v\n", err)
+		}
+		outputOn, err := dev.OutputOn()
+		if err != nil {
+			fmt.Printf("power: read output-on error: %v\n", err)
+		}
+		autoHibernate, err := dev.AutoHibernate()
+		if err != nil {
+			fmt.Printf("power: read auto-hibernate error: %v\n", err)
+		}
+		softShutdownEnable, err := dev.SoftShutdownEnabled()
+		if err != nil {
+			fmt.Printf("power: read soft-shutdown-enabled error: %v\n", err)
+		}
+		softShutdownPend, err := dev.SoftShutdownPending()
+		if err != nil {
+			fmt.Printf("power: read soft-shutdown-pending error: %v\n", err)
+		}
+		watchdogArmed, err := dev.WatchdogArmed()
+		if err != nil {
+			fmt.Printf("power: read watchdog-armed error: %v\n", err)
+		}
+
 		payload := powerPayload{
-			VoltageMV:     mv,
-			Percent:       pct,
-			ExternalPower: extPower,
-			Time:          time.Now().UTC().Format(time.RFC3339),
+			VoltageMV:          mv,
+			Percent:            pct,
+			ExternalPower:      extPower,
+			Charging:           charging,
+			OutputOn:           outputOn,
+			AutoHibernate:      autoHibernate,
+			SoftShutdownEnable: softShutdownEnable,
+			SoftShutdownPend:   softShutdownPend,
+			WatchdogArmed:      watchdogArmed,
+			Time:               time.Now().UTC().Format(time.RFC3339),
 		}
 		b, _ := json.Marshal(payload)
 		client.Publish(topic, 0, false, b).Wait()

@@ -104,6 +104,63 @@ func (d *Dev) ExternalPowerConnected() (bool, error) {
 	return v&0x80 != 0, nil
 }
 
+// Charging reports whether the battery is currently charging (regCtrl1 bit6).
+func (d *Dev) Charging() (bool, error) {
+	v, err := d.readReg(regCtrl1)
+	if err != nil {
+		return false, err
+	}
+	return v&0x40 != 0, nil
+}
+
+// OutputOn reports whether the UPS is currently supplying 5V output (regCtrl1 bit2).
+func (d *Dev) OutputOn() (bool, error) {
+	v, err := d.readReg(regCtrl1)
+	if err != nil {
+		return false, err
+	}
+	return v&0x04 != 0, nil
+}
+
+// AutoHibernate reports whether auto-hibernate is enabled (regCtrl2 bit6): the UPS
+// will hibernate the Pi automatically when the battery drops to its hibernate threshold.
+func (d *Dev) AutoHibernate() (bool, error) {
+	v, err := d.readReg(regCtrl2)
+	if err != nil {
+		return false, err
+	}
+	return v&0x40 != 0, nil
+}
+
+// SoftShutdownEnabled reports whether soft shutdown is enabled (regCtrl2 bit4).
+func (d *Dev) SoftShutdownEnabled() (bool, error) {
+	v, err := d.readReg(regCtrl2)
+	if err != nil {
+		return false, err
+	}
+	return v&0x10 != 0, nil
+}
+
+// SoftShutdownPending reports whether a soft shutdown is in progress (regCtrl2 bit3) —
+// the UPS is actively cutting output to power down the Pi safely.
+func (d *Dev) SoftShutdownPending() (bool, error) {
+	v, err := d.readReg(regCtrl2)
+	if err != nil {
+		return false, err
+	}
+	return v&0x08 != 0, nil
+}
+
+// WatchdogArmed reports whether the PiSugar's own power-cycling hardware watchdog
+// is currently enabled (regWatchdogCtl bit7).
+func (d *Dev) WatchdogArmed() (bool, error) {
+	v, err := d.readReg(regWatchdogCtl)
+	if err != nil {
+		return false, err
+	}
+	return v&0x80 != 0, nil
+}
+
 // EnableHardwareWatchdog arms the PiSugar's own power-cycling watchdog: if it isn't
 // kicked within intervalSeconds (rounded to the nearest 2s step), the PiSugar cuts
 // and restores 5V output, hard-power-cycling the Pi even if it's fully locked up —
