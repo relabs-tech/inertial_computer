@@ -283,17 +283,17 @@ func updateIMURawDisplay(dev *ssd1306.Dev, raw imu.IMURaw, haveData bool, label 
 	} else {
 		// Accel
 		drawer.Dot = fixed.P(0, 13)
-		drawer.DrawBytes([]byte(fmt.Sprintf("A:%5d %5d", raw.Ax, raw.Ay)))
+		drawer.DrawBytes(fmt.Appendf(nil, "A:%5d %5d", raw.Ax, raw.Ay))
 
 		drawer.Dot = fixed.P(0, 26)
-		drawer.DrawBytes([]byte(fmt.Sprintf("  %5d", raw.Az)))
+		drawer.DrawBytes(fmt.Appendf(nil, "  %5d", raw.Az))
 
 		// Gyro
 		drawer.Dot = fixed.P(0, 39)
-		drawer.DrawBytes([]byte(fmt.Sprintf("G:%5d %5d", raw.Gx, raw.Gy)))
+		drawer.DrawBytes(fmt.Appendf(nil, "G:%5d %5d", raw.Gx, raw.Gy))
 
 		drawer.Dot = fixed.P(0, 52)
-		drawer.DrawBytes([]byte(fmt.Sprintf("  %5d", raw.Gz)))
+		drawer.DrawBytes(fmt.Appendf(nil, "  %5d", raw.Gz))
 	}
 
 	return dev.Draw(dev.Bounds(), img, image.Point{})
@@ -321,15 +321,15 @@ func updateOrientationDisplay(dev *ssd1306.Dev, pose orientation.Pose, haveData 
 	} else {
 		// Roll
 		drawer.Dot = fixed.P(0, 13)
-		drawer.DrawBytes([]byte(fmt.Sprintf("R: %6.1f", pose.Roll)))
+		drawer.DrawBytes(fmt.Appendf(nil, "R: %6.1f", pose.Roll))
 
 		// Pitch
 		drawer.Dot = fixed.P(0, 26)
-		drawer.DrawBytes([]byte(fmt.Sprintf("P: %6.1f", pose.Pitch)))
+		drawer.DrawBytes(fmt.Appendf(nil, "P: %6.1f", pose.Pitch))
 
 		// Yaw
 		drawer.Dot = fixed.P(0, 39)
-		drawer.DrawBytes([]byte(fmt.Sprintf("Y: %6.1f", pose.Yaw)))
+		drawer.DrawBytes(fmt.Appendf(nil, "Y: %6.1f", pose.Yaw))
 	}
 
 	return dev.Draw(dev.Bounds(), img, image.Point{})
@@ -363,7 +363,7 @@ func updateGPSDisplay(dev *ssd1306.Dev, pos gps.Position, haveData bool) error {
 			latDir = "S"
 			lat = -lat
 		}
-		drawer.DrawBytes([]byte(fmt.Sprintf("%.4f%s", lat, latDir)))
+		drawer.DrawBytes(fmt.Appendf(nil, "%.4f%s", lat, latDir))
 
 		// Longitude
 		drawer.Dot = fixed.P(0, 26)
@@ -373,11 +373,11 @@ func updateGPSDisplay(dev *ssd1306.Dev, pos gps.Position, haveData bool) error {
 			lonDir = "W"
 			lon = -lon
 		}
-		drawer.DrawBytes([]byte(fmt.Sprintf("%.4f%s", lon, lonDir)))
+		drawer.DrawBytes(fmt.Appendf(nil, "%.4f%s", lon, lonDir))
 
 		// Altitude
 		drawer.Dot = fixed.P(0, 39)
-		drawer.DrawBytes([]byte(fmt.Sprintf("Alt: %.0fm", pos.Altitude)))
+		drawer.DrawBytes(fmt.Appendf(nil, "Alt: %.0fm", pos.Altitude))
 	}
 
 	return dev.Draw(dev.Bounds(), img, image.Point{})
