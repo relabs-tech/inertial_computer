@@ -37,9 +37,9 @@ type ChronySource struct {
 // (RTC minus system) should stay small while the GPS PPS lock is good; a growing
 // drift means the RTC is running free.
 type RTCInfo struct {
-	Time    string `json:"time"`    // RTC wall time (UTC)
+	Time    string `json:"time"`     // RTC wall time (UTC)
 	SysTime string `json:"sys_time"` // system clock at read time (UTC)
-	Drift   string `json:"drift"`   // RTC - system, signed, e.g. "+3 ms"
+	Drift   string `json:"drift"`    // RTC - system, signed, e.g. "+3 ms"
 	Error   string `json:"error,omitempty"`
 }
 
